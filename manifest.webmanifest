@@ -1,0 +1,1 @@
+{"background_color": "#0f172a", "description": "Volta — MTTL-W01 smart strip control, no cloud.", "display": "standalone", "icons": [{"purpose": "any", "sizes": "any", "src": "/icon.svg", "type": "image/svg+xml"}], "name": "Volta", "orientation": "portrait", "scope": "/", "short_name": "Volta", "start_url": "/", "theme_color": "#0f172a"}

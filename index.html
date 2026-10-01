@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volta — MTTL-W01 control</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#eef2f7;--card:#fff;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;
+--blue:#2563eb;--blue-d:#1d4ed8;--green:#16a34a;--red:#dc2626;--amber:#b45309;
+--radius:16px;--shadow:0 1px 2px rgba(15,23,42,.06),0 4px 14px rgba(15,23,42,.06)}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+.wrap{max-width:1024px;margin:0 auto;padding:16px 16px 40px}
+.hero{background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;border-radius:var(--radius);padding:18px 20px 0;margin-bottom:16px;box-shadow:var(--shadow)}
+.hero .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-bottom:12px}
+.hero h1{margin:0;font-size:21px}
+.dot{width:10px;height:10px;border-radius:99px;background:#64748b;flex:none}
+.dot.ok{background:#22c55e}.dot.bad{background:#ef4444}
+#srvState{font-size:12px;color:#cbd5e1}
+.tabs{display:flex;gap:4px;overflow-x:auto}
+.tab{border:none;background:none;color:#cbd5e1;font-size:15px;font-weight:600;padding:12px 16px;cursor:pointer;border-bottom:3px solid transparent;min-height:0;white-space:nowrap}
+.tab.on{color:#fff;border-bottom-color:#fff}
+.tabpane{display:none}.tabpane.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card>h3{margin:0 0 4px;font-size:16px}
+.card>h3 .sub{font-weight:400;color:var(--mut);font-size:13px}
+.desc{font-size:13px;color:var(--mut);margin:4px 0 12px;max-width:70ch}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;gap:8px;margin-bottom:8px}
+@media(min-width:640px){.grid.cols2{grid-template-columns:1fr 1fr}.grid.cols3{grid-template-columns:1fr 1fr 1fr}.grid.cols4{grid-template-columns:1fr 1fr 1fr 1fr}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field>span{font-size:12px;font-weight:600;color:var(--mut)}
+input,select,button{font-size:15px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+input{min-width:0;width:100%}input:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+input.mono{font-family:ui-monospace,monospace;font-size:13px}
+button{background:var(--blue);border-color:var(--blue);color:#fff;cursor:pointer;font-weight:600;min-height:44px}
+button:hover{background:var(--blue-d)}button:active{transform:translateY(1px)}
+button.ghost{background:#fff;color:var(--ink)}button.ghost:hover{background:#f1f5f9}
+button.danger{background:#fff;color:var(--red);border-color:#fecaca}
+button:disabled{opacity:.5;cursor:default}
+button.sm{padding:6px 10px;font-size:13px;min-height:0}
+.msgline{font-size:13px;color:var(--mut);min-height:20px}
+.err{color:var(--red);font-size:13px}
+.okmsg{color:var(--green);font-size:13px}
+.small{font-size:13px;color:var(--mut)}.mono{font-family:ui-monospace,monospace;font-size:12px}
+.tag{font-size:11px;font-weight:600;border-radius:99px;padding:3px 10px;background:#f1f5f9;color:#475569;border:1px solid var(--line);white-space:nowrap}
+.tag.warn{background:#fef3c7;color:var(--amber);border-color:#fde68a}
+.tag.ok{background:#dcfce7;color:var(--green);border-color:#bbf7d0}
+.tag.bad{background:#fee2e2;color:var(--red);border-color:#fecaca}
+/* overview + strips */
+.ov{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+@media(max-width:640px){.ov{grid-template-columns:repeat(2,1fr)}}
+.ov .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.ov .stat b{display:block;font-size:20px}
+.ov .stat span{font-size:12px;color:var(--mut)}
+.strip{border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0;background:#fff}
+.strip.off{opacity:.75}
+.strip-head{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px}
+.strip-head b{font-size:17px}
+.rename{background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer;padding:4px 6px;min-height:0}
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.outlet{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.outlet .nm{flex:1;min-width:0}.outlet .nm b{display:block;font-size:15px}.outlet .nm small{color:var(--mut)}
+.outlet.busy{opacity:.55}
+.sw{width:58px;height:32px;border-radius:99px;border:none;background:#cbd5e1;position:relative;min-height:0;padding:0;flex:none;transition:background .15s}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:99px;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw.on{background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.25)}.sw.on::after{left:30px}
+.sw:disabled{opacity:.45}
+.on-txt{color:var(--green);font-weight:700}
+.tbtn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:99px;min-height:0;padding:6px 12px;font-size:14px;font-weight:600}
+.tbtn:hover{background:rgba(255,255,255,.22)}
+details.adv{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;background:#fff}
+details.adv summary{cursor:pointer;font-weight:600;font-size:14px}
+.steps{margin:0 0 12px 18px;padding:0;font-size:13px;color:var(--mut)}
+.steps li{margin:4px 0}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);text-align:left}
+td,th{border-bottom:1px solid var(--line);padding:7px 6px;vertical-align:top}
+pre{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:10px;overflow:auto;font-size:12px;max-height:240px;margin:8px 0 0}
+footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
+@media(max-width:560px){button{min-height:46px}}
+.switchrow{display:flex;gap:8px;align-items:center;font-size:14px}
+.switchrow input{width:auto}
+.sched{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+.sched .row1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sched b{font-size:14px}
+.daypick{display:flex;gap:4px;flex-wrap:wrap}
+.daypick label{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;cursor:pointer;color:var(--mut)}
+.daypick input{display:none}
+.daypick label:has(input:checked){background:#dbeafe;border-color:var(--blue);color:var(--blue-d);font-weight:700}
+/* dark mode: auto + manual override */
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none} :root:not([data-theme="light"]) input,:root:not([data-theme="light"]) select{background:#0f1830;color:#e2e8f0;border-color:#24314f} :root:not([data-theme="light"]) button.ghost,:root:not([data-theme="light"]) button.danger{background:#0f1830;color:#e2e8f0} :root:not([data-theme="light"]) .ov .stat,:root:not([data-theme="light"]) .strip,:root:not([data-theme="light"]) details.adv{background:#131c31} :root:not([data-theme="light"]) .tag{background:#0f1830;color:#94a3b8} :root:not([data-theme="light"]) .sw{background:#334155}}
+:root[data-theme="dark"]{--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none}
+:root[data-theme="dark"] input,:root[data-theme="dark"] select{background:#0f1830;color:#e2e8f0;border-color:#24314f}
+:root[data-theme="dark"] button.ghost,:root[data-theme="dark"] button.danger{background:#0f1830;color:#e2e8f0}
+:root[data-theme="dark"] .ov .stat,:root[data-theme="dark"] .strip,:root[data-theme="dark"] details.adv{background:#131c31}
+:root[data-theme="dark"] .tag{background:#0f1830;color:#94a3b8}
+:root[data-theme="dark"] .sw{background:#334155}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+<div class="top">
+<span class="dot" id="srvDot"></span>
+<h1>⚡ Volta</h1>
+<span id="srvState">connecting…</span>
+<span style="flex:1"></span>
+<button class="tbtn" id="btnTheme" title="toggle light/dark">🌙</button>
+<span class="small" style="color:#cbd5e1" id="liveCount"></span>
+</div>
+<nav class="tabs">
+<button class="tab on" data-tab="control">Control</button>
+<button class="tab" data-tab="analytics">Analytics</button>
+<button class="tab" data-tab="strips">Strips</button>
+<button class="tab" data-tab="sched">Schedules</button>
+<button class="tab" data-tab="setup">Setup</button>
+<button class="tab" data-tab="tools">Advanced</button>
+<button class="tab" data-tab="settings">Settings</button>
+</nav>
+</header>
+
+<!-- ============ CONTROL ============ -->
+<section class="tabpane on" id="pane-control">
+<div class="ov">
+<div class="stat"><b id="ovOnline">—</b><span>online strips</span></div>
+<div class="stat"><b id="ovOutlets">—</b><span>outlets on</span></div>
+<div class="stat"><b id="ovPower">—</b><span>total load</span></div>
+<div class="stat"><b id="ovUpdated">—</b><span>last update</span></div>
+</div>
+<div class="row" style="margin-bottom:10px">
+<button id="btnLiveRefresh" class="ghost sm">↻ Refresh now</button>
+<span class="small">Auto-refresh every 5s while here. State is confirmed by the strip itself.</span>
+</div>
+<div id="live"></div>
+</section>
+
+<!-- ============ ANALYTICS ============ -->
+<section class="tabpane" id="pane-analytics">
+<div class="card">
+<h3>Power consumption overview</h3>
+<p class="desc">Real-time power draw across all your strips and outlets. Data collected every 30s.</p>
+<div class="ov">
+<div class="stat"><b id="aTotalPower">—</b><span>total power now</span></div>
+<div class="stat"><b id="aAvgPower">—</b><span>avg power (24h)</span></div>
+<div class="stat"><b id="aPeakPower">—</b><span>peak power (24h)</span></div>
+<div class="stat"><b id="aDbSize">—</b><span>database size</span></div>
+</div>
+</div>
+
+<div class="card">
+<h3>Historical charts</h3>
+<p class="desc">Select a strip and outlet to see power consumption, voltage, and temperature over time.</p>
+<div class="grid cols2" style="margin-bottom:12px">
+<div class="field">
+<span>Strip</span>
+<select id="aStrip"><option value="">Loading…</option></select>
+</div>
+<div class="field">
+<span>Outlet</span>
+<select id="aOutlet">
+<option value="1">Outlet 1</option>
+<option value="2">Outlet 2</option>
+<option value="3">Outlet 3</option>
+<option value="4">Outlet 4</option>
+</select>
+</div>
+</div>
+<div class="row" style="margin-bottom:12px;gap:8px;flex-wrap:wrap">
+<button id="aBtn1h" class="ghost sm">Last hour</button>
+<button id="aBtn6h" class="ghost sm">Last 6 hours</button>
+<button id="aBtn24h" class="ghost sm on">Last 24 hours</button>
+<button id="aBtn7d" class="ghost sm">Last 7 days</button>
+<button id="aBtnRefresh" class="ghost sm">↻ Refresh</button>
+<span class="small" id="aChartMsg"></span>
+</div>
+<div style="position:relative;height:300px;margin:16px 0">
+<canvas id="chartPower"></canvas>
+</div>
+<div style="position:relative;height:200px;margin:16px 0">
+<canvas id="chartVoltage"></canvas>
+</div>
+<div style="position:relative;height:200px;margin:16px 0">
+<canvas id="chartTemp"></canvas>
+</div>
+</div>
+
+<div class="card">
+<h3>Statistics & insights</h3>
+<div id="aStats" style="margin:12px 0">
+<p class="small">Select a strip and time range to see detailed statistics.</p>
+</div>
+</div>
+
+<details class="adv">
+<summary style="cursor:pointer;font-weight:600;font-size:15px;padding:4px 0">⚡ Top energy consumers (last 24h)</summary>
+<p class="desc" style="margin-top:8px">Which outlets are using the most energy. Sorted by total kWh consumed.</p>
+<div id="leaderboard" style="margin:12px 0"><p class="small">Loading…</p></div>
+</details>
+</section>
+
+<!-- ============ STRIPS (names) ============ -->
+<section class="tabpane" id="pane-strips">
+<div class="card">
+<h3>Strips &amp; names <span class="sub">— saved on the server, survive reboots</span></h3>
+<p class="desc">Rename strips and each outlet. Works even for offline strips — names reappear when they dial back in. Empty name = back to default.</p>
+<div class="row" style="margin-bottom:8px"><button id="btnManageRefresh" class="ghost sm">↻ Reload</button><span class="small" id="manageMsg"></span></div>
+<div id="manage"><p class="small">Loading…</p></div>
+</div>
+</section>
+
+<!-- ============ SCHEDULES ============ -->
+<section class="tabpane" id="pane-sched">
+<div class="card">
+<h3>Schedules <span class="sub">— run on the server, phone can be off</span></h3>
+<p class="desc">Per-outlet on/off at a daily time, on chosen days. Times use the timezone you pick (default Egypt). A schedule fires even while a strip is offline — the command queues and applies on reconnect.</p>
+<div class="grid cols4">
+<div class="field"><span>Strip</span><select id="scMac"></select></div>
+<div class="field"><span>Outlet</span><select id="scOutlet"><option value="0">All 4</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
+<div class="field"><span>Action</span><select id="scOn"><option value="1">ON</option><option value="0">OFF</option></select></div>
+<div class="field"><span>When</span><select id="scKind"><option value="time">Fixed time</option><option value="rise">Sunrise</option><option value="set">Sunset</option></select></div>
+</div>
+<div class="grid cols4" id="scTimeRow">
+<div class="field"><span>Time</span><input id="scTime" type="time" value="23:00"></div>
+<div class="field"><span>Offset (min, for sun)</span><input id="scOffset" type="number" value="0" min="-360" max="360" placeholder="e.g. -30 = 30min before"></div>
+<div class="field"><span>Label (optional)</span><input id="scLabel" maxlength="60" placeholder="e.g. Night off"></div>
+<div class="field"><span>Timezone</span><select id="scTz"><option>Africa/Cairo</option><option>UTC</option><option>Europe/Berlin</option><option>Asia/Dubai</option><option>America/New_York</option></select></div>
+</div>
+<div class="row"><button id="btnSchedAdd">+ Add schedule</button></div>
+<div class="field"><span>Days</span><div class="daypick" id="scDays"></div></div>
+<div id="schedMsg" class="msgline"></div>
+<p class="desc">Sun times use your saved location (Settings → Location &amp; alerts).</p>
+</div>
+<div class="card">
+<h3>Active schedules</h3>
+<div class="row" style="margin-bottom:8px"><button id="btnSchedReload" class="ghost sm">↻ Reload</button><span class="small" id="schedCount"></span></div>
+<div id="schedList"><p class="small">Loading…</p></div>
+</div>
+</section>
+
+<!-- ============ SETUP ============ -->
+<section class="tabpane" id="pane-setup">
+<div class="card">
+<h3>Provision &amp; claim a strip</h3>
+<p class="desc">Write this server's address + your home Wi-Fi into the strip. It reboots and dials in — then it shows up under Control.</p>
+
+<details class="adv" open style="margin-bottom:16px;border-color:var(--blue)">
+<summary style="color:var(--blue)">📱 Option A: Setup using Termux / Python (Recommended)</summary>
+<div style="padding-top:10px">
+  <p class="desc"><b>Step 1:</b> While connected to your normal Wi-Fi / mobile data, download the provisioner script in Termux:</p>
+  <pre id="termuxDownloadCmd" style="user-select:all;cursor:pointer" title="Click to copy">curl -s "https://volta.your-domain.com/controller.py" -o controller.py</pre>
+
+  <p class="desc" style="margin-top:12px"><b>Step 2:</b> Factory reset the strip (hold power button 10s until LED flashes rapidly), then connect your phone's Wi-Fi to the strip AP (<span class="mono">TONLY_TAP_…</span>).</p>
+
+  <p class="desc" style="margin-top:12px"><b>Step 3:</b> Run this command in Termux to configure Wi-Fi and automatically link the strip to your account:</p>
+  <pre id="termuxCmdBox" style="user-select:all;cursor:pointer" title="Click to copy">python3 controller.py --server-ip YOUR_SERVER_IP --token YOUR_TOKEN --ssid "YOUR_WIFI_NAME" --password "YOUR_WIFI_PASSWORD"</pre>
+  <p class="small" style="color:var(--mut);margin-top:6px">The script will read the strip's MAC, send the Wi-Fi credentials, and automatically claim the strip to your Volta account!</p>
+</div>
+</details>
+
+<details class="adv">
+<summary>🌐 Option B: Provision directly from Browser (Local LAN host only)</summary>
+<div style="padding-top:10px">
+  <p class="desc" style="color:var(--warn, #eab308);background:#fefce8;padding:8px 10px;border-radius:8px;border:1px solid #fef08a">
+    ⚠️ <b>Note:</b> This option only works if Volta is hosted locally on a home Raspberry Pi/PC. If Volta is running on a cloud VPS, the VPS cannot reach your local <span class="mono">192.168.1.1</span> AP network; please use <b>Option A (Termux)</b> instead.
+  </p>
+  <ol class="steps" style="margin-top:10px">
+  <li>Factory-reset the strip: hold the main button ~10s until the LED blinks fast.</li>
+  <li>On your phone/laptop, join its <span class="mono">TONLY_TAP_…</span> network (password below).</li>
+  <li>Fill Server IP + home Wi-Fi, press Provision. Then rejoin home Wi-Fi.</li>
+  </ol>
+  <div class="grid cols3">
+  <div class="field"><span>Plug network (SSID)</span><input id="wAp" placeholder="e.g. TONLY_TAP_9132171"></div>
+  <div class="field"><span>AP password</span><input id="wApPw" readonly placeholder="auto-derived"></div>
+  <div class="field"><span>&nbsp;</span><button id="btnApPw" class="ghost">Derive + copy</button></div>
+  </div>
+  <div class="grid cols4">
+  <div class="field"><span>Strip IP</span><input id="wIp" value="192.168.1.1"></div>
+  <div class="field"><span>Server address (IP or hostname)</span><input id="wSrv" value="" placeholder="e.g. 192.168.1.100 or strips.yourdomain.com"></div>
+  <div class="field"><span>Home Wi-Fi name</span><input id="wSsid" placeholder="home Wi-Fi name"></div>
+  <div class="field"><span>Home Wi-Fi password</span><input id="wPass" type="password" placeholder="home Wi-Fi password"></div>
+  </div>
+  <div class="row"><button id="btnProv">★ Provision strip</button></div>
+  <div id="wifiMsg" class="msgline"></div>
+</div>
+</details>
+</div>
+
+<div class="card">
+<h3>Link / Claim Strip manually</h3>
+<p class="desc">If you provisioned a strip without a token or want to link a strip by its MAC address (found on the back sticker):</p>
+<div class="grid cols3">
+<div class="field"><span>Strip MAC address</span><input id="claimMac" class="mono" placeholder="e.g. 88:D0:39:8B:73:EF"></div>
+<div class="field"><span>&nbsp;</span><button id="btnClaimStrip">🔗 Claim strip</button></div>
+</div>
+<div id="claimMsg" class="msgline"></div>
+</div>
+
+<div class="card">
+<h3>Verify join</h3>
+<p class="desc">After provisioning, rejoin home Wi-Fi and check the strip's MAC surfaced on the LAN. (Runs on the server — on a VPS point it at your home network only if the server is home; otherwise use your router's client list.)</p>
+<div class="grid cols3">
+<div class="field"><span>Strip MAC</span><input id="vMac" placeholder="e.g. 88:d0:39:13:21:71"></div>
+<div class="field"><span>&nbsp;</span><button id="btnVerify" class="ghost">Verify it joined</button></div>
+<div class="field"><span>&nbsp;</span><button id="btnVerifyX" class="ghost" style="display:none">Cancel</button></div>
+</div>
+<div id="verifyMsg" class="msgline"></div>
+</div>
+</section>
+
+<!-- ============ ADVANCED ============ -->
+<section class="tabpane" id="pane-tools">
+<div class="card">
+<h3>LAN scan <span class="sub">— runs on the server</span></h3>
+<p class="desc">Scans for the strip's local port <span class="mono">30300</span> (the port the vendor app uses). On a VPS this sees the VPS network, not home. Useful on a home PC/phone gateway.</p>
+<div class="grid cols3">
+<div class="field"><span>Network</span><input id="nets" placeholder="192.168.1.0/24"></div>
+<div class="field"><span>&nbsp;</span><button id="btnScan">🔍 Scan LAN</button></div>
+<div class="field"><span>&nbsp;</span><button id="btnScanX" class="ghost" style="display:none">Cancel</button></div>
+</div>
+<div id="scanMsg" class="msgline"></div>
+<div id="found"></div>
+<div class="grid cols3" style="margin-top:8px">
+<div class="field"><span>Strip MACs (comma separated)</span><input id="hMacs" value="88:d0:39:8b:73:ef, 88:d0:39:13:21:71"></div>
+<div class="field"><span>&nbsp;</span><button id="btnHunt" class="ghost">Find by MAC</button></div>
+</div>
+<div id="huntMsg" class="msgline"></div>
+</div>
+<details class="adv"><summary>Manual strips (legacy / ESP mods)</summary>
+<p class="desc">AP-mode research entries and ESP-01-modded strips (ON/OFF via ESP IP, no login).</p>
+<div class="grid cols4">
+<div class="field"><span>Strip IP</span><input id="addIp" placeholder="e.g. 192.168.1.50"></div>
+<div class="field"><span>Name</span><input id="addName" placeholder="e.g. Desk"></div>
+<div class="field"><span>ESP IP (modded)</span><input id="addEsp" placeholder="e.g. 192.168.1.60"></div>
+<div class="field"><span>&nbsp;</span><button id="btnAdd" class="ghost">+ Add</button></div>
+</div>
+<div class="row"><button id="btnReload" class="ghost">↻ Refresh</button></div>
+<div id="strips"></div>
+</details>
+<details class="adv"><summary>Relay sweep <span class="tag warn">research · watch the strip</span></summary>
+<p class="desc">Empty read-style frames across a command range. set-wifi is never probed.</p>
+<div class="grid cols4">
+<div class="field"><span>Strip IP</span><input id="sIp" value="192.168.1.1"></div>
+<div class="field"><span>From</span><input id="sStart" value="0x60"></div>
+<div class="field"><span>To</span><input id="sEnd" value="0x7F"></div>
+<div class="field"><span>&nbsp;</span><button id="btnSweep">Start sweep</button></div>
+</div>
+<div class="row" style="margin-top:8px">
+<button id="btnApHunt">⚡ AP-mode one-click hunt</button>
+<button id="btnSweepX" class="ghost" style="display:none">Cancel</button>
+</div>
+<div id="sweepMsg" class="msgline"></div>
+<div id="sweepOut"></div>
+<div class="row" style="margin-top:8px"><span class="small">Did any outlet change?</span>
+<button id="ledNo" class="ghost">No change</button><button id="ledYes">Yes — tell log</button></div>
+</details>
+<details class="adv"><summary>Payload campaign <span class="tag warn">research</span></summary>
+<p class="desc">18 canned payload shots, state checked after each, stops on change.</p>
+<div class="grid cols3">
+<div class="field"><span>Strip IP</span><input id="cIp" value="192.168.1.1"></div>
+<div class="field"><span>&nbsp;</span><button id="btnCampaign">Run campaign</button></div>
+<div class="field"><span>&nbsp;</span><button id="btnCampaignX" class="ghost" style="display:none">Cancel</button></div>
+</div>
+<div id="campMsg" class="msgline"></div>
+<div id="campOut"></div>
+</details>
+<details class="adv"><summary>Single command sender <span class="tag">research</span></summary>
+<div class="grid cols4">
+<div class="field"><span>Strip IP</span><input id="xIp" placeholder="strip IP"></div>
+<div class="field"><span>Command</span><input id="xCmd" placeholder="e.g. 104 or 0x68"></div>
+<div class="field"><span>Payload hex</span><input id="xPay" class="mono" placeholder="optional"></div>
+<div class="field"><span>&nbsp;</span><button id="btnRaw" class="ghost">Send once</button></div>
+</div>
+<div id="rawMsg" class="msgline"></div>
+</details>
+<details class="adv"><summary>Code replay <span class="tag">fallback</span></summary>
+<div class="grid cols4">
+<div class="field"><span>Strip IP</span><input id="lIp" placeholder="strip IP"></div>
+<div class="field"><span>Outlet</span><select id="lOutlet"><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+<div class="field"><span>Action</span><select id="lAction"><option>on</option><option>off</option></select></div>
+<div class="field"><span>Code hex</span><input id="lHex" class="mono" placeholder="e.g. a5 01 01 …"></div>
+</div>
+<div class="row"><button id="btnLearn">Save code</button></div>
+<div class="grid cols3" style="margin-top:8px">
+<div class="field"><span>Raw probe hex</span><input id="pHex" class="mono" placeholder="raw hex to send"></div>
+<div class="field"><span>&nbsp;</span><button id="btnProbe" class="ghost">Send probe</button></div>
+</div>
+<div id="learnMsg" class="msgline"></div>
+</details>
+</section>
+
+<!-- ============ SETTINGS ============ -->
+<section class="tabpane" id="pane-settings">
+<div class="card">
+<h3>Access</h3>
+<p class="desc">Token is remembered on this device. Anyone holding it controls your strips — keep it private.</p>
+<div class="grid cols3">
+<div class="field"><span>Token</span><input id="token" type="password" placeholder="paste token once"></div>
+<div class="field"><span>&nbsp;</span><button id="btnForget" class="ghost">Forget token</button></div>
+</div>
+<div id="tokMsg" class="msgline"></div>
+</div>
+<div class="card">
+<h3>Control preferences</h3>
+<div class="row">
+<label class="switchrow"><input type="checkbox" id="prefAuto" checked> Auto-refresh Control</label>
+<label class="switchrow"><input type="checkbox" id="prefConfirm" checked> Confirm ALL ON/OFF</label>
+<label class="switchrow">Theme
+<select id="prefTheme" style="width:auto"><option value="auto">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+</div>
+<p class="desc">Per-outlet taps apply immediately and show strip-confirmed state. ALL switches ask first (they move 4 relays).</p>
+</div>
+<div class="card">
+<h3>Location &amp; solar calculations</h3>
+<p class="desc">Powers sunrise/sunset schedules. Set to <b>Cairo, Egypt</b> (30.0444°N, 31.2357°E) by default.</p>
+<div class="grid cols2">
+<div class="field"><span>Latitude</span><input id="setLat" type="number" step="0.0001" value="30.0444"></div>
+<div class="field"><span>Longitude</span><input id="setLon" type="number" step="0.0001" value="31.2357"></div>
+</div>
+</div>
+<div class="card">
+<h3>Push notifications (ntfy.sh)</h3>
+<p class="desc">Get instant phone alerts when strips/plugs switch ON/OFF or go offline. Powered by <span class="mono">ntfy.sh</span> (free, no sign-up needed).</p>
+<div class="grid cols2">
+<div class="field"><span>ntfy topic or URL</span><input id="setNtfy" class="mono" placeholder="e.g. Power_Strip or ntfy.sh/Power_Strip"></div>
+<div class="field"><span>Offline delay (min)</span><input id="setAlertMin" type="number" value="10" min="1" max="120" placeholder="wait min before offline alert"></div>
+</div>
+<div class="field" style="margin:8px 0">
+<span>Event triggers</span>
+<div class="row">
+<label class="switchrow"><input type="checkbox" id="setNotifyOffline" checked> Strip online / offline</label>
+<label class="switchrow"><input type="checkbox" id="setNotifySwitch"> Plug switches ON / OFF (physical button or app)</label>
+<label class="switchrow"><input type="checkbox" id="setNotifyTemp" checked> Temperature exceeds limit</label>
+<label class="switchrow"><input type="checkbox" id="setNotifyVoltage" checked> Voltage out of bounds (low/high)</label>
+</div>
+</div>
+<div class="grid cols2" style="margin:8px 0">
+<div class="field">
+<span>Temperature alert limit (°C)</span>
+<input id="setTempAlert" type="number" value="60" min="30" max="100" placeholder="e.g. 60">
+<span class="small">Overheat warning limit</span>
+</div>
+<div class="field">
+<span>Voltage warning range (V)</span>
+<div class="row" style="gap:6px">
+<input id="setVoltMin" type="number" value="200" min="100" max="260" placeholder="Min V" style="max-width:110px">
+<span class="small" style="align-self:center">to</span>
+<input id="setVoltMax" type="number" value="250" min="150" max="300" placeholder="Max V" style="max-width:110px">
+</div>
+<span class="small">Alerts if voltage &lt; min or &gt; max</span>
+</div>
+</div>
+<div class="field" style="margin:8px 0">
+<span>Filter which devices notify</span>
+<div class="row" style="margin-bottom:6px">
+<label class="switchrow"><input type="radio" name="notifyFilt" id="setFiltAll" value="all" checked> All strips &amp; plugs</label>
+<label class="switchrow"><input type="radio" name="notifyFilt" id="setFiltSel" value="selected"> Only selected plugs</label>
+</div>
+<div id="notifyTargetsBox" style="display:none;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:6px;max-height:220px;overflow-y:auto"></div>
+</div>
+<div class="row" style="margin-top:12px"><button id="btnSettings">💾 Save notification settings</button><button id="btnNotifyTest" class="ghost">Send test alert</button></div>
+<div id="setMsg" class="msgline"></div>
+</div>
+<div class="card">
+<h3>Energy cost tracking</h3>
+<p class="desc">Set your electricity rate to calculate energy costs in Analytics. Default: 1.20 EGP/kWh (average Egypt residential rate).</p>
+<div class="grid cols2">
+<div class="field"><span>Cost per kWh</span><input id="setCostKwh" type="number" step="0.01" value="1.20" min="0.01"></div>
+<div class="field"><span>Currency</span><input id="setCurrency" type="text" value="EGP" maxlength="10" placeholder="e.g. EGP, USD, EUR"></div>
+</div>
+<div class="row" style="margin-top:8px"><button id="btnCostSettings">💾 Save cost settings</button></div>
+<div id="costMsg" class="msgline"></div>
+</div>
+<div class="card" id="userMgmtCard" style="display:none;border-color:var(--blue)">
+<h3>👥 User Management <span class="tag" style="background:var(--blue);color:#fff">Admin</span></h3>
+<p class="desc">Create user tokens for other people. Each user only sees and controls the strips they provision or claim.</p>
+<div class="grid cols3">
+<div class="field"><span>User name / label</span><input id="uNewName" placeholder="e.g. Ahmed, Living Room"></div>
+<div class="field"><span>Optional custom token</span><input id="uNewTok" class="mono" placeholder="leave empty to auto-generate"></div>
+<div class="field"><span>&nbsp;</span><button id="btnCreateUser">+ Create User</button></div>
+</div>
+<div id="uMsg" class="msgline"></div>
+
+<details class="adv" style="margin-top:12px">
+<summary>🔄 Transfer strip between users</summary>
+<div style="padding-top:8px">
+  <div class="grid cols3">
+    <div class="field"><span>Strip MAC</span><input id="trMac" class="mono" placeholder="e.g. 88D0398B73EF"></div>
+    <div class="field"><span>Assign to User</span><select id="trUserSel"></select></div>
+    <div class="field"><span>&nbsp;</span><button id="btnTransferStrip">Transfer Strip</button></div>
+  </div>
+  <div id="trMsg" class="msgline"></div>
+</div>
+</details>
+
+<div id="usersTableBox" style="margin-top:12px"></div>
+</div>
+
+<div class="card">
+<h3>Server</h3>
+<div id="srvInfo" class="small">—</div>
+</div>
+<div class="card">
+<h3>Gateway log</h3>
+<div class="row" style="margin-bottom:4px"><button id="btnCopyLog" class="ghost">📋 Copy log</button><span id="copyMsg" class="small"></span></div>
+<pre id="log">—</pre>
+</div>
+<footer>Volta · MTTL-W01 (TONLY) · local-first, no cloud</footer>
+</section>
+
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const on=(id,ev,fn)=>{const el=$(id);if(el)el.addEventListener(ev,fn);};
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".tabpane").forEach(x=>x.classList.remove("on"));
+  t.classList.add("on");$("pane-"+t.dataset.tab).classList.add("on");
+  if(t.dataset.tab==="control")live();
+  if(t.dataset.tab==="analytics")loadAnalytics();
+  if(t.dataset.tab==="strips")renderManage();
+  if(t.dataset.tab==="sched")loadSched();
+  if(t.dataset.tab==="settings")checkSrv();
+});
+const api=async(p,b,signal)=>{const r=await fetch(p,{method:b?"POST":"GET",headers:{"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined,signal});const j=await r.json();if(!r.ok)throw new Error(j.error||("HTTP "+r.status));return j;};
+const tok=()=>($("token")&&$("token").value||"").trim();
+if($("token"))$("token").value=localStorage.getItem("volta_token")||localStorage.getItem("voltra_token")||"";
+on("token","change",()=>{try{localStorage.setItem("volta_token",$("token").value.trim());}catch{}if($("tokMsg"))$("tokMsg").textContent=$("token").value.trim()?"✓ remembered on this device":"";live();checkSrv();});
+on("btnForget","click",()=>{if($("token"))$("token").value="";try{localStorage.removeItem("volta_token");localStorage.removeItem("voltra_token");}catch{}if($("tokMsg"))$("tokMsg").textContent="forgotten";live();});
+const apit=async(p,b,opt)=>{const h={"Content-Type":"application/json"};if(tok())h["X-Token"]=tok();
+  let method = "GET";
+  let sig = undefined;
+  if(typeof opt==="string"){method=opt;}
+  else if(opt && opt.signal){sig=opt.signal;method=b?"POST":"GET";}
+  else if(b){method="POST";}
+  const r=await fetch(p,{method,headers:h,body:b?JSON.stringify(b):undefined,signal:sig});
+  const j=await r.json();if(!r.ok)throw new Error(j.error||("HTTP "+r.status)+(j.hint?" · "+j.hint:""));return j;};
+const prefs={get auto(){try{return (localStorage.getItem("volta_auto")||localStorage.getItem("voltra_auto"))!=="0";}catch{return true;}},get confirmAll(){try{return (localStorage.getItem("volta_confirm")||localStorage.getItem("voltra_confirm"))!=="0";}catch{return true;}}};
+if($("prefAuto"))$("prefAuto").checked=prefs.auto;
+if($("prefConfirm"))$("prefConfirm").checked=prefs.confirmAll;
+on("prefAuto","change",()=>{try{localStorage.setItem("volta_auto",$("prefAuto").checked?"1":"0");}catch{}});
+on("prefConfirm","change",()=>{try{localStorage.setItem("volta_confirm",$("prefConfirm").checked?"1":"0");}catch{}});
+function applyTheme(mode){ // auto | light | dark
+  const root=document.documentElement;
+  if(mode==="dark"){root.dataset.theme="dark";}
+  else if(mode==="light"){root.dataset.theme="light";}
+  else{delete root.dataset.theme;}
+  const darkNow=mode==="dark"||(mode==="auto"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const b=$("btnTheme");if(b)b.textContent=darkNow?"☀️":"🌙";
+  const s=$("prefTheme");if(s)s.value=mode;
+  try{localStorage.setItem("volta_theme",mode);}catch{}}
+function getTheme(){try{return localStorage.getItem("volta_theme")||localStorage.getItem("voltra_theme")||"auto";}catch{return "auto";}}
+on("btnTheme","click",()=>{const cur=getTheme();
+  applyTheme(cur==="auto"?"dark":cur==="dark"?"light":"auto");});
+on("prefTheme","change",()=>applyTheme($("prefTheme").value));
+applyTheme(getTheme());
+if(window.matchMedia)window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(getTheme()==="auto")applyTheme("auto");});
+if("serviceWorker"in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("/sw.js").catch(()=>{});});}
+function explain(ip,e){e=String(e||"").toLowerCase();
+  if(/token required|401/.test(e))return "set the token in Settings first.";
+  if(/connectionrefused/.test(e))return ip==="192.168.1.1"?"Nothing listening — on HOME Wi-Fi this is your ROUTER (join the strip AP first); on the strip AP it may be rebooting.":"Port closed — wrong IP, or strip rebooting/offline.";
+  if(/network is unreachable/.test(e))return "Phone and strip are on different networks.";
+  if(/timed out|timeout/.test(e))return "No answer — wrong mode/IP, or rebooting.";
+  if(/no address|gaierror|failed to fetch|networkerror/.test(e))return "Check the address and that this page is reachable.";
+  if(/not an lgapmode/.test(e))return "It answered but doesn't speak the strip protocol.";
+  if(/no arp table|permission denied.*arp/i.test(e))return "Find-by-MAC needs /proc/net/arp — unavailable here. Use Verify join or the router DHCP list.";
+  return "";}
+function showErr(el,ip,e){const h=explain(ip,(e&&e.message)||e);el.textContent="✕ "+((e&&e.message)||e)+(h?" · "+h:"");}
+function busy(btn,xbtn,el,text){if(btn)btn.disabled=true;if(xbtn)xbtn.style.display="";const t0=Date.now();if(el)el.textContent=text+" (0s…)";const iv=setInterval(()=>{if(el)el.textContent=`${text} (${Math.round((Date.now()-t0)/1000)}s…)`;},1000);return ()=>{clearInterval(iv);if(btn)btn.disabled=false;if(xbtn)xbtn.style.display="none";};}
+async function checkSrv(){
+  try{
+    const h=await api("/api/health");
+    if($("srvDot"))$("srvDot").className="dot "+(h.controller?"ok":"bad");
+    if($("srvState"))$("srvState").textContent=h.controller?("controller live"+(h.auth?" · locked":" · open LAN")):"controller down";
+    if($("srvInfo"))$("srvInfo").textContent=JSON.stringify(h);
+    // Check whoami if token exists
+    if(tok()){
+      try{
+        const who=await apit("/api/auth/whoami");
+        if(who.authorized){
+          if($("srvState"))$("srvState").textContent=`${who.name} (${who.is_admin?"Admin":"User"})`;
+          const mgmt=$("userMgmtCard");
+          if(mgmt){
+            mgmt.style.display=who.is_admin?"block":"none";
+            if(who.is_admin)loadUsers();
+          }
+          // Update setup termux command box with dynamic server host
+          const dlBox=$("termuxDownloadCmd");
+          if(dlBox){
+            dlBox.textContent=`curl -s "${location.origin}/controller.py" -o controller.py`;
+          }
+          const cmdBox=$("termuxCmdBox");
+          if(cmdBox){
+            const srvHost = location.hostname;
+            cmdBox.textContent=`python3 controller.py --server-ip "${srvHost}" --token "${tok()}" --ssid "YOUR_WIFI_NAME" --password "YOUR_WIFI_PASSWORD"`;
+          }
+        }
+      }catch(e){
+        if($("userMgmtCard"))$("userMgmtCard").style.display="none";
+      }
+    }else{
+      if($("userMgmtCard"))$("userMgmtCard").style.display="none";
+    }
+  }catch{
+    if($("srvDot"))$("srvDot").className="dot bad";
+    if($("srvState"))$("srvState").textContent="unreachable";
+  }
+}
+
+async function loadUsers(){
+  const box=$("usersTableBox");if(!box)return;
+  try{
+    const r=await apit("/api/users");
+    const users=r.users||{};
+    const keys=Object.keys(users);
+    if(!keys.length){
+      box.innerHTML='<p class="small">No additional users created yet. All existing strips are currently managed by Admin.</p>';
+      return;
+    }
+    let h='<table><tr><th>User</th><th>Token</th><th>Strips</th><th>Created</th><th>Action</th></tr>';
+    for(const t of keys){
+      const u=users[t];
+      const stripsStr=u.strips&&u.strips.length?u.strips.join(", "):"<i style='color:var(--mut)'>None yet</i>";
+      const createdStr=u.created_at?new Date(u.created_at*1000).toLocaleDateString():"—";
+      h+=`<tr>
+        <td><b>${u.name||"User"}</b></td>
+        <td><code class="mono" style="font-size:11px">${t}</code></td>
+        <td>${stripsStr}</td>
+        <td>${createdStr}</td>
+        <td><button class="ghost sm danger del-usr" data-token="${t}">Revoke</button></td>
+      </tr>`;
+    }
+    box.innerHTML=h;
+    // Update transfer user dropdown
+    const trSel=$("trUserSel");
+    if(trSel){
+      trSel.innerHTML=keys.map(k=>`<option value="${k}">${users[k].name||"User"} (${k.slice(0,12)}…)</option>`).join("");
+    }
+    box.querySelectorAll(".del-usr").forEach(btn=>{
+      btn.onclick=async function(){
+        const targetTok=this.dataset.token;
+        if(!confirm(`Revoke access for this user token?`))return;
+        try{
+          await fetch(`/api/users?token=${encodeURIComponent(targetTok)}`,{
+            method:"DELETE",
+            headers:tok()?{"X-Token":tok()}:{}
+          });
+          loadUsers();
+        }catch(e){alert("Error: "+e.message);}
+      };
+    });
+  }catch(e){
+    box.innerHTML='<p class="err">'+e.message+'</p>';
+  }
+}
+
+on("btnTransferStrip","click",async()=>{
+  const mac=($("trMac")&&$("trMac").value||"").trim();
+  const targetToken=($("trUserSel")&&$("trUserSel").value||"").trim();
+  if(!mac){$("trMsg").textContent="✕ enter strip MAC to transfer.";return;}
+  if(!targetToken){$("trMsg").textContent="✕ select a destination user.";return;}
+  $("trMsg").textContent="transferring…";
+  try{
+    const r=await apit("/api/claim",{mac,target_token:targetToken,token:tok()});
+    if(r.ok){
+      $("trMsg").textContent=`✓ Strip ${r.mac||mac} transferred to ${r.user}!`;
+      $("trMac").value="";
+      loadUsers();
+      live();
+    }else{
+      $("trMsg").textContent="✕ "+(r.error||"transfer failed");
+    }
+  }catch(e){showErr($("trMsg"),"",e);}
+});
+on("btnCreateUser","click",async()=>{
+  const name=($("uNewName")&&$("uNewName").value||"").trim();
+  const ctok=($("uNewTok")&&$("uNewTok").value||"").trim();
+  if(!name){$("uMsg").textContent="✕ enter a user name.";return;}
+  $("uMsg").textContent="creating user…";
+  try{
+    const r=await apit("/api/users",{name,token:ctok});
+    if(r.ok){
+      $("uMsg").textContent=`✓ User created! Token: ${r.token}`;
+      $("uNewName").value="";$("uNewTok").value="";
+      loadUsers();
+    }else{
+      $("uMsg").textContent="✕ "+(r.error||"failed to create user");
+    }
+  }catch(e){showErr($("uMsg"),"",e);}
+});
+/* ---- Control ---- */
+let _last=null,_liveBusy=false;
+function fmtTime(){const d=new Date();return d.toLocaleTimeString();}
+async function live(){
+  if(_liveBusy)return;_liveBusy=true;
+  try{
+    const s=await apit("/api/live");_last=s;
+    const devs=s.devices||[];
+    const online=devs.filter(d=>d.online);
+    if($("liveCount"))$("liveCount").textContent=devs.length?`${online.length}/${devs.length} online`:"";
+    if($("ovOnline"))$("ovOnline").textContent=devs.length?`${online.length}/${devs.length}`:"0";
+    const onCount=devs.reduce((a,d)=>a+d.outlets.filter(o=>o.on).length,0);
+    if($("ovOutlets"))$("ovOutlets").textContent=String(onCount);
+    const totW=devs.reduce((a,d)=>a+(d.power_w||0),0);
+    if($("ovPower"))$("ovPower").textContent=devs.length?totW.toFixed(1)+" W":"—";
+    if($("ovUpdated"))$("ovUpdated").textContent=fmtTime();
+    const el=$("live");
+    if(el){
+      el.innerHTML=devs.length?"":"<div class='card'><h3>No strips yet</h3><p class='desc'>Provision one strip and it dials in here by itself. Go to <b>Setup → Provision a strip</b>.</p></div>";
+      for(const d of devs){
+        const c=document.createElement("div");c.className="card strip"+(d.online?"":" off");
+        const tel=`${d.model||""}${d.fw?" fw "+d.fw:""} · ${d.power_w} W · ${d.energy_kwh} kWh${d.voltage?` · ${d.voltage} V · ${d.current_a} A`:""}${d.rssi?` · wifi ${d.rssi} dBm`:""}`;
+        const seen=d.online?"live now":("last seen "+ago(d.last_seen_ago));
+        const pend=d.pending?` <span class="tag warn">⏳ ${d.pending} queued</span>`:"";
+        c.innerHTML=`<div class="strip-head"><b></b><button class="rename" title="rename strip">✏️</button>
+          <span class="tag ${d.online?"ok":"bad"}">${d.online?"● online":"○ offline"}</span>
+          <span class="tag">${seen}</span>${pend}
+          <span class="tag mono"></span><span style="flex:1"></span>
+          <button class="ghost sm allon">ALL ON</button><button class="ghost sm alloff">ALL OFF</button></div>
+        <div class="small"></div><div class="meta"></div><div class="outs"></div><div class="msg small"></div>`;
+        c.querySelector("b").textContent=d.name||d.mac;
+        c.querySelector(".mono").textContent=d.mac;
+        c.querySelector(".small").textContent=tel;
+        const meta=c.querySelector(".meta");
+        meta.innerHTML=`<span class="tag mono">IP ${d.ip||"?"}</span>`;
+        c.querySelector(".rename").onclick=async()=>{const v=prompt("Name this strip",(d.name===d.mac?"":d.name)||"");if(v===null)return;
+          try{await apit("/api/rename",{mac:d.mac,name:v});await live();}catch(e){showErr(msg,d.ip,e);}};
+        const outs=c.querySelector(".outs"),msg=c.querySelector(".msg");
+        const setAll=async(on)=>{if(prefs.confirmAll&&!confirm(`${on?"Turn ON":"Turn OFF"} all 4 outlets on ${d.name||d.mac}?`))return;
+          msg.textContent=(on?"all → on":"all → off")+"…";
+          try{const r=await apit("/api/onoff",{mac:d.mac,outlet:0,on});
+            msg.textContent=r.queued?"⏳ strip offline — queued, applies on reconnect":"✓ confirmed";await live();}
+          catch(e){msg.textContent="";showErr(msg,d.ip,e);}};
+        c.querySelector(".allon").onclick=()=>setAll(true);
+        c.querySelector(".alloff").onclick=()=>setAll(false);
+        for(const o of d.outlets){
+          const row=document.createElement("div");row.className="outlet";
+          row.innerHTML=`<button class="sw ${o.on?"on":""}" aria-label="outlet ${o.n}"></button><div class="nm"><b></b><small></small></div><button class="rename" title="rename outlet">✏️</button>`;
+          row.querySelector("b").textContent=o.nick||("Outlet "+o.n);
+          const sm=row.querySelector("small");
+          sm.innerHTML=`<span class="${o.on?"on-txt":""}">${o.on?"ON":"OFF"}</span> · ${o.power_w} W · ${o.energy_kwh} kWh · ${o.temp_c}°C`;
+          row.querySelector(".rename").onclick=async()=>{const v=prompt(`Name outlet ${o.n} on ${d.name||d.mac} (empty = reset)`,o.nick||"");if(v===null)return;
+            try{await apit("/api/rename",{mac:d.mac,outlet:o.n,outlet_name:v});await live();}catch(e){showErr(msg,d.ip,e);}};
+          const sw=row.querySelector(".sw");
+          sw.onclick=async()=>{row.classList.add("busy");sw.disabled=true;msg.textContent=`outlet ${o.n} → ${!o.on?"on":"off"}…`;
+            try{const r=await apit("/api/onoff",{mac:d.mac,outlet:o.n,on:!o.on});
+              msg.textContent=r.queued?"⏳ strip offline — queued, applies on reconnect":(r.ok?"✓ confirmed":"⚠ "+(r.error||"failed"));await live();}
+            catch(e){msg.textContent="";showErr(msg,d.ip,e);await live();}};
+          outs.appendChild(row);
+        }
+        el.appendChild(c);
+      }
+    }
+    if($("pane-strips")&&$("pane-strips").classList.contains("on"))renderManage();
+  }catch(e){if($("liveCount"))$("liveCount").textContent="live feed needs token (Settings)";}
+  _liveBusy=false;
+}
+on("btnLiveRefresh","click",live);
+/* ---- Strips manage ---- */
+async function ensureLive(){if(_last)return _last;try{_last=await apit("/api/live");}catch(e){}return _last;}
+async function renderManage(){
+  const box=$("manage");if(!box)return;
+  const s=await ensureLive();
+  if(!s){box.innerHTML="<p class='err'>Set the token in Settings first.</p>";return;}
+  const devs=s.devices||[],names=s.names||{};
+  const macs=[...new Set([...devs.map(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()),...Object.keys(names)])].filter(Boolean);
+  if(!macs.length){box.innerHTML="<p class='small'>No strips known yet — provision one in Setup and it appears here.</p>";return;}
+  box.innerHTML="";
+  for(const mac of macs){
+    const d=devs.find(x=>(x.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()===mac);
+    const nm=names[mac]||{};
+    const card=document.createElement("div");card.className="strip"+(d&&!d.online?" off":"");
+    const title=(nm.name)||(d&&(d.name!==d.mac?d.name:""))||(d?d.mac:mac.toUpperCase());
+    const onames=Object.assign({},{1:"",2:"",3:"",4:""},nm.outlets||{});
+    if(d&&d.outlets)for(const o of d.outlets)if(o.nick&&!onames[String(o.n)])onames[String(o.n)]=o.nick;
+    card.innerHTML=`<div class="strip-head"><b></b><span class="tag ${d?(d.online?"ok":"bad"):""}">${d?(d.online?"● online":"○ offline"):"never seen"}</span><span class="tag mono"></span>${d&&d.fw?`<span class="tag">fw ${d.fw}</span>`:""}<span style="flex:1"></span><button class="danger sm remove-strip" title="Remove strip from dashboard">🗑 Remove</button></div>
+    <div class="grid cols2" style="margin-top:8px">
+      <div class="field"><span>Strip name</span><input data-f="name" maxlength="40"></div>
+      <div class="field"><span>&nbsp;</span><div class="row"><button class="ghost sm save">💾 Save names</button><button class="danger sm clear">Reset</button></div></div>
+    </div>
+    <div class="grid cols4 outs4"></div><div class="msg small"></div>`;
+    card.querySelector("b").textContent=title;
+    card.querySelector(".mono").textContent=(d?d.mac:mac.toUpperCase());
+    card.querySelector('[data-f="name"]').value=nm.name||"";
+    const g4=card.querySelector(".outs4"),msg=card.querySelector(".msg");
+    for(let n=1;n<=4;n++){const f=document.createElement("div");f.className="field";f.innerHTML=`<span>Outlet ${n}</span><input data-o="${n}" maxlength="40">`;f.querySelector("input").value=onames[String(n)]||"";g4.appendChild(f);}
+    card.querySelector(".remove-strip").onclick=async()=>{
+      if(!confirm(`Are you sure you want to remove ${title} (${(d?d.mac:mac).toUpperCase()})?`))return;
+      try{
+        const r=await apit(`/api/strip?mac=${encodeURIComponent(d?d.mac:mac)}`,null,"DELETE");
+        if(r.ok){
+          msg.textContent="✓ Strip removed!";
+          _last=null;
+          await live();
+          await renderManage();
+          if(typeof loadUsers==="function")await loadUsers();
+        }else{
+          msg.textContent="✕ "+(r.error||"failed to remove");
+        }
+      }catch(e){showErr(msg,"",e);}
+    };
+    card.querySelector(".save").onclick=async()=>{
+      const outlets={};g4.querySelectorAll("input").forEach(i=>{outlets[i.dataset.o]=i.value.trim();});
+      try{await apit("/api/rename",{mac,name:card.querySelector('[data-f="name"]').value.trim(),outlets});msg.textContent="✓ saved";_last=null;await live();}
+      catch(e){showErr(msg,"",e);}};
+    card.querySelector(".clear").onclick=async()=>{
+      if(!confirm("Clear all custom names for this strip?"))return;
+      try{await apit("/api/rename",{mac,name:"",outlets:{"1":"","2":"","3":"","4":""}});msg.textContent="✓ reset";_last=null;await live();}
+      catch(e){showErr(msg,"",e);}};
+    box.appendChild(card);
+  }
+}
+on("btnManageRefresh","click",async()=>{_last=null;await live();await renderManage();});
+function ago(s){if(s==null)return "?";s=Math.max(0,Math.round(s));
+  if(s<10)return "just now";if(s<60)return s+"s ago";
+  const m=Math.floor(s/60);if(m<60)return m+"m ago";
+  const h=Math.floor(m/60);if(h<24)return h+"h "+(m%60)+"m ago";
+  return Math.floor(h/24)+"d ago";}
+/* ---- Schedules ---- */
+const DAYN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+function schedDaysUI(){const box=$("scDays");if(!box||box.children.length)return;const keep=new Set([0,1,2,3,4,5,6]);
+  try{const saved=JSON.parse(localStorage.getItem("voltra_days")||"");if(Array.isArray(saved)&&saved.length)saved.forEach(d=>keep.add(d));}catch{}
+  box.innerHTML="";DAYN.forEach((n,i)=>{const l=document.createElement("label");l.innerHTML=`<input type="checkbox" value="${i}"${[0,1,2,3,4,5,6].includes(i)?" checked":""}>${n}`;box.appendChild(l);});}
+function schedDaysGet(){return [...$("scDays").querySelectorAll("input:checked")].map(i=>+i.value).sort();}
+async function fillSchedMacs(){const sel=$("scMac");if(!sel)return;const s=await ensureLive();
+  const devs=(s&&s.devices)||[],names=(s&&s.names)||{};
+  const macs=[...new Set([...devs.map(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()),...Object.keys(names)])].filter(Boolean);
+  const cur=sel.value;sel.innerHTML=macs.length?"":"<option value=''>— no strips yet —</option>";
+  for(const mac of macs){const d=devs.find(x=>(x.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()===mac);
+    const nm=(names[mac]||{}).name||(d&&d.name!==d.mac?d.name:"")||mac.toUpperCase();
+    const o=document.createElement("option");o.value=mac.toUpperCase();o.textContent=nm;sel.appendChild(o);}
+  if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;}
+async function loadSched(){schedDaysUI();await fillSchedMacs();
+  const box=$("schedList");if(!box)return;box.innerHTML="<p class='small'>Loading…</p>";
+  try{const r=await apit("/api/schedules");renderSched(r.schedules||[]);}
+  catch(e){box.innerHTML=`<p class='err'>${e.message}</p>`;}}
+function renderSched(list){
+  const box=$("schedList");box.innerHTML=list.length?"":"<p class='small'>No schedules. Add one above — e.g. ALL OFF at 23:00 daily.</p>";
+  if($("schedCount"))$("schedCount").textContent=list.length?`${list.filter(s=>s.enabled).length}/${list.length} enabled`:"";
+  const devs=(_last&&_last.devices)||[],names=(_last&&_last.names)||{};
+  const nmOf=(mac)=>{const m=mac.replace(/[^0-9a-f]/gi,"").toLowerCase();
+    return (names[m]||{}).name||(devs.find(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()===m)||{}).name||mac;};
+  for(const s of list){
+    const d=document.createElement("div");d.className="sched";d.style.opacity=s.enabled?"":"0.65";
+    const when=(s.kind==="sun")?`☀ ${(s.sun==="rise"?"sunrise":"sunset")}${s.offset_min?` ${s.offset_min>0?"+":""}${s.offset_min}min`:""}`:(s.time||"");
+    d.innerHTML=`<div class="row1"><b></b><span class="tag ${s.on?"ok":""}">${s.on?"ON":"OFF"}</span>
+      <span class="tag mono"></span><span class="tag">${when} · ${s.days.map(i=>DAYN[i]).join(" ")}</span>
+      <span class="tag">${s.tz||""}</span><span style="flex:1"></span>
+      <button class="ghost sm tgl">${s.enabled?"Pause":"Resume"}</button><button class="danger sm del">Delete</button></div>
+      <div class="small" style="margin-top:4px"></div>`;
+    d.querySelector("b").textContent=`${nmOf(s.mac)} · ${s.outlet===0?"ALL outlets":"outlet "+s.outlet}${s.label?" · "+s.label:""}`;
+    d.querySelector(".mono").textContent=s.mac;
+    d.querySelector(".small").textContent="fires "+when+" ("+(s.tz||"")+")"+(s.last_fired?" · last fired "+s.last_fired:" · never fired yet");
+    d.querySelector(".tgl").onclick=async()=>{try{await apit("/api/schedules",Object.assign({},s,{enabled:!s.enabled}));await loadSched();}catch(e){alert(e.message);}};
+    d.querySelector(".del").onclick=async()=>{if(!confirm("Delete this schedule?"))return;
+      try{await fetch("/api/schedules?id="+encodeURIComponent(s.id),{method:"DELETE",headers:tok()?{"X-Token":tok()}:{}});await loadSched();}catch(e){alert(e.message);}};
+    box.appendChild(d);
+  }
+}
+on("btnSchedReload","click",loadSched);
+on("btnSchedAdd","click",async()=>{
+  const kind=$("scKind").value; // time | rise | set
+  const body={mac:$("scMac").value,outlet:+$("scOutlet").value,on:$("scOn").value==="1",
+    kind:kind==="time"?"time":"sun",sun:kind==="time"?"set":kind,
+    offset_min:+($("scOffset").value||0),
+    time:$("scTime").value,days:schedDaysGet(),tz:$("scTz").value,label:$("scLabel").value,enabled:true};
+  if(!body.mac){$("schedMsg").textContent="✕ pick a strip first (provision one in Setup).";return;}
+  if(!body.days.length){$("schedMsg").textContent="✕ pick at least one day.";return;}
+  $("schedMsg").textContent="saving…";
+  try{const r=await apit("/api/schedules",body);
+    const w=r.schedule.kind==="sun"?`☀ ${r.schedule.sun==="rise"?"sunrise":"sunset"}${r.schedule.offset_min?` ${r.schedule.offset_min>0?"+":""}${r.schedule.offset_min}min`:""}`:`${r.schedule.time}`;
+    $("schedMsg").textContent=`✓ fires ${w} (${r.schedule.tz}) — runs on the server even with your phone off.`;
+    $("scLabel").value="";await loadSched();}
+  catch(e){showErr($("schedMsg"),"",e);}
+});
+/* ---- Setup ---- */
+on("btnApPw","click",async()=>{
+  const ssid=($("wAp").value||"").trim();
+  const suf=ssid.includes("_")?ssid.split("_").pop():"";
+  if(!suf){$("wApPw").value="";alert("Type the plug network name first, e.g. TONLY_TAP_9132171");return;}
+  $("wApPw").value="LGU_"+suf.toUpperCase();
+  try{await navigator.clipboard.writeText($("wApPw").value);}catch{}
+});
+on("btnProv","click",async()=>{
+  if(!confirm("Write this server IP + home Wi-Fi into the strip? It will reboot and dial this server."))return;
+  $("wifiMsg").textContent="provisioning (up:ip, then up:connect)…";
+  try{const r=await apit("/api/provision",{host:$("wIp").value.trim()||"192.168.1.1",
+    server_ip:$("wSrv").value.trim(),ssid:$("wSsid").value,password:$("wPass").value});
+    $("wifiMsg").textContent=`✓ ${r.ip_reply} / ${r.wifi_reply}. ${r.next}`;
+    $("wPass").value="";_last=null;}catch(e){showErr($("wifiMsg"),$("wIp").value.trim(),e);}
+});
+on("btnClaimStrip","click",async()=>{
+  const mac=($("claimMac")&&$("claimMac").value||"").trim();
+  if(!mac){$("claimMsg").textContent="✕ enter a strip MAC address.";return;}
+  $("claimMsg").textContent="claiming strip…";
+  try{
+    const r=await apit("/api/claim",{mac:mac,token:tok()});
+    if(r.ok){
+      $("claimMsg").textContent=`✓ Strip ${r.mac||mac} linked to your account!`;
+      $("claimMac").value="";
+      await live();
+      if(typeof loadUsers==="function")await loadUsers();
+    }else{
+      $("claimMsg").textContent="✕ "+(r.error||"failed to claim");
+    }
+  }catch(e){showErr($("claimMsg"),"",e);}
+});
+let verifyCtl=null;
+on("btnVerifyX","click",()=>{verifyCtl&&verifyCtl.abort();});
+on("btnVerify","click",async()=>{
+  verifyCtl&&verifyCtl.abort();verifyCtl=new AbortController();
+  const done=busy($("btnVerify"),$("btnVerifyX"),$("verifyMsg"),"scanning for that MAC");
+  try{const r=await apit("/api/verify-join",{mac:$("vMac").value.trim(),nets:[$("nets").value.trim()]},verifyCtl.signal);
+    done();
+    $("verifyMsg").textContent=r.joined?("✓ JOINED at "+r.ip+" · "+(r.info.model||"")+" "+(r.info.firmware||"")):("✕ not found — "+(r.hint||""));}catch(e){done();if(e.name==="AbortError"){$("verifyMsg").textContent="cancelled.";}else showErr($("verifyMsg"),"",e);}
+});
+/* ---- Tools ---- */
+let strips=[];
+async function reload(){try{const d=await apit("/api/strips");strips=d.strips||[];renderTools();}catch(e){if($("strips"))$("strips").innerHTML='<p class="err">'+e.message+"</p>";}}
+function renderTools(){
+  const el=$("strips");if(!el)return;el.innerHTML=strips.length?"":"<p class='small'>No manual entries.</p>";
+  for(const s of strips){
+    const d=document.createElement("div");d.className="strip";
+    d.innerHTML=`<div class="strip-head"><b></b><span class="tag mono"></span><span class="tag">${s.esp_ip?("via ESP "+s.esp_ip):(Object.keys(s.codes||{}).length+"/8 codes")}</span><span style="flex:1"></span><button class="ghost sm del">remove</button></div><div class="outs"></div><div class="msg small"></div><pre class="diag mono" style="display:none"></pre>`;
+    d.querySelector("b").textContent=s.name||s.ip;d.querySelector(".mono").textContent=s.ip+":"+(s.port||30300);
+    d.querySelector(".del").onclick=async()=>{await fetch("/api/strips?ip="+encodeURIComponent(s.ip),{method:"DELETE",headers:tok()?{"X-Token":tok()}:{}});await reload();};
+    const diagBtn=document.createElement("button");diagBtn.className="ghost sm";diagBtn.textContent="🔎 Diagnose";
+    diagBtn.onclick=async()=>{msg.textContent="diagnosing (~30s)…";try{const r=await apit("/api/diagnose",{ip:s.ip});const open=r.ports.map(e=>e.port).join(",")||"none";
+      msg.textContent=`MAC ${r.mac||"?"} · open: ${open}.`;
+      diagPre.textContent=JSON.stringify(r,null,1).slice(0,4000);diagPre.style.display="";}catch(e){showErr(msg,s.ip,e);}};
+    d.querySelector(".strip-head").appendChild(diagBtn);
+    const outs=d.querySelector(".outs"),msg=d.querySelector(".msg"),diagPre=d.querySelector(".diag");
+    const lg=document.createElement("div");lg.className="row";lg.style.cssText="margin-top:6px";
+    lg.innerHTML=`<span class="small mono">30300:</span>`;
+    const bInfo=document.createElement("button");bInfo.className="ghost sm";bInfo.textContent="Read info";
+    const bState=document.createElement("button");bState.className="ghost sm";bState.textContent="Read state";
+    bInfo.onclick=async()=>{msg.textContent="reading info…";try{const r=await apit("/api/lg-info",{ip:s.ip});msg.textContent=r.info?("✓ "+r.info.model+" · "+r.info.mac+" · fw "+r.info.firmware):("✕ "+(r.error||"")+(r.hint?" · "+r.hint:""));if(r.info)await reload();}catch(e){showErr(msg,s.ip,e);}};
+    bState.onclick=async()=>{msg.textContent="reading state…";try{const r=await apit("/api/lg-state",{ip:s.ip});msg.textContent=r.state_hex?("state bytes: "+r.state_hex):("✕ "+(r.error||"no reply")+(r.hint?" · "+r.hint:""));}catch(e){showErr(msg,s.ip,e);}};
+    lg.append(bInfo,bState);d.appendChild(lg);
+    el.appendChild(d);
+  }
+}
+let scanCtl=null;
+on("btnScanX","click",()=>{scanCtl&&scanCtl.abort();});
+on("btnScan","click",async()=>{
+  scanCtl&&scanCtl.abort();scanCtl=new AbortController();
+  const done=busy($("btnScan"),$("btnScanX"),$("scanMsg"),"scanning (up to ~60s)");$("found").innerHTML="";
+  try{
+    const r=await apit("/api/discover",{nets:[$("nets").value.trim()],ports:[30300,80,6668],timeout:0.6},scanCtl.signal);
+    done();
+    $("scanMsg").textContent=`done: ${r.scanned} hosts, ${r.found.length} with open ports`;
+    if(!r.found.length){$("found").innerHTML="<p class='small'>Nothing found.</p>";return;}
+    let h="<table><tr><th>IP</th><th>port</th><th>banner</th><th></th></tr>";
+    for(const f of r.found)h+=`<tr><td class="mono">${f.ip}</td><td>${f.port}</td><td class="mono">${(f.banner_text||"—").slice(0,60)}</td><td><button data-ip="${f.ip}" data-port="${f.port}">Add</button></td></tr>`;
+    $("found").innerHTML=h+"</table>";
+    $("found").querySelectorAll("button").forEach(b=>b.onclick=async()=>{await apit("/api/strips",{ip:b.dataset.ip,port:+b.dataset.port});await reload();});
+  }catch(e){done();if(e.name==="AbortError"){$("scanMsg").textContent="cancelled.";}else showErr($("scanMsg"),"",e);}
+});
+on("btnAdd","click",async()=>{const ip=$("addIp").value.trim();if(!ip)return;await apit("/api/strips",{ip,name:$("addName").value.trim()||ip,esp_ip:$("addEsp").value.trim()});$("addIp").value="";$("addEsp").value="";await reload();});
+on("btnReload","click",reload);
+on("btnHunt","click",async()=>{
+  $("huntMsg").textContent="sweeping LAN, matching MACs…";
+  try{const macs=$("hMacs").value.split(",").map(s=>s.trim()).filter(Boolean);
+    const r=await apit("/api/arp-hunt",{macs,nets:[$("nets").value.trim()]});
+    $("huntMsg").textContent=r.found.length?("✓ "+r.found.map(f=>f.mac+" → "+f.ip).join(" · ")):("✕ "+(r.hint||"none found"));
+    for(const f of r.found){try{await apit("/api/strips",{ip:f.ip,name:f.mac});}catch{}}
+    if(r.found.length)await reload();}catch(e){showErr($("huntMsg"),"",e);}
+});
+function sweepTable(r){
+  let h="<table><tr><th>cmd</th><th>marker</th><th>len</th><th>payload</th><th>err</th></tr>";
+  for(const row of r.rows)h+=row.skipped?`<tr><td>${row.cmd}</td><td colspan="4" class="small">${row.skipped}</td></tr>`:`<tr><td class="mono">${row.cmd_hex}</td><td class="mono">${row.marker||"—"}</td><td>${row.length===""?"—":row.length}</td><td class="mono">${row.payload_hex||"—"}</td><td class="small">${row.error||""}</td></tr>`;
+  return h+"</table>"+`<p class="small">state before ${r.state_before||"?"} → after ${r.state_after||"?"} ${r.state_changed?"· <b>CHANGED!</b>":"· unchanged"}${r.aborted_at?` · <b>stopped at ${r.aborted_at}</b>`:""}${(r.reboots||[]).length?` · route dropped/returned near ${(r.reboots||[]).join(", ")}`:""}${r.retried?` · ${r.retried} retried`:""} · saved ✓${r.hint?` · ${r.hint}`:""}</p>${r.network_lost?`<p class="err"><b>Route never returned.</b> Phone may have hopped networks, or a command rebooted the strip — check if the setup AP vanished and came back.</p>`:""}`;
+}
+let sweepCtl=null;
+on("btnSweepX","click",()=>{sweepCtl&&sweepCtl.abort();});
+on("btnApHunt","click",async()=>{
+  if(!confirm("Phone joined to the setup AP? Runs info + state + sweep (~1 min). Watch the LEDs."))return;
+  sweepCtl&&sweepCtl.abort();sweepCtl=new AbortController();
+  const done=busy($("btnApHunt"),$("btnSweepX"),$("sweepMsg"),"AP hunt running");
+  try{const r=await apit("/api/ap-hunt",{ip:$("sIp").value.trim()||"192.168.1.1",start:$("sStart").value.trim(),end:$("sEnd").value.trim()},sweepCtl.signal);
+    done();
+    if(r.error){$("sweepMsg").textContent="✕ "+r.error+(r.hint?" · "+r.hint:"");return;}
+    $("sweepOut").innerHTML=`<p><b>${r.info.model||"?"} · ${r.info.mac||"?"} · fw ${r.info.firmware||"?"}</b> · state ${r.state_hex||"?"}</p>`+sweepTable(r.sweep);
+    $("sweepMsg").textContent="✓ done";await reload();}catch(e){done();if(e.name==="AbortError"){$("sweepMsg").textContent="cancelled — server finishes in background.";}else showErr($("sweepMsg"),$("sIp").value.trim(),e);}
+});
+on("btnSweep","click",async()=>{
+  if(!confirm("Start sweep with EMPTY frames while watching the LEDs? set-wifi is excluded."))return;
+  sweepCtl&&sweepCtl.abort();sweepCtl=new AbortController();
+  const done=busy($("btnSweep"),$("btnSweepX"),$("sweepMsg"),"sweeping — do not touch");
+  try{const r=await apit("/api/sweep",{ip:$("sIp").value.trim(),start:$("sStart").value.trim(),end:$("sEnd").value.trim()},sweepCtl.signal);
+    done();$("sweepOut").innerHTML=sweepTable(r);
+    $("sweepMsg").textContent="✓ done";}catch(e){done();if(e.name==="AbortError"){$("sweepMsg").textContent="cancelled.";}else showErr($("sweepMsg"),$("sIp").value.trim(),e);}
+});
+on("ledNo","click",()=>{$("sweepMsg").textContent="noted: no LED change";});
+on("ledYes","click",async()=>{const w=prompt("Which outlet changed, and how?");if(w)$("sweepMsg").textContent="noted: "+w;});
+const CANNED=[
+ ["0x66 baseline","0x66",""],["0x66 +00","0x66","00"],["0x66 +01","0x66","01"],
+ ["0x66 +00000000","0x66","00000000"],["0x66 +01000000","0x66","01000000"],["0x66 +00000001","0x66","00000001"],
+ ["0x68 baseline","0x68",""],["0x68 +00","0x68","00"],["0x68 +01","0x68","01"],
+ ["0x68 outlet1 on?","0x68","0101"],["0x68 outlet1 off?","0x68","0100"],
+ ["0x68 outlet2 on?","0x68","0201"],["0x68 outlet2 off?","0x68","0200"],
+ ["0x68 outlet3 on?","0x68","0301"],["0x68 outlet4 on?","0x68","0401"],
+ ["0x68 +I2C R1-ON (long shot)","0x68","131a1a"],["0x68 +I2C R1-OFF (long shot)","0x68","132a26"],
+ ["0x69 baseline","0x69",""]];
+let campCtl=null;
+on("btnCampaignX","click",()=>{campCtl&&campCtl.abort();});
+on("btnCampaign","click",async()=>{
+  if(!confirm("Run 18 payload shots while WATCHING the LEDs? Finger over the physical buttons."))return;
+  campCtl&&campCtl.abort();campCtl=new AbortController();
+  const done=busy($("btnCampaign"),$("btnCampaignX"),$("campMsg"),"campaign running");
+  try{const r=await apit("/api/probe-shots",{ip:$("cIp").value.trim()||"192.168.1.1",gap:5,
+    shots:CANNED.map(c=>({label:c[0],cmd:c[1],payload_hex:c[2]}))},campCtl.signal);
+    done();
+    let h="<table><tr><th>#</th><th>shot</th><th>marker</th><th>reply</th><th>state</th><th>err</th></tr>";
+    for(const s of r.shots)h+=`<tr><td>${s.n}</td><td class="mono">${s.label}</td><td class="mono">${s.marker||"—"}</td><td class="mono">${s.reply_hex||"—"}</td><td class="mono">${s.state_after||"?"}</td><td class="small">${s.error||""}${s.state_changed?" <b>CHANGED!</b>":""}</td></tr>`;
+    $("campOut").innerHTML=h+"</table>"+`<p class="small">before ${r.state_before||"?"} · ${r.changed_any?"<b>STATE CHANGED — which shot?</b>":"no change"}${r.stopped_early?" · stopped early":""} · saved ✓</p>`;
+    $("campMsg").textContent=r.changed_any?"✓ SOMETHING MOVED — paste this table":"✓ done";}catch(e){done();if(e.name==="AbortError"){$("campMsg").textContent="cancelled.";}else showErr($("campMsg"),$("cIp").value.trim(),e);}
+});
+on("btnRaw","click",async()=>{
+  if(!confirm("Send one experimental frame while watching the strip?"))return;
+  $("rawMsg").textContent="sending…";
+  try{const r=await apit("/api/lg-raw",{ip:$("xIp").value.trim(),cmd:$("xCmd").value.trim(),payload_hex:$("xPay").value});
+    $("rawMsg").textContent=`sent ${r.sent}B in ${r.latency_ms}ms · reply: ${JSON.stringify(r.reply).slice(0,200)} ${r.error||""}${r.hint?" · "+r.hint:""}`;}
+  catch(e){showErr($("rawMsg"),$("xIp").value.trim(),e);}
+});
+on("btnLearn","click",async()=>{
+  $("learnMsg").textContent="";
+  try{await apit("/api/learn",{ip:$("lIp").value.trim(),outlet:$("lOutlet").value,action:$("lAction").value,hex:$("lHex").value});$("learnMsg").textContent="✓ saved";$("lHex").value="";await reload();}
+  catch(e){showErr($("learnMsg"),$("lIp").value.trim(),e);}
+});
+on("btnProbe","click",async()=>{
+  $("learnMsg").textContent="probing…";
+  try{const r=await apit("/api/probe",{ip:$("lIp").value.trim(),port:30300,send_hex:$("pHex").value});$("learnMsg").textContent=r.connected?`connected, reply ${r.received_hex.length/2}B: ${r.received_hex.slice(0,160)||"(silent)"} ${r.error||""}`:("✕ "+r.error);}
+  catch(e){showErr($("learnMsg"),$("lIp").value.trim(),e);}
+});
+/* ---- Settings ---- */
+async function loadSettings(){try{const s=await apit("/api/settings");
+  if($("setLat"))$("setLat").value=s.lat;if($("setLon"))$("setLon").value=s.lon;
+  if($("setNtfy"))$("setNtfy").value=s.ntfy||"";if($("setAlertMin"))$("setAlertMin").value=s.alert_offline_min||10;
+  if($("setNotifyOffline"))$("setNotifyOffline").checked=s.notify_offline;
+  if($("setNotifySwitch"))$("setNotifySwitch").checked=s.notify_switch;
+  if($("setNotifyTemp"))$("setNotifyTemp").checked=s.notify_temp;
+  if($("setNotifyVoltage"))$("setNotifyVoltage").checked=s.notify_voltage!==false;
+  if($("setTempAlert"))$("setTempAlert").value=s.temp_alert_c||60;
+  if($("setVoltMin"))$("setVoltMin").value=s.voltage_min||200;
+  if($("setVoltMax"))$("setVoltMax").value=s.voltage_max||250;
+  if($("setCostKwh"))$("setCostKwh").value=s.cost_per_kwh||1.2;
+  if($("setCurrency"))$("setCurrency").value=s.currency||"EGP";
+  const filt=s.notify_filter||"all";
+  if($("setFiltAll"))$("setFiltAll").checked=(filt==="all");
+  if($("setFiltSel"))$("setFiltSel").checked=(filt==="selected");
+  await renderNotifyTargets(s);
+  updateNotifyTargetsBox();}catch{}}
+async function renderNotifyTargets(s){
+  const box=$("notifyTargetsBox");if(!box)return;
+  const st=await ensureLive();
+  const devs=(st&&st.devices)||[];
+  const names=(st&&st.names)||{};
+  const cur=new Set((s.notify_targets||[]).map(t=>t.toUpperCase()));
+  box.innerHTML="";
+  for(const d of devs){
+    const m=d.mac||"";const mn=names[m.toLowerCase().replace(/:/g,"")]||{};const strip_nm=mn.name||d.name||m;
+    const row=document.createElement("div");row.style.cssText="margin:4px 0;border-bottom:1px solid var(--line);padding:4px 0";
+    row.innerHTML=`<b>${strip_nm}</b><div class="row" style="margin:4px 0">`;
+    const all=document.createElement("label");all.classList.add("switchrow");all.style.fontSize="12px";
+    all.innerHTML=`<input type="checkbox" class="tgt-mac" data-mac="${m}" value="${m}" ${cur.has(m)?"checked":""}> All outlets`;
+    for(let o=1;o<=4;o++){
+      const l=document.createElement("label");l.classList.add("switchrow");l.style.fontSize="12px";
+      const key=`${m}:${o}`;l.innerHTML=`<input type="checkbox" class="tgt-outlet" data-mac="${m}" value="${key}" ${cur.has(key.toUpperCase())?"checked":""}> Outlet ${o}`;
+      row.querySelector(".row").appendChild(l);}
+    row.querySelector(".row").appendChild(all);box.appendChild(row);
+  }
+  // Add mutual exclusivity logic
+  document.querySelectorAll(".tgt-mac").forEach(macCb=>{
+    macCb.addEventListener("change",function(){
+      const mac=this.dataset.mac;
+      if(this.checked){
+        document.querySelectorAll(`.tgt-outlet[data-mac="${mac}"]`).forEach(outCb=>outCb.checked=false);
+      }
+    });
+  });
+  document.querySelectorAll(".tgt-outlet").forEach(outCb=>{
+    outCb.addEventListener("change",function(){
+      const mac=this.dataset.mac;
+      if(this.checked){
+        document.querySelector(`.tgt-mac[data-mac="${mac}"]`).checked=false;
+      }
+    });
+  });
+}
+function updateNotifyTargetsBox(){
+  const box=$("notifyTargetsBox"),sel=$("setFiltSel");
+  if(box&&sel)box.style.display=sel.checked?"block":"none";}
+on("setFiltAll","change",updateNotifyTargetsBox);
+on("setFiltSel","change",updateNotifyTargetsBox);
+on("btnSettings","click",async()=>{
+  $("setMsg").textContent="saving…";
+  const targets=[];
+  document.querySelectorAll(".tgt-mac:checked,.tgt-outlet:checked").forEach(c=>targets.push(c.value));
+  try{const r=await apit("/api/settings",{lat:$("setLat").value,lon:$("setLon").value,
+    ntfy:$("setNtfy").value,alert_offline_min:$("setAlertMin").value,
+    notify_offline:$("setNotifyOffline").checked,notify_switch:$("setNotifySwitch").checked,
+    notify_temp:$("setNotifyTemp").checked,temp_alert_c:$("setTempAlert").value,
+    notify_voltage:$("setNotifyVoltage").checked,voltage_min:$("setVoltMin").value,voltage_max:$("setVoltMax").value,
+    notify_filter:$("setFiltAll").checked?"all":"selected",notify_targets:targets});
+    $("setMsg").textContent="✓ saved — sun times "+r.settings.lat+", "+r.settings.lon+
+      "; offline alerts "+(r.settings.notify_offline?"on":"off")+
+      "; switch alerts "+(r.settings.notify_switch?"on":"off")+
+      "; temp alerts "+(r.settings.notify_temp?("on (>"+r.settings.temp_alert_c+"°C)"):"off")+
+      "; volt alerts "+(r.settings.notify_voltage?("on ("+r.settings.voltage_min+"-"+r.settings.voltage_max+"V)"):"off")+
+      "; filter "+r.settings.notify_filter;}
+  catch(e){showErr($("setMsg"),"",e);}});
+on("btnCostSettings","click",async()=>{
+  $("costMsg").textContent="saving…";
+  try{const r=await apit("/api/settings",{cost_per_kwh:$("setCostKwh").value,currency:$("setCurrency").value});
+    $("costMsg").textContent="✓ saved — "+r.settings.cost_per_kwh+" "+r.settings.currency+"/kWh";
+    if(typeof loadLeaderboard==="function")await loadLeaderboard();
+  }catch(e){showErr($("costMsg"),"",e);}});
+on("btnNotifyTest","click",async()=>{
+  $("setMsg").textContent="sending test…";
+  try{await apit("/api/notify-test",{});$("setMsg").textContent="✓ sent — check the ntfy app.";}
+  catch(e){showErr($("setMsg"),"",e);}});
+async function log(){try{const l=await apit("/api/log");if($("log"))$("log").textContent=l.lines.join("\n")||"—";}catch{}}
+on("btnCopyLog","click",async()=>{
+  const t=$("log").textContent;{if($("copyMsg"))$("copyMsg").textContent="";}
+  try{await navigator.clipboard.writeText(t);if($("copyMsg"))$("copyMsg").textContent="✓ copied";}
+  catch{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();
+    try{document.execCommand("copy");if($("copyMsg"))$("copyMsg").textContent="✓ copied";}catch{if($("copyMsg"))$("copyMsg").textContent="✕ copy failed — select manually";}
+    ta.remove();}
+});
+/* ---- Analytics ---- */
+let chartPower,chartVoltage,chartTemp;
+let aRange="24h",aMac="",aOutlet=1;
+const aCfg={responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false}}};
+function destroyCharts(){[chartPower,chartVoltage,chartTemp].forEach(c=>{if(c)c.destroy();});chartPower=chartVoltage=chartTemp=null;}
+async function loadAnalytics(){
+  try{
+    const st=await ensureLive();
+    const devs=(st&&st.devices)||[];
+    const sel=$("aStrip");if(!sel)return;
+    const opts=[`<option value="__all__">🌐 All strips (combined)</option>`];
+    devs.forEach(d=>{
+      const m=d.mac||"";
+      const names=(st.names||{})[m.toLowerCase().replace(/:/g,"")]||{};
+      opts.push(`<option value="${m}">${names.name||d.name||m}</option>`);
+    });
+    sel.innerHTML=opts.join("");
+    if(!aMac)aMac="__all__";
+    sel.value=aMac;
+    updateOutletDropdown(st);
+    await loadLeaderboard();
+    await loadOverview(st);
+    await loadCharts();
+  }catch(e){console.error("analytics load error:",e);}
+}
+function updateOutletDropdown(st){
+  const outSel=$("aOutlet");if(!outSel)return;
+  if(aMac==="__all__"){
+    outSel.innerHTML=`<option value="__all__">All outlets</option>`;
+    outSel.disabled=true;
+    return;
+  }
+  outSel.disabled=false;
+  const m=(aMac||"").toLowerCase().replace(/:/g,"");
+  const stripNames=(st&&st.names&&st.names[m])||{};
+  const outletNames=stripNames.outlets||{};
+  const opts=[`<option value="__all__" ${aOutlet==="__all__"?"selected":""}>⚡ All 4 outlets (comparison)</option>`];
+  [1,2,3,4].forEach(n=>{
+    const nick=outletNames[String(n)]||`Outlet ${n}`;
+    opts.push(`<option value="${n}" ${String(aOutlet)===String(n)?"selected":""}>${nick}</option>`);
+  });
+  outSel.innerHTML=opts.join("");
+}
+async function loadOverview(st){
+  try{
+    const devs=(st&&st.devices)||[];
+    const totalW=devs.reduce((s,d)=>s+(d.total_power_w||0),0);
+    if($("aTotalPower"))$("aTotalPower").textContent=totalW.toFixed(1)+"W";
+    const info=await apit("/api/analytics/info");
+    if($("aDbSize"))$("aDbSize").textContent=info.db_size_mb+" MB";
+    const now=Math.floor(Date.now()/1000),start24=now-86400;
+    let totalAvg=0,totalPeak=0,cnt=0;
+    for(const d of devs){
+      const r=await apit("/api/analytics/strip",{mac:d.mac,start_ts:start24,end_ts:now});
+      if(r.stats){totalAvg+=(r.stats.avg_power_w||0);totalPeak=Math.max(totalPeak,r.stats.peak_power_w||0);cnt++;}
+    }
+    if($("aAvgPower"))$("aAvgPower").textContent=cnt?(totalAvg/cnt).toFixed(1)+"W":"—";
+    if($("aPeakPower"))$("aPeakPower").textContent=totalPeak.toFixed(1)+"W";
+  }catch(e){console.error("overview error:",e);}
+}
+async function loadLeaderboard(){
+  try{
+    const now=Math.floor(Date.now()/1000),start=now-86400;
+    const r=await apit("/api/analytics/leaderboard",{start_ts:start,end_ts:now,limit:10});
+    const st=await ensureLive();
+    const settings=await apit("/api/settings");
+    const cost_kwh=settings.cost_per_kwh||1.2;
+    const currency=settings.currency||"EGP";
+    const names=(st&&st.names)||{};
+    const box=$("leaderboard");if(!box)return;
+    const list=(r.leaderboard||[]).filter(e=>((e.energy_kwh||e.energy_delta_kwh||0)>0.00005)||(e.peak_power_w>0.05)||(e.avg_power_w>0.05));
+    if(!list.length){box.innerHTML='<p class="small">No active consumers recorded yet in the last 24h.</p>';return;}
+    box.innerHTML=list.map((e,i)=>{
+      const mn=names[e.mac.toLowerCase().replace(/:/g,"")]||{};
+      const strip_nm=mn.name||`Strip ${e.mac.slice(-5)}`;
+      const outlet_nm=mn.outlets?.[e.outlet]||`Outlet ${e.outlet}`;
+      const kwhVal=Number(e.energy_kwh!=null?e.energy_kwh:e.energy_delta_kwh)||0;
+      const kwhStr=kwhVal>=0.001?kwhVal.toFixed(3):kwhVal.toFixed(4);
+      const cost=(kwhVal*cost_kwh).toFixed(2);
+      const wh=(kwhVal*1000).toFixed(1);
+      return `<div style="display:flex;gap:10px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--line)">
+        <b style="font-size:20px;color:var(--mut);min-width:26px;text-align:center">#${i+1}</b>
+        <div style="flex:1;min-width:0">
+          <b style="font-size:15px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${strip_nm} · ${outlet_nm}</b>
+          <span class="small" style="color:var(--mut)">${(e.avg_power_w||0).toFixed(1)}W avg · ${(e.peak_power_w||0).toFixed(1)}W peak · ~${cost} ${currency}</span>
+        </div>
+        <div style="text-align:right;white-space:nowrap">
+          <b style="font-size:16px;color:var(--blue);display:block">${kwhStr} <span style="font-size:12px">kWh</span></b>
+          <span class="small" style="color:var(--mut)">${wh} Wh consumed</span>
+        </div>
+      </div>`;
+    }).join("");
+  }catch(e){console.error("leaderboard error:",e);}
+}
+const PALETTE=["#2563eb","#16a34a","#dc2626","#d97706","#7c3aed","#0891b2","#db2777","#65a30d"];
+function fmtTs(ts){return new Date(ts*1000).toLocaleString("en",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});}
+function statsHtml(s,cost_kwh,currency,titleNote){
+  const kwh=(s.energy_delta_kwh||0).toFixed(3);
+  const cost=(kwh*cost_kwh).toFixed(2);
+  const vmin=(s.min_voltage_v!=null&&s.min_voltage_v>0)?s.min_voltage_v.toFixed(1)+"V":"—";
+  const vmax=(s.max_voltage_v!=null&&s.max_voltage_v>0)?s.max_voltage_v.toFixed(1)+"V":"—";
+  const vavg=(s.avg_voltage_v!=null&&s.avg_voltage_v>0)?s.avg_voltage_v.toFixed(1)+"V":"—";
+  const tmin=(s.min_temp_c!=null)?s.min_temp_c+"°C":"—";
+  const tmax=(s.max_temp_c!=null)?s.max_temp_c+"°C":"—";
+  return `
+      <div class="grid cols4" style="gap:10px">
+        <div class="stat"><b>${kwh} kWh</b><span>energy consumed</span></div>
+        <div class="stat"><b>${cost} ${currency}</b><span>estimated cost</span></div>
+        <div class="stat"><b>${(s.avg_power_w||0).toFixed(1)}W</b><span>average power</span></div>
+        <div class="stat"><b>${(s.peak_power_w||0).toFixed(1)}W</b><span>peak power</span></div>
+        <div class="stat"><b>${vmax}</b><span>highest voltage ⚡</span></div>
+        <div class="stat"><b>${vmin}</b><span>lowest voltage ⚡</span></div>
+        <div class="stat"><b>${vavg}</b><span>average voltage</span></div>
+        <div class="stat"><b>${tmax} / ${tmin}</b><span>max / min temp</span></div>
+      </div>
+      <p class="small" style="margin-top:12px">${s.samples||0} samples · Range: ${aRange}${titleNote?" · "+titleNote:""} · Temp avg: ${(s.avg_temp_c||0).toFixed(1)}°C</p>`;
+}
+function pivot(rows,keyField,valField){
+  const tsSet=[...new Set(rows.map(r=>r.ts))].sort((a,b)=>a-b);
+  const keys=[...new Set(rows.map(r=>String(r[keyField])))].sort();
+  const byKey={};keys.forEach(k=>byKey[k]=new Map(rows.filter(r=>String(r[keyField])===k).map(r=>[r.ts,r[valField]||0])));
+  return {labels:tsSet.map(fmtTs),keys,series:keys.map(k=>tsSet.map(t=>byKey[k].get(t)??null))};
+}
+function multiDatasets(keys,series,labelFn){
+  return keys.map((k,i)=>({label:labelFn(k),data:series[i],borderColor:PALETTE[i%PALETTE.length],backgroundColor:"transparent",fill:false,tension:.3,spanGaps:true,borderWidth:2,pointRadius:0}));
+}
+const aCfgMulti={responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:true,position:"bottom",labels:{boxWidth:12,font:{size:11}}}}};
+async function loadCharts(){
+  destroyCharts();
+  if($("aChartMsg"))$("aChartMsg").textContent="loading…";
+  try{
+    const now=Math.floor(Date.now()/1000);
+    let start,ds;
+    if(aRange==="1h"){start=now-3600;ds=null;}
+    else if(aRange==="6h"){start=now-21600;ds="minute";}
+    else if(aRange==="24h"){start=now-86400;ds="minute";}
+    else if(aRange==="7d"){start=now-604800;ds="hour";}
+    const settings=await apit("/api/settings");
+    const cost_kwh=settings.cost_per_kwh||1.2;
+    const currency=settings.currency||"EGP";
+    const st=await ensureLive();
+    const names=(st&&st.names)||{};
+    const stripLabel=mac=>{const n=names[(mac||"").toLowerCase().replace(/:/g,"")]||{};return n.name||("Strip "+(mac||"").slice(-5));};
+    // MODE 1: all strips combined
+    if(aMac==="__all__"){
+      const r=await apit("/api/analytics/all-strips",{start_ts:start,end_ts:now,downsample:ds});
+      const rows=r.readings||[];
+      if(!rows.length){if($("aChartMsg"))$("aChartMsg").textContent="No data yet — wait 30s";return;}
+      const pv=pivot(rows,"mac","power_w");
+      chartPower=new Chart($("chartPower"),{type:"line",data:{labels:pv.labels,datasets:multiDatasets(pv.keys,pv.series,m=>stripLabel(m)+" (W)")},options:{...aCfgMulti,scales:{y:{beginAtZero:true}},plugins:{...aCfgMulti.plugins,title:{display:true,text:"Power per strip (W) — all strips"}}}});
+      const vv=pivot(rows,"mac","voltage_v");
+      chartVoltage=new Chart($("chartVoltage"),{type:"line",data:{labels:vv.labels,datasets:multiDatasets(vv.keys,vv.series,m=>stripLabel(m)+" (V)")},options:{...aCfgMulti,scales:{y:{suggestedMin:200,suggestedMax:250}},plugins:{...aCfgMulti.plugins,title:{display:true,text:"Voltage per strip (V) — all strips"}}}});
+      const tv=pivot(rows,"mac","temp_c");
+      chartTemp=new Chart($("chartTemp"),{type:"line",data:{labels:tv.labels,datasets:multiDatasets(tv.keys,tv.series,m=>stripLabel(m)+" (°C)")},options:{...aCfgMulti,plugins:{...aCfgMulti.plugins,title:{display:true,text:"Temperature per strip (°C) — all strips"}}}});
+      // total house load
+      const tsMap=new Map();rows.forEach(x=>tsMap.set(x.ts,(tsMap.get(x.ts)||0)+(x.power_w||0)));
+      const tsSorted=[...tsMap.keys()].sort((a,b)=>a-b);
+      const peak=Math.max(0,...[...tsMap.values()]);
+      // aggregate stats across strips
+      let kwh=0,samples=0,vmin=null,vmax=null,vsum=0,vcnt=0,pkW=0;
+      let tmin=null,tmax=null,tsum=0,tcnt=0;
+      for(const d of (st.devices||[])){
+        try{const s=(await apit("/api/analytics/strip",{mac:d.mac,start_ts:start,end_ts:now})).stats||{};
+        kwh+=(s.energy_delta_kwh||0);samples+=(s.samples||0);pkW=Math.max(pkW,s.peak_power_w||0);
+        if(s.min_voltage_v>0&&(vmin==null||s.min_voltage_v<vmin))vmin=s.min_voltage_v;
+        if(s.max_voltage_v>0&&(vmax==null||s.max_voltage_v>vmax))vmax=s.max_voltage_v;
+        if(s.avg_voltage_v>0){vsum+=s.avg_voltage_v;vcnt++;}
+        if(s.min_temp_c!=null&&s.min_temp_c>0&&(tmin==null||s.min_temp_c<tmin))tmin=s.min_temp_c;
+        if(s.max_temp_c!=null&&s.max_temp_c>0&&(tmax==null||s.max_temp_c>tmax))tmax=s.max_temp_c;
+        if(s.avg_temp_c!=null&&s.avg_temp_c>0){tsum+=s.avg_temp_c;tcnt++;}
+        }catch{}
+      }
+      const agg={energy_delta_kwh:kwh,avg_power_w:tsSorted.length?[...tsMap.values()].reduce((a,b)=>a+b,0)/tsSorted.length:0,peak_power_w:Math.max(peak,pkW),samples,min_voltage_v:vmin,max_voltage_v:vmax,avg_voltage_v:vcnt?vsum/vcnt:0,avg_temp_c:tcnt?tsum/tcnt:0,min_temp_c:tmin,max_temp_c:tmax};
+      const sb=$("aStats");if(sb)sb.innerHTML=statsHtml(agg,cost_kwh,currency,"all strips combined");
+      if($("aChartMsg"))$("aChartMsg").textContent="";
+      return;
+    }
+    // MODE 2: one strip, all 4 outlets
+    if(String(aOutlet)==="__all__"){
+      const r=await apit("/api/analytics/strip-outlets",{mac:aMac,start_ts:start,end_ts:now,downsample:ds});
+      const rows=r.readings||[];
+      if(!rows.length){if($("aChartMsg"))$("aChartMsg").textContent="No data yet — wait 30s";return;}
+      const mkey=aMac.toLowerCase().replace(/:/g,"");
+      const oNames=((names[mkey]||{}).outlets)||{};
+      const oLabel=n=>oNames[String(n)]||("Outlet "+n);
+      const pv=pivot(rows,"outlet","power_w");
+      chartPower=new Chart($("chartPower"),{type:"line",data:{labels:pv.labels,datasets:multiDatasets(pv.keys,pv.series,n=>oLabel(n)+" (W)")},options:{...aCfgMulti,scales:{y:{beginAtZero:true}},plugins:{...aCfgMulti.plugins,title:{display:true,text:"Power per outlet (W) — "+stripLabel(aMac)}}}});
+      const tv=pivot(rows,"outlet","temp_c");
+      chartTemp=new Chart($("chartTemp"),{type:"line",data:{labels:tv.labels,datasets:multiDatasets(tv.keys,tv.series,n=>oLabel(n)+" (°C)")},options:{...aCfgMulti,plugins:{...aCfgMulti.plugins,title:{display:true,text:"Temperature per outlet (°C)"}}}});
+      const vv=pivot(rows,"outlet","voltage_v");
+      chartVoltage=new Chart($("chartVoltage"),{type:"line",data:{labels:vv.labels,datasets:multiDatasets(vv.keys,vv.series,n=>oLabel(n)+" (V)")},options:{...aCfgMulti,scales:{y:{suggestedMin:200,suggestedMax:250}},plugins:{...aCfgMulti.plugins,title:{display:true,text:"Voltage (V) — strip level"}}}});
+      const s=(await apit("/api/analytics/strip",{mac:aMac,start_ts:start,end_ts:now})).stats||{};
+      const sb=$("aStats");if(sb)sb.innerHTML=statsHtml(s,cost_kwh,currency,stripLabel(aMac)+" · all outlets");
+      if($("aChartMsg"))$("aChartMsg").textContent="";
+      return;
+    }
+    // MODE 3: single outlet (existing behavior + min/max voltage)
+    const r=await apit("/api/analytics/range",{mac:aMac,outlet:parseInt(aOutlet),start_ts:start,end_ts:now,downsample:ds});
+    const readings=r.readings||[];
+    if(!readings.length){if($("aChartMsg"))$("aChartMsg").textContent="No data yet — wait 30s";return;}
+    const labels=readings.map(p=>fmtTs(p.ts));
+    const power=readings.map(p=>p.power_w||0);
+    const volt=readings.map(p=>p.voltage_v||0);
+    const temp=readings.map(p=>p.temp_c||0);
+    chartPower=new Chart($("chartPower"),{type:"line",data:{labels,datasets:[{label:"Power (W)",data:power,borderColor:"#2563eb",backgroundColor:"rgba(37,99,235,.1)",fill:true,tension:.3}]},options:{...aCfg,scales:{y:{beginAtZero:true}},plugins:{...aCfg.plugins,title:{display:true,text:"Power consumption (W)"}}}});
+    chartVoltage=new Chart($("chartVoltage"),{type:"line",data:{labels,datasets:[{label:"Voltage (V)",data:volt,borderColor:"#16a34a",backgroundColor:"rgba(22,163,74,.1)",fill:true,tension:.3}]},options:{...aCfg,scales:{y:{suggestedMin:200,suggestedMax:250}},plugins:{...aCfg.plugins,title:{display:true,text:"Voltage (V)"}}}});
+    chartTemp=new Chart($("chartTemp"),{type:"line",data:{labels,datasets:[{label:"Temperature (°C)",data:temp,borderColor:"#dc2626",backgroundColor:"rgba(220,38,38,.1)",fill:true,tension:.3}]},options:{...aCfg,scales:{y:{beginAtZero:false}},plugins:{...aCfg.plugins,title:{display:true,text:"Temperature (°C)"}}}});
+    const stripStats=await apit("/api/analytics/strip",{mac:aMac,start_ts:start,end_ts:now});
+    const s=stripStats.stats||{};
+    const sb=$("aStats");if(sb)sb.innerHTML=statsHtml(s,cost_kwh,currency,stripLabel(aMac));
+    if($("aChartMsg"))$("aChartMsg").textContent="";
+  }catch(e){if($("aChartMsg"))$("aChartMsg").textContent="✕ "+e.message;console.error("chart load error:",e);}
+}
+on("aStrip","change",async()=>{
+  aMac=$("aStrip").value;
+  const st=await ensureLive();
+  updateOutletDropdown(st);
+  loadCharts();
+});
+on("aOutlet","change",()=>{
+  const val=$("aOutlet").value;
+  aOutlet=(val==="__all__")?"__all__":parseInt(val);
+  loadCharts();
+});
+on("aBtn1h","click",()=>{document.querySelectorAll("#aBtn1h,#aBtn6h,#aBtn24h,#aBtn7d").forEach(b=>b.classList.remove("on"));$("aBtn1h").classList.add("on");aRange="1h";loadCharts();});
+on("aBtn6h","click",()=>{document.querySelectorAll("#aBtn1h,#aBtn6h,#aBtn24h,#aBtn7d").forEach(b=>b.classList.remove("on"));$("aBtn6h").classList.add("on");aRange="6h";loadCharts();});
+on("aBtn24h","click",()=>{document.querySelectorAll("#aBtn1h,#aBtn6h,#aBtn24h,#aBtn7d").forEach(b=>b.classList.remove("on"));$("aBtn24h").classList.add("on");aRange="24h";loadCharts();});
+on("aBtn7d","click",()=>{document.querySelectorAll("#aBtn1h,#aBtn6h,#aBtn24h,#aBtn7d").forEach(b=>b.classList.remove("on"));$("aBtn7d").classList.add("on");aRange="7d";loadCharts();});
+on("aBtnRefresh","click",loadCharts);
+async function init(){try{const n=await api("/api/nets");if($("nets"))$("nets").value=(n.nets[0]||"192.168.1.0/24");}catch{}checkSrv();await reload();await live();await renderManage();await loadSettings();setInterval(log,4000);setInterval(()=>{if(prefs.auto&&$("pane-control").classList.contains("on"))live();},5000);setInterval(checkSrv,15000);}
+init();
+</script>
+</body>
+</html>
