@@ -601,8 +601,11 @@ async function checkSrv(){
           }
           const cmdBox=$("termuxCmdBox");
           if(cmdBox){
-            const srvHost = location.hostname;
+            const srvHost = (h && h.server_ip) || location.hostname;
             cmdBox.textContent=`python3 controller.py --server-ip "${srvHost}" --token "${tok()}" --ssid "YOUR_WIFI_NAME" --password "YOUR_WIFI_PASSWORD"`;
+          }
+          if($("wSrv") && !$("wSrv").value && h && h.server_ip){
+            $("wSrv").value = h.server_ip;
           }
         }
       }catch(e){
