@@ -211,6 +211,22 @@ class Hub:
     async def handle_client(self, reader, writer):
         peer = writer.get_extra_info("peername")
         ip = peer[0] if peer else "?"
+
+        # Enable aggressive TCP keepalive to detect dead sockets from router restarts / IP rotation
+        try:
+            sock = writer.get_extra_info("socket")
+            if sock:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                # Linux keepalive tuning: 15s idle + 5s interval * 3 probes = 30s dead socket purge
+                if hasattr(socket, "TCP_KEEPIDLE"):
+                    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 15)
+                if hasattr(socket, "TCP_KEEPINTVL"):
+                    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 5)
+                if hasattr(socket, "TCP_KEEPCNT"):
+                    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+        except Exception:
+            pass
+
         s = Session(ip, reader, writer)
         self._log(f"[device] connection from {ip}")
         try:
