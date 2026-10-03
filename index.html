@@ -146,15 +146,26 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 <!-- ============ ANALYTICS ============ -->
 <section class="tabpane" id="pane-analytics">
-<div class="card">
-<h3>Power consumption overview</h3>
-<p class="desc">Real-time power draw across all your strips and outlets. Data collected every 30s.</p>
-<div class="ov">
-<div class="stat"><b id="aTotalPower">—</b><span>total power now</span></div>
-<div class="stat"><b id="aAvgPower">—</b><span>avg power (24h)</span></div>
-<div class="stat"><b id="aPeakPower">—</b><span>peak power (24h)</span></div>
-<div class="stat"><b id="aDbSize">—</b><span>database size</span></div>
-</div>
+<div class="card" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 60%,#3b82f6 100%);border:none;color:#fff">
+  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <div style="font-size:40px;filter:drop-shadow(0 0 12px rgba(255,255,255,.6))">⚡</div>
+    <div style="flex:1;min-width:180px">
+      <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.85">Active demand · all strips</div>
+      <div style="font-size:44px;font-weight:800;line-height:1.1" id="aHeroPower">— <span style="font-size:20px;font-weight:600">W</span></div>
+      <div style="font-size:13px;opacity:.9" id="aHeroSub">measuring…</div>
+    </div>
+    <div style="text-align:right;font-size:13px;line-height:1.7">
+      <div>🔌 Grid: <b id="aHeroVolt">—</b></div>
+      <div>🌡️ Chip: <b id="aHeroTemp">—</b></div>
+      <div style="opacity:.75" id="aHeroUpdated"></div>
+    </div>
+  </div>
+  <div class="ov" style="margin-top:14px;--stat-ink:#fff">
+  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aAvgPower">—</b><span>avg load (24h)</span></div>
+  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aPeakPower">—</b><span>peak demand (24h)</span></div>
+  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aEnergyKwh">—</b><span>energy (24h)</span></div>
+  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aCost">—</b><span>est. cost (24h)</span></div>
+  </div>
 </div>
 
 <div class="card">
@@ -527,7 +538,7 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tabpane").forEach(x=>x.classList.remove("on"));
   t.classList.add("on");$("pane-"+t.dataset.tab).classList.add("on");
   if(t.dataset.tab==="control")live();
-  if(t.dataset.tab==="analytics")loadAnalytics();
+  if(t.dataset.tab==="analytics"){loadAnalytics();startAnalyticsTicker();}else stopAnalyticsTicker();
   if(t.dataset.tab==="strips")renderManage();
   if(t.dataset.tab==="sched")loadSched();
   if(t.dataset.tab==="settings")checkSrv();
@@ -1142,12 +1153,35 @@ on("btnCopyLog","click",async()=>{
     ta.remove();}
 });
 /* ---- Analytics ---- */
-let chartPower,chartVoltage,chartTemp;
+let chartPower,chartVoltage,chartTemp,aTicker=null;
 let aRange="24h",aMac="",aOutlet=1;
 const aCfg={responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false}}};
 function destroyCharts(){[chartPower,chartVoltage,chartTemp].forEach(c=>{if(c)c.destroy();});chartPower=chartVoltage=chartTemp=null;}
-async function loadAnalytics(){
-  try{
+function startAnalyticsTicker(){
+  stopAnalyticsTicker();
+  aTicker=setInterval(async()=>{
+    try{
+      const pane=$("pane-analytics");
+      if(!pane||!pane.classList.contains("on"))return;
+      const st=await ensureLive();
+      if(st)updateHero(st);
+    }catch{}
+  },3000);
+}
+function stopAnalyticsTicker(){if(aTicker){clearInterval(aTicker);aTicker=null;}}
+function updateHero(st){
+  const devs=(st&&st.devices)||[];
+  const online=devs.filter(d=>d.online);
+  const totalW=devs.reduce((s,d)=>s+(d.total_power_w||0),0);
+  if($("aHeroPower"))$("aHeroPower").innerHTML=totalW.toFixed(1)+" <span style='font-size:20px;font-weight:600'>W</span>";
+  const volts=online.map(d=>d.voltage_v).filter(v=>v>0);
+  if($("aHeroVolt"))$("aHeroVolt").textContent=volts.length?(volts.reduce((a,b)=>a+b,0)/volts.length).toFixed(1)+"V":"—";
+  const temps=online.map(d=>Math.max(...(d.outlets||[]).map(o=>o.temp_c||0),0)).filter(t=>t>0);
+  if($("aHeroTemp"))$("aHeroTemp").textContent=temps.length?Math.max(...temps)+"°C":"—";
+  if($("aHeroUpdated"))$("aHeroUpdated").textContent="updated "+new Date().toLocaleTimeString();
+  if($("aHeroSub"))$("aHeroSub").textContent=`${online.length}/${devs.length} strips online · ${online.reduce((s,d)=>s+(d.outlets||[]).filter(o=>o.on).length,0)} outlets on`;
+}
+async function loadAnalytics(){  try{
     const st=await ensureLive();
     const devs=(st&&st.devices)||[];
     const sel=$("aStrip");if(!sel)return;
@@ -1188,31 +1222,44 @@ async function loadOverview(st){
   try{
     const devs=(st&&st.devices)||[];
     const totalW=devs.reduce((s,d)=>s+(d.total_power_w||0),0);
-    if($("aTotalPower"))$("aTotalPower").textContent=totalW.toFixed(1)+"W";
+    // Hero demand card (live)
+    if($("aHeroPower"))$("aHeroPower").innerHTML=totalW.toFixed(1)+" <span style='font-size:20px;font-weight:600'>W</span>";
+    const online=devs.filter(d=>d.online);
+    const volts=online.map(d=>d.voltage_v).filter(v=>v>0);
+    if($("aHeroVolt"))$("aHeroVolt").textContent=volts.length?(volts.reduce((a,b)=>a+b,0)/volts.length).toFixed(1)+"V":"—";
+    const temps=online.map(d=>Math.max(...(d.outlets||[]).map(o=>o.temp_c||0))).filter(t=>t>0);
+    if($("aHeroTemp"))$("aHeroTemp").textContent=temps.length?Math.max(...temps)+"°C":"—";
+    if($("aHeroUpdated"))$("aHeroUpdated").textContent="updated "+new Date().toLocaleTimeString();
+    if($("aHeroSub"))$("aHeroSub").textContent=`${online.length}/${devs.length} strips online · ${online.reduce((s,d)=>s+(d.outlets||[]).filter(o=>o.on).length,0)} outlets on`;
     const info=await apit("/api/analytics/info");
-    if($("aDbSize"))$("aDbSize").textContent=info.db_size_mb+" MB";
     const now=Math.floor(Date.now()/1000),start24=now-86400;
-    let totalAvg=0,totalPeak=0,cnt=0;
+    let totalAvg=0,totalPeak=0,totalKwh=0,cnt=0;
     for(const d of devs){
       const r=await apit("/api/analytics/strip",{mac:d.mac,start_ts:start24,end_ts:now});
-      if(r.stats){totalAvg+=(r.stats.avg_power_w||0);totalPeak=Math.max(totalPeak,r.stats.peak_power_w||0);cnt++;}
+      if(r.stats){totalAvg+=(r.stats.avg_power_w||0);totalPeak=Math.max(totalPeak,r.stats.peak_power_w||0);totalKwh+=(r.stats.energy_delta_kwh||0);cnt++;}
     }
+    let cost_kwh=1.2,currency="EGP";
+    try{const s=await apit("/api/settings");cost_kwh=s.cost_per_kwh||1.2;currency=s.currency||"EGP";}catch{}
     if($("aAvgPower"))$("aAvgPower").textContent=cnt?(totalAvg/cnt).toFixed(1)+"W":"—";
     if($("aPeakPower"))$("aPeakPower").textContent=totalPeak.toFixed(1)+"W";
+    if($("aEnergyKwh"))$("aEnergyKwh").textContent=totalKwh.toFixed(2)+" kWh";
+    if($("aCost"))$("aCost").textContent=(totalKwh*cost_kwh).toFixed(2)+" "+currency;
   }catch(e){console.error("overview error:",e);}
 }
 async function loadLeaderboard(){
   try{
     const now=Math.floor(Date.now()/1000),start=now-86400;
-    const r=await apit("/api/analytics/leaderboard",{start_ts:start,end_ts:now,limit:10});
+    const r=await apit("/api/analytics/leaderboard",{start_ts:start,end_ts:now,limit:5});
     const st=await ensureLive();
     const settings=await apit("/api/settings");
     const cost_kwh=settings.cost_per_kwh||1.2;
     const currency=settings.currency||"EGP";
     const names=(st&&st.names)||{};
     const box=$("leaderboard");if(!box)return;
-    const list=(r.leaderboard||[]).filter(e=>((e.energy_kwh||e.energy_delta_kwh||0)>0.00005)||(e.peak_power_w>0.05)||(e.avg_power_w>0.05));
+    const list=(r.leaderboard||[]).filter(e=>((e.energy_kwh||e.energy_delta_kwh||0)>0.00005)||(e.peak_power_w>0.05)||(e.avg_power_w>0.05)).slice(0,5);
     if(!list.length){box.innerHTML='<p class="small">No active consumers recorded yet in the last 24h.</p>';return;}
+    const maxKwh=Math.max(...list.map(e=>Number(e.energy_kwh!=null?e.energy_kwh:e.energy_delta_kwh)||0),0.0001);
+    const medals=["🥇","🥈","🥉"];
     box.innerHTML=list.map((e,i)=>{
       const mn=names[e.mac.toLowerCase().replace(/:/g,"")]||{};
       const strip_nm=mn.name||`Strip ${e.mac.slice(-5)}`;
@@ -1221,15 +1268,22 @@ async function loadLeaderboard(){
       const kwhStr=kwhVal>=0.001?kwhVal.toFixed(3):kwhVal.toFixed(4);
       const cost=(kwhVal*cost_kwh).toFixed(2);
       const wh=(kwhVal*1000).toFixed(1);
-      return `<div style="display:flex;gap:10px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--line)">
-        <b style="font-size:20px;color:var(--mut);min-width:26px;text-align:center">#${i+1}</b>
-        <div style="flex:1;min-width:0">
-          <b style="font-size:15px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${strip_nm} · ${outlet_nm}</b>
-          <span class="small" style="color:var(--mut)">${(e.avg_power_w||0).toFixed(1)}W avg · ${(e.peak_power_w||0).toFixed(1)}W peak · ~${cost} ${currency}</span>
+      const pct=Math.max(4,Math.round(kwhVal/maxKwh*100));
+      const badge=medals[i]||`#${i+1}`;
+      return `<div style="padding:10px 8px;border-bottom:1px solid var(--line)">
+        <div style="display:flex;gap:10px;align-items:center">
+          <b style="font-size:20px;min-width:30px;text-align:center">${badge}</b>
+          <div style="flex:1;min-width:0">
+            <b style="font-size:15px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${strip_nm} · ${outlet_nm}</b>
+            <span class="small" style="color:var(--mut)">${(e.avg_power_w||0).toFixed(1)}W avg · ${(e.peak_power_w||0).toFixed(1)}W peak · ~${cost} ${currency}</span>
+          </div>
+          <div style="text-align:right;white-space:nowrap">
+            <b style="font-size:16px;color:var(--blue);display:block">${kwhStr} <span style="font-size:12px">kWh</span></b>
+            <span class="small" style="color:var(--mut)">${wh} Wh</span>
+          </div>
         </div>
-        <div style="text-align:right;white-space:nowrap">
-          <b style="font-size:16px;color:var(--blue);display:block">${kwhStr} <span style="font-size:12px">kWh</span></b>
-          <span class="small" style="color:var(--mut)">${wh} Wh consumed</span>
+        <div style="height:6px;border-radius:99px;background:var(--line);margin-top:6px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;border-radius:99px;background:linear-gradient(90deg,#2563eb,#3b82f6)"></div>
         </div>
       </div>`;
     }).join("");
@@ -1265,7 +1319,18 @@ function pivot(rows,keyField,valField){
   return {labels:tsSet.map(fmtTs),keys,series:keys.map(k=>tsSet.map(t=>byKey[k].get(t)??null))};
 }
 function multiDatasets(keys,series,labelFn){
-  return keys.map((k,i)=>({label:labelFn(k),data:series[i],borderColor:PALETTE[i%PALETTE.length],backgroundColor:"transparent",fill:false,tension:.3,spanGaps:true,borderWidth:2,pointRadius:0}));
+  return keys.map((k,i)=>{
+    const col=PALETTE[i%PALETTE.length];
+    return {label:labelFn(k),data:series[i],borderColor:col,
+      backgroundColor:(ctx)=>{
+        const {chart}=ctx;const {ctx:c,chartArea}=chart;
+        if(!chartArea)return "transparent";
+        const g=c.createLinearGradient(0,chartArea.top,0,chartArea.bottom);
+        g.addColorStop(0,col+"55");g.addColorStop(1,col+"05");
+        return i===0?g:"transparent";
+      },
+      fill:i===0,tension:.4,spanGaps:true,borderWidth:2,pointRadius:0,pointHitRadius:8};
+  });
 }
 const aCfgMulti={responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:true,position:"bottom",labels:{boxWidth:12,font:{size:11}}}}};
 async function loadCharts(){
@@ -1345,9 +1410,9 @@ async function loadCharts(){
     const power=readings.map(p=>p.power_w||0);
     const volt=readings.map(p=>p.voltage_v||0);
     const temp=readings.map(p=>p.temp_c||0);
-    chartPower=new Chart($("chartPower"),{type:"line",data:{labels,datasets:[{label:"Power (W)",data:power,borderColor:"#2563eb",backgroundColor:"rgba(37,99,235,.1)",fill:true,tension:.3}]},options:{...aCfg,scales:{y:{beginAtZero:true}},plugins:{...aCfg.plugins,title:{display:true,text:"Power consumption (W)"}}}});
-    chartVoltage=new Chart($("chartVoltage"),{type:"line",data:{labels,datasets:[{label:"Voltage (V)",data:volt,borderColor:"#16a34a",backgroundColor:"rgba(22,163,74,.1)",fill:true,tension:.3}]},options:{...aCfg,scales:{y:{suggestedMin:200,suggestedMax:250}},plugins:{...aCfg.plugins,title:{display:true,text:"Voltage (V)"}}}});
-    chartTemp=new Chart($("chartTemp"),{type:"line",data:{labels,datasets:[{label:"Temperature (°C)",data:temp,borderColor:"#dc2626",backgroundColor:"rgba(220,38,38,.1)",fill:true,tension:.3}]},options:{...aCfg,scales:{y:{beginAtZero:false}},plugins:{...aCfg.plugins,title:{display:true,text:"Temperature (°C)"}}}});
+    chartPower=new Chart($("chartPower"),{type:"line",data:{labels,datasets:[{label:"Power (W)",data:power,borderColor:"#2563eb",borderWidth:2.5,backgroundColor:(ctx)=>{const {chart}=ctx;const {ctx:c,chartArea}=chart;if(!chartArea)return "rgba(37,99,235,.1)";const g=c.createLinearGradient(0,chartArea.top,0,chartArea.bottom);g.addColorStop(0,"rgba(37,99,235,.45)");g.addColorStop(1,"rgba(37,99,235,.02)");return g;},fill:true,tension:.4,pointRadius:0,pointHitRadius:8}]},options:{...aCfg,scales:{y:{beginAtZero:true}},plugins:{...aCfg.plugins,title:{display:true,text:"Power consumption (W)"}}}});
+    chartVoltage=new Chart($("chartVoltage"),{type:"line",data:{labels,datasets:[{label:"Voltage (V)",data:volt,borderColor:"#16a34a",borderWidth:2.5,backgroundColor:(ctx)=>{const {chart}=ctx;const {ctx:c,chartArea}=chart;if(!chartArea)return "rgba(22,163,74,.1)";const g=c.createLinearGradient(0,chartArea.top,0,chartArea.bottom);g.addColorStop(0,"rgba(22,163,74,.4)");g.addColorStop(1,"rgba(22,163,74,.02)");return g;},fill:true,tension:.4,pointRadius:0,pointHitRadius:8}]},options:{...aCfg,scales:{y:{suggestedMin:200,suggestedMax:250}},plugins:{...aCfg.plugins,title:{display:true,text:"Voltage (V)"}}}});
+    chartTemp=new Chart($("chartTemp"),{type:"line",data:{labels,datasets:[{label:"Temperature (°C)",data:temp,borderColor:"#dc2626",borderWidth:2.5,backgroundColor:(ctx)=>{const {chart}=ctx;const {ctx:c,chartArea}=chart;if(!chartArea)return "rgba(220,38,38,.1)";const g=c.createLinearGradient(0,chartArea.top,0,chartArea.bottom);g.addColorStop(0,"rgba(220,38,38,.4)");g.addColorStop(1,"rgba(220,38,38,.02)");return g;},fill:true,tension:.4,pointRadius:0,pointHitRadius:8}]},options:{...aCfg,scales:{y:{beginAtZero:false}},plugins:{...aCfg.plugins,title:{display:true,text:"Temperature (°C)"}}}});
     const stripStats=await apit("/api/analytics/strip",{mac:aMac,start_ts:start,end_ts:now});
     const s=stripStats.stats||{};
     const sb=$("aStats");if(sb)sb.innerHTML=statsHtml(s,cost_kwh,currency,stripLabel(aMac));
