@@ -331,24 +331,28 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <div class="grid cols2" style="margin-top:10px">
   <div class="field"><span>ON duration</span>
     <div style="display:flex;gap:6px;align-items:center">
-      <input id="tmOnMin" type="number" min="1" value="30" style="max-width:90px"> <span class="small">min</span>
+      <input id="tmOnVal" type="number" min="1" value="30" style="max-width:90px">
+      <select id="tmOnUnit" style="max-width:110px"><option value="1">seconds</option><option value="60" selected>minutes</option><option value="3600">hours</option><option value="86400">days</option></select>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-      <button class="ghost sm tmOnPreset" data-m="15">15m</button>
-      <button class="ghost sm tmOnPreset" data-m="30">30m</button>
-      <button class="ghost sm tmOnPreset" data-m="60">1h</button>
-      <button class="ghost sm tmOnPreset" data-m="120">2h</button>
-      <button class="ghost sm tmOnPreset" data-m="480">8h</button>
+      <button class="ghost sm tmOnPreset" data-s="30">30s</button>
+      <button class="ghost sm tmOnPreset" data-s="900">15m</button>
+      <button class="ghost sm tmOnPreset" data-s="3600">1h</button>
+      <button class="ghost sm tmOnPreset" data-s="7200">2h</button>
+      <button class="ghost sm tmOnPreset" data-s="28800">8h</button>
+      <button class="ghost sm tmOnPreset" data-s="86400">1d</button>
     </div>
   </div>
   <div class="field" id="tmOffField"><span>OFF duration (cyclic)</span>
     <div style="display:flex;gap:6px;align-items:center">
-      <input id="tmOffMin" type="number" min="1" value="45" style="max-width:90px"> <span class="small">min</span>
+      <input id="tmOffVal" type="number" min="1" value="45" style="max-width:90px">
+      <select id="tmOffUnit" style="max-width:110px"><option value="1">seconds</option><option value="60" selected>minutes</option><option value="3600">hours</option><option value="86400">days</option></select>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-      <button class="ghost sm tmOffPreset" data-m="15">15m</button>
-      <button class="ghost sm tmOffPreset" data-m="45">45m</button>
-      <button class="ghost sm tmOffPreset" data-m="120">2h</button>
+      <button class="ghost sm tmOffPreset" data-s="30">30s</button>
+      <button class="ghost sm tmOffPreset" data-s="2700">45m</button>
+      <button class="ghost sm tmOffPreset" data-s="7200">2h</button>
+      <button class="ghost sm tmOffPreset" data-s="86400">1d</button>
     </div>
   </div>
 </div>
@@ -983,9 +987,12 @@ function outletPills(boxId,sel,onSel){
   const oNames=(names[mkey]||{}).outlets||{};
   const mk=(n,txt)=>{
     const b=document.createElement("button");
-    b.className="sm"+(sel()===n?" on":"");
-    b.style.cssText="border-radius:99px;padding:8px 14px"+(sel()===n?"":"");
-    b.innerHTML=`<b>${n===0?"All (Master)":"#"+n}</b>${n!==0&&oNames[String(n)]?`<br><span class="small">${oNames[String(n)]}</span>`:""}`;
+    const active=sel()===n;
+    b.style.cssText=`border-radius:99px;padding:8px 14px;text-align:center;min-width:74px;`+
+      (active
+        ?`background:#2563eb;color:#fff;border:2px solid #2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.25);font-weight:700`
+        :`background:transparent;color:var(--ink);border:2px solid var(--line)`);
+    b.innerHTML=`<b>${n===0?"All (Master)":"#"+n}</b>${n!==0&&oNames[String(n)]?`<br><span class="small" style="color:${active?"rgba(255,255,255,.85)":"var(--mut)"}">${oNames[String(n)]}</span>`:""}`;
     b.onclick=()=>{onSel(n);outletPills(boxId,sel,onSel);boxId==="scOutletPills"?scPreviewUpd():tmPreviewUpd();};
     box.appendChild(b);
   };
@@ -1026,16 +1033,18 @@ function tmPreviewUpd(){
   const el=$("tmPreview");if(!el)return;
   const mac=$("tmMac").value;
   if(!mac){el.textContent="Configure a timer below…";return;}
-  const onM=+$("tmOnMin").value||0,offM=+$("tmOffMin").value||0;
+  const onS=tmOnSec(),offS=tmOffSec();
   const mode=$("tmMode").value;
   const rep=tmRepeat==="forever"?"♾️ repeating forever":tmRepeat==="times"?`repeating ${$("tmRepN").value}×`:"running once";
   const target=`<b>${nmOfMac(mac)}</b> · ${tmOutlet===0?"ALL outlets":"outlet "+tmOutlet}`;
   if(mode==="cyclic"){
-    el.innerHTML=`${target} · <span style="background:#34d399;color:#064e3b;border-radius:8px;padding:2px 8px;font-weight:800">ON ${onM}m</span> ↔ <span style="background:#f87171;color:#7f1d1d;border-radius:8px;padding:2px 8px;font-weight:800">OFF ${offM}m</span>, ${rep}`;
+    el.innerHTML=`${target} · <span style="background:#34d399;color:#064e3b;border-radius:8px;padding:2px 8px;font-weight:800">ON ${fmtDur(onS)}</span> ↔ <span style="background:#f87171;color:#7f1d1d;border-radius:8px;padding:2px 8px;font-weight:800">OFF ${fmtDur(offS)}</span>, ${rep}`;
   }else{
-    el.innerHTML=`${target} will <span style="background:${tmOn?"#34d399":"#f87171"};color:#064e3b;border-radius:8px;padding:2px 8px;font-weight:800">${tmOn?"TURN ON":"TURN OFF"}</span> after ${onM}m, ${rep}`;
+    el.innerHTML=`${target} will <span style="background:${tmOn?"#34d399":"#f87171"};color:#064e3b;border-radius:8px;padding:2px 8px;font-weight:800">${tmOn?"TURN ON":"TURN OFF"}</span> after ${fmtDur(onS)}, ${rep}`;
   }
 }
+function tmOnSec(){return Math.max(1,(+$("tmOnVal").value||0)*(+$("tmOnUnit").value||60));}
+function tmOffSec(){return Math.max(1,(+$("tmOffVal").value||0)*(+$("tmOffUnit").value||60));}
 on("scMac","change",()=>{outletPills("scOutletPills",()=>scOutlet,n=>scOutlet=n);scPreviewUpd();});
 on("tmMac","change",()=>{outletPills("tmOutletPills",()=>tmOutlet,n=>tmOutlet=n);tmPreviewUpd();});
 on("scKind","change",()=>{$("scTime").parentElement.style.display=$("scKind").value==="time"?"":"none";$("scSunRow").style.display=$("scKind").value==="time"?"none":"grid";scPreviewUpd();});
@@ -1051,15 +1060,28 @@ on("scTime","change",scPreviewUpd);
 on("tmMode","change",()=>{$("tmOffField").style.display=$("tmMode").value==="cyclic"?"":"none";tmPreviewUpd();});
 on("tmOnBtn","click",()=>{tmOn=true;$("tmOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#059669;color:#fff;border:2px solid #059669";$("tmOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";tmPreviewUpd();});
 on("tmOffBtn","click",()=>{tmOn=false;$("tmOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#dc2626;color:#fff;border:2px solid #dc2626";$("tmOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";tmPreviewUpd();});
-document.querySelectorAll(".tmOnPreset").forEach(b=>b.onclick=()=>{$("tmOnMin").value=b.dataset.m;tmPreviewUpd();});
-document.querySelectorAll(".tmOffPreset").forEach(b=>b.onclick=()=>{$("tmOffMin").value=b.dataset.m;tmPreviewUpd();});
+document.querySelectorAll(".tmOnPreset").forEach(b=>b.onclick=()=>{
+  const s=+b.dataset.s;
+  if(s>=86400){$("tmOnVal").value=s/86400;$("tmOnUnit").value="86400";}
+  else if(s>=3600){$("tmOnVal").value=s/3600;$("tmOnUnit").value="3600";}
+  else if(s>=60){$("tmOnVal").value=s/60;$("tmOnUnit").value="60";}
+  else{$("tmOnVal").value=s;$("tmOnUnit").value="1";}
+  tmPreviewUpd();});
+document.querySelectorAll(".tmOffPreset").forEach(b=>b.onclick=()=>{
+  const s=+b.dataset.s;
+  if(s>=86400){$("tmOffVal").value=s/86400;$("tmOffUnit").value="86400";}
+  else if(s>=3600){$("tmOffVal").value=s/3600;$("tmOffUnit").value="3600";}
+  else if(s>=60){$("tmOffVal").value=s/60;$("tmOffUnit").value="60";}
+  else{$("tmOffVal").value=s;$("tmOffUnit").value="1";}
+  tmPreviewUpd();});
 document.querySelectorAll(".tmRep").forEach(b=>b.onclick=()=>{
   document.querySelectorAll(".tmRep").forEach(x=>x.classList.remove("on"));b.classList.add("on");
   tmRepeat=b.dataset.r;
   $("tmRepN").style.display=tmRepeat==="times"?"":"none";$("tmRepNLabel").style.display=tmRepeat==="times"?"":"none";
   tmPreviewUpd();});
 document.querySelectorAll(".tmLabelSug").forEach(b=>b.onclick=()=>{$("tmLabel").value=b.dataset.l;});
-on("tmOnMin","change",tmPreviewUpd);on("tmOffMin","change",tmPreviewUpd);on("tmRepN","change",tmPreviewUpd);
+on("tmOnVal","change",tmPreviewUpd);on("tmOnUnit","change",tmPreviewUpd);
+on("tmOffVal","change",tmPreviewUpd);on("tmOffUnit","change",tmPreviewUpd);on("tmRepN","change",tmPreviewUpd);
 /* seg toggle */
 on("segSched","click",()=>{$("segSched").classList.add("on");$("segSched").classList.remove("ghost");$("segTimers").classList.add("ghost");$("segTimers").classList.remove("on");$("schedPane").style.display="";$("timerPane").style.display="none";loadSched();});
 on("segTimers","click",()=>{$("segTimers").classList.add("on");$("segTimers").classList.remove("ghost");$("segSched").classList.add("ghost");$("segSched").classList.remove("on");$("timerPane").style.display="";$("schedPane").style.display="none";loadTimersUI();});
@@ -1154,8 +1176,8 @@ on("btnTimerReload","click",renderTimers);
 on("btnTimerAdd","click",async()=>{
   const body={mac:$("tmMac").value,outlet:tmOutlet,on:tmOn,
     mode:$("tmMode").value,
-    on_sec:(+$("tmOnMin").value||0)*60,
-    off_sec:(+$("tmOffMin").value||0)*60,
+    on_sec:tmOnSec(),
+    off_sec:tmOffSec(),
     repeat:tmRepeat,repeat_n:+$("tmRepN").value||1,
     label:$("tmLabel").value,enabled:true};
   if(!body.mac){$("timerMsg").textContent="✕ pick a strip first.";return;}
