@@ -1101,7 +1101,7 @@ class Handler(BaseHTTPRequestHandler):
             req_token = (body.get("token") or "").strip()
             
             # Helper to calculate expires_at from subscription input
-            def parse_expires_at(b, existing_created=None):
+            def parse_expires_at(b, existing_expires=None):
                 # Direct timestamp
                 if "expires_at" in b:
                     v = b.get("expires_at")
@@ -1114,7 +1114,9 @@ class Handler(BaseHTTPRequestHandler):
                         val = int(sub_val)
                         if val <= 0:
                             return None # unlimited
-                        base = time.time()
+                        now = time.time()
+                        # If extending an existing unexpired subscription, stack on top of remaining time!
+                        base = existing_expires if (existing_expires and existing_expires > now) else now
                         if sub_unit == "months":
                             return int(base + val * 30 * 86400)
                         elif sub_unit == "years":
@@ -1142,12 +1144,12 @@ class Handler(BaseHTTPRequestHandler):
                     if st in ("active", "canceled", "expired"):
                         user_obj["status"] = st
                 
-                # Check for expiry updates
+                # Check for expiry updates (stacks on existing_expires)
                 if "expires_at" in body or "sub_value" in body:
-                    user_obj["expires_at"] = parse_expires_at(body, user_obj.get("created_at"))
+                    user_obj["expires_at"] = parse_expires_at(body, user_obj.get("expires_at"))
 
                 save_users(users)
-                log(f"user updated: {user_obj['name']} ({req_token[:14]}...) [status={user_obj.get('status','active')}, max={user_obj.get('max_strips',10)}]")
+                log(f"user updated: {user_obj['name']} ({req_token[:14]}...) [status={user_obj.get('status','active')}, max={user_obj.get('max_strips',10)}, exp={user_obj.get('expires_at')}]")
                 return self._json({"ok": True, "token": req_token, "user": user_obj})
             
             # Creating a new user

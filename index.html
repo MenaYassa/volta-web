@@ -138,6 +138,18 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </nav>
 </header>
 
+<!-- Expiry Warning Notification Banner (Users & Admin) -->
+<div id="subNoticeBanner" style="display:none;background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:12px 16px;border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow)">
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:20px;flex:none">⏳</span>
+    <div style="flex:1;min-width:200px">
+      <b id="subNoticeTitle">Subscription Renewal Notice</b>
+      <div class="small" id="subNoticeDesc" style="color:#78350f">Your subscription ends in less than 30 days. Contact your administrator to extend your plan.</div>
+    </div>
+    <span class="tag warn" id="subNoticeBadge">30 days left</span>
+  </div>
+</div>
+
 <!-- ============ CONTROL ============ -->
 <section class="tabpane on" id="pane-control">
 <div class="ov">
@@ -815,11 +827,11 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
         <span>Extend / Set Subscription Period</span>
         <select id="meuDuration">
           <option value="keep" selected>— Keep Current Expiry Date —</option>
-          <option value="1_months">+ 1 Month from now</option>
-          <option value="3_months">+ 3 Months from now</option>
-          <option value="6_months">+ 6 Months from now</option>
-          <option value="1_years">+ 1 Year from now</option>
-          <option value="2_years">+ 2 Years from now</option>
+          <option value="1_months">+ 1 Month (added to remaining)</option>
+          <option value="3_months">+ 3 Months (added to remaining)</option>
+          <option value="6_months">+ 6 Months (added to remaining)</option>
+          <option value="1_years">+ 1 Year (added to remaining)</option>
+          <option value="2_years">+ 2 Years (added to remaining)</option>
           <option value="0_unlimited">Lifetime / Unlimited (No Expiry)</option>
         </select>
       </div>
@@ -912,6 +924,44 @@ async function checkSrv(){
           if($("srvInfoCard"))$("srvInfoCard").style.display = who.is_admin ? "block" : "none";
           if($("gatewayLogCard"))$("gatewayLogCard").style.display = who.is_admin ? "block" : "none";
           if($("fltManageUnassigned"))$("fltManageUnassigned").style.display = who.is_admin ? "" : "none";
+
+          // Check subscription expiry warning (less than 30 days remaining)
+          const banner = $("subNoticeBanner");
+          if(banner){
+            if(!who.is_admin && who.expires_at){
+              const nowSec = Math.floor(Date.now() / 1000);
+              const daysLeft = Math.ceil((who.expires_at - nowSec) / 86400);
+              if(daysLeft <= 30){
+                banner.style.display = "block";
+                const badge = $("subNoticeBadge");
+                const desc = $("subNoticeDesc");
+                const expDateStr = new Date(who.expires_at * 1000).toLocaleDateString();
+                if(daysLeft <= 0){
+                  banner.style.background = "#fee2e2";
+                  banner.style.borderColor = "#fecaca";
+                  banner.style.color = "#991b1b";
+                  if(badge){badge.className = "tag bad";badge.textContent = "Expired";}
+                  if(desc)desc.innerHTML = `Your subscription expired on <b>${expDateStr}</b>. Please contact your administrator to renew.`;
+                }else if(daysLeft <= 7){
+                  banner.style.background = "#fee2e2";
+                  banner.style.borderColor = "#fecaca";
+                  banner.style.color = "#991b1b";
+                  if(badge){badge.className = "tag bad";badge.textContent = `${daysLeft} day${daysLeft===1?"":"s"} left`;}
+                  if(desc)desc.innerHTML = `Your subscription will expire in <b>${daysLeft} days</b> (${expDateStr}). Please contact your administrator to renew.`;
+                }else{
+                  banner.style.background = "#fef3c7";
+                  banner.style.borderColor = "#fde68a";
+                  banner.style.color = "#92400e";
+                  if(badge){badge.className = "tag warn";badge.textContent = `${daysLeft} days left`;}
+                  if(desc)desc.innerHTML = `Your subscription expires on <b>${expDateStr}</b> (${daysLeft} days remaining). Please renew before it ends.`;
+                }
+              }else{
+                banner.style.display = "none";
+              }
+            }else{
+              banner.style.display = "none";
+            }
+          }
           // Update setup termux command box with dynamic server host
           const dlBox=$("termuxDownloadCmd");
           if(dlBox){
@@ -991,7 +1041,7 @@ function renderUsersTable(){
   
   const pageItems = filtered.slice((_userPage-1)*USERS_PER_PAGE, _userPage*USERS_PER_PAGE);
   
-  let h='<table><tr><th>User</th><th>Token</th><th>Subscription</th><th>Strips</th><th>Created</th><th>Action</th></tr>';
+  let h='<table><tr><th>User</th><th>Token</th><th>Status</th><th>Strips</th><th>Created</th><th>Expires</th><th>Action</th></tr>';
   for(const t of pageItems){
     const u=_cachedUsers[t];
     const sc=(u.strips||[]).length;
@@ -1009,16 +1059,21 @@ function renderUsersTable(){
       subBadge = `<span class="tag bad">⚠ Expired</span>`;
     }
     
-    let expStr = "Lifetime";
+    let expCellHtml = `<span style="color:var(--mut)">Lifetime / ∞</span>`;
     if(u.expires_at){
       const expDate = new Date(u.expires_at * 1000);
       const daysLeft = Math.ceil((u.expires_at - now) / 86400);
+      const dateFmt = expDate.toLocaleDateString();
       if(daysLeft < 0){
-        expStr = `<span style="color:var(--red)">Expired ${expDate.toLocaleDateString()}</span>`;
-      }else if(daysLeft <= 14){
-        expStr = `<span style="color:var(--amber);font-weight:600">${daysLeft}d left (${expDate.toLocaleDateString()})</span>`;
+        expCellHtml = `<div style="padding:4px 8px;border-radius:8px;background:#fee2e2;color:var(--red);border:1px solid #fecaca;display:inline-block"><b style="display:block;font-size:12px">⚠ Expired</b><span style="font-size:11px">${dateFmt}</span></div>`;
+      }else if(daysLeft <= 30){
+        // Highlighted when less than 1 month (30 days)
+        const urgentBg = daysLeft <= 7 ? "#fee2e2" : "#fef3c7";
+        const urgentBorder = daysLeft <= 7 ? "#fecaca" : "#fde68a";
+        const urgentColor = daysLeft <= 7 ? "var(--red)" : "var(--amber)";
+        expCellHtml = `<div style="padding:4px 8px;border-radius:8px;background:${urgentBg};color:${urgentColor};border:1px solid ${urgentBorder};display:inline-block"><b style="display:block;font-size:12px">⏳ ${daysLeft} day${daysLeft===1?"":"s"} left</b><span style="font-size:11px">${dateFmt}</span></div>`;
       }else{
-        expStr = `${expDate.toLocaleDateString()} (${daysLeft}d)`;
+        expCellHtml = `<div><b>${dateFmt}</b><br><span class="small" style="font-size:11px">${daysLeft} days remaining</span></div>`;
       }
     }
 
@@ -1027,14 +1082,10 @@ function renderUsersTable(){
     h+=`<tr>
       <td><b>${esc(u.name||"User")}</b></td>
       <td><code class="mono" style="font-size:11px" title="${esc(t)}">${esc(maskedTok)}</code> <button class="ghost sm copy-tok-btn" data-tok="${esc(t)}" style="padding:2px 6px;font-size:11px" title="Copy full token">📋</button></td>
-      <td>
-        <div style="display:flex;flex-direction:column;gap:2px">
-          <div>${subBadge}</div>
-          <span class="small" style="font-size:11px">${expStr}</span>
-        </div>
-      </td>
+      <td>${subBadge}</td>
       <td>${stripBadge}</td>
       <td>${createdStr}</td>
+      <td>${expCellHtml}</td>
       <td>
         <div class="row" style="gap:4px">
           <button class="ghost sm edit-usr-btn" data-token="${esc(t)}" title="Edit user, limits, or subscription">✏️ Edit</button>
@@ -1258,9 +1309,9 @@ function openEditUserModal(token){
     if(u.expires_at){
       const exp = new Date(u.expires_at * 1000);
       const days = Math.ceil((u.expires_at - Date.now()/1000)/86400);
-      infoEl.textContent = `Current Expiry: ${exp.toLocaleDateString()} (${days > 0 ? days + " days remaining" : "expired"})`;
+      infoEl.innerHTML = `Current Expiry: <b>${exp.toLocaleDateString()}</b> (${days > 0 ? days + " days remaining" : "expired"})<br><span style="color:var(--green)">⚡ Selecting an extension period will add directly on top of the remaining time.</span>`;
     }else{
-      infoEl.textContent = "Current Expiry: Lifetime / Unlimited";
+      infoEl.innerHTML = `Current Expiry: <b>Lifetime / Unlimited</b><br><span>Selecting an extension period will set expiry relative to today.</span>`;
     }
   }
 
