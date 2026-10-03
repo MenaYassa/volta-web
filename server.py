@@ -1446,6 +1446,22 @@ class Handler(BaseHTTPRequestHandler):
             user_macs = None if ctx["is_admin"] else ctx["strips"]
             board = analytics.outlet_leaderboard(start, end, limit, macs=user_macs)
             return self._json({"ok": True, "leaderboard": board})
+        if u.path in ("/api/analytics/summary", "/api/analytics/kpis"):
+            ctx = self._auth_ctx()
+            if not ctx["authorized"]:
+                return self._json({"error": "token required"}, 401)
+            start = int(body.get("start_ts", 0))
+            end = int(body.get("end_ts", 0))
+            mac = body.get("mac", "__all__")
+            user_macs = None if ctx["is_admin"] else ctx["strips"]
+            summary = analytics.summary_stats(start, end, mac=mac, macs=user_macs)
+            cfg = get_settings()
+            cost_per_kwh = float(cfg.get("cost_per_kwh") or 1.2)
+            currency = cfg.get("currency") or "EGP"
+            summary["cost"] = round(summary["energy_kwh"] * cost_per_kwh, 2)
+            summary["currency"] = currency
+            summary["cost_per_kwh"] = cost_per_kwh
+            return self._json({"ok": True, "summary": summary})
         if u.path == "/api/analytics/info":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)

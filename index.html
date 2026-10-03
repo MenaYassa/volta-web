@@ -1545,22 +1545,18 @@ async function loadRangeKpis(){
   try{
     const now=Math.floor(Date.now()/1000);
     const start=now-(RANGE_SEC[aRange]||86400);
-    const devs=((await ensureLive()).devices)||[];
-    const scoped=aMac==="__all__"?devs:devs.filter(d=>d.mac===aMac);
-    let totalAvg=0,totalPeak=0,totalKwh=0,cnt=0;
-    for(const d of scoped){
-      try{
-        const r=await apit("/api/analytics/strip",{mac:d.mac,start_ts:start,end_ts:now});
-        if(r.stats){totalAvg+=(r.stats.avg_power_w||0);totalPeak=Math.max(totalPeak,r.stats.peak_power_w||0);totalKwh+=(r.stats.energy_delta_kwh||0);cnt++;}
-      }catch{}
-    }
-    let cost_kwh=1.2,currency="EGP";
-    try{const s=await apit("/api/settings");cost_kwh=s.cost_per_kwh||1.2;currency=s.currency||"EGP";}catch{}
-    const avg=cnt?totalAvg/cnt:0;
-    if($("aAvgPower"))$("aAvgPower").textContent=avg.toFixed(1)+"W";
-    if($("aPeakPower"))$("aPeakPower").textContent=totalPeak.toFixed(1)+"W";
+    const r=await apit("/api/analytics/summary",{mac:aMac,start_ts:start,end_ts:now,range:aRange});
+    const s=(r&&r.summary)||{};
+    const totalKwh=s.energy_kwh||0;
+    const avgW=s.avg_power_w||0;
+    const peakW=s.peak_power_w||0;
+    const cost=s.cost!=null?s.cost:(totalKwh*(s.cost_per_kwh||1.2)).toFixed(2);
+    const currency=s.currency||"EGP";
+
+    if($("aAvgPower"))$("aAvgPower").textContent=avgW.toFixed(1)+"W";
+    if($("aPeakPower"))$("aPeakPower").textContent=peakW.toFixed(1)+"W";
     if($("aEnergyKwh"))$("aEnergyKwh").textContent=(totalKwh>=100?totalKwh.toFixed(1):totalKwh.toFixed(2))+" kWh";
-    if($("aCost"))$("aCost").textContent=(totalKwh*cost_kwh).toFixed(2)+" "+currency;
+    if($("aCost"))$("aCost").textContent=Number(cost).toFixed(2)+" "+currency;
     if($("aHeroRange"))$("aHeroRange").textContent=`period: ${RANGE_LABEL[aRange]||aRange} · ${aMac==="__all__"?"all strips":nmOfMac(aMac)}`;
   }catch(e){console.error("kpi error:",e);}
 }

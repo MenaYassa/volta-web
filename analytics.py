@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "analytics.db"
-_lock = threading.Lock()
+_lock = threading.RLock()
 
 
 def _conn():
@@ -220,6 +220,63 @@ def strip_stats(mac, start_ts, end_ts):
         kwh, _per = _outlet_meter_deltas(db, mac.upper(), start_ts, end_ts)
         stats["energy_delta_kwh"] = kwh
         return stats
+
+
+def summary_stats(start_ts, end_ts, mac=None, macs=None):
+    """Consolidated KPI summary for given period, robust to multi-strip scoping."""
+    with _lock, _conn() as db:
+        if mac and mac != "__all__":
+            target_macs = [mac.upper().replace(":", "")]
+            if macs is not None:
+                clean_allowed = [str(m).upper().replace(":", "") for m in macs]
+                if target_macs[0] not in clean_allowed:
+                    return {"energy_kwh": 0.0, "avg_power_w": 0.0, "peak_power_w": 0.0, "samples": 0}
+        elif macs is not None:
+            target_macs = [str(m).upper().replace(":", "") for m in macs]
+        else:
+            rows = db.execute("SELECT DISTINCT mac FROM readings WHERE ts >= ? AND ts <= ?", (start_ts, end_ts)).fetchall()
+            target_macs = [r["mac"] for r in rows]
+
+        total_kwh = 0.0
+        total_avg_w = 0.0
+        peak_power_w = 0.0
+        total_samples = 0
+        min_v = None
+        max_v = None
+        voltages = []
+        temps = []
+
+        for m in target_macs:
+            s = strip_stats(m, start_ts, end_ts)
+            if not s:
+                continue
+            total_kwh += (s.get("energy_delta_kwh") or 0.0)
+            total_avg_w += (s.get("avg_power_w") or 0.0)
+            peak = s.get("peak_power_w") or 0.0
+            if peak > peak_power_w:
+                peak_power_w = peak
+            total_samples += (s.get("samples") or 0)
+            if s.get("min_voltage_v"):
+                min_v = min(min_v, s["min_voltage_v"]) if min_v else s["min_voltage_v"]
+            if s.get("max_voltage_v"):
+                max_v = max(max_v, s["max_voltage_v"]) if max_v else s["max_voltage_v"]
+            if s.get("avg_voltage_v"):
+                voltages.append(s["avg_voltage_v"])
+            if s.get("avg_temp_c"):
+                temps.append(s["avg_temp_c"])
+
+        return {
+            "energy_kwh": round(total_kwh, 4),
+            "watt_hours": round(total_kwh * 1000.0, 1),
+            "avg_power_w": round(total_avg_w, 2),
+            "peak_power_w": round(peak_power_w, 2),
+            "min_voltage_v": min_v,
+            "max_voltage_v": max_v,
+            "avg_voltage_v": round(sum(voltages) / len(voltages), 1) if voltages else None,
+            "avg_temp_c": round(sum(temps) / len(temps), 1) if temps else None,
+            "samples": total_samples,
+            "strips_count": len(target_macs)
+        }
 
 
 def outlet_leaderboard(start_ts, end_ts, limit=10, macs=None):
