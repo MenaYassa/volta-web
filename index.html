@@ -161,11 +161,12 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     </div>
   </div>
   <div class="ov" style="margin-top:14px;--stat-ink:#fff">
-  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aAvgPower">—</b><span>avg load (24h)</span></div>
-  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aPeakPower">—</b><span>peak demand (24h)</span></div>
-  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aEnergyKwh">—</b><span>energy (24h)</span></div>
-  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aCost">—</b><span>est. cost (24h)</span></div>
+  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aAvgPower">—</b><span>avg load</span></div>
+  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aPeakPower">—</b><span>peak demand</span></div>
+  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aEnergyKwh">—</b><span>energy</span></div>
+  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aCost">—</b><span>est. cost</span></div>
   </div>
+  <div style="font-size:11px;opacity:.75;margin-top:6px" id="aHeroRange">period: last 24 hours</div>
 </div>
 
 <div class="card">
@@ -191,6 +192,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <button id="aBtn6h" class="ghost sm">Last 6 hours</button>
 <button id="aBtn24h" class="ghost sm on">Last 24 hours</button>
 <button id="aBtn7d" class="ghost sm">Last 7 days</button>
+<button id="aBtn30d" class="ghost sm">Last 30 days</button>
+<button id="aBtn6m" class="ghost sm">Last 6 months</button>
+<button id="aBtn1y" class="ghost sm">Last year</button>
 <button id="aBtnRefresh" class="ghost sm">↻ Refresh</button>
 <span class="small" id="aChartMsg"></span>
 </div>
@@ -1430,7 +1434,7 @@ function startAnalyticsTicker(){
       const pane=$("pane-analytics");
       if(!pane||!pane.classList.contains("on"))return;
       const st=await ensureLive();
-      if(st)updateHero(st);
+      if(st){updateHero(st);loadRangeKpis();}
     }catch{}
   },3000);
 }
@@ -1494,32 +1498,54 @@ function updateOutletDropdown(st){
   });
   outSel.innerHTML=opts.join("");
 }
-async function loadOverview(st){
+const RANGE_SEC={"1h":3600,"6h":21600,"24h":86400,"7d":604800,"30d":2592000,"6m":15552000,"1y":31536000};
+const RANGE_LABEL={"1h":"last hour","6h":"last 6 hours","24h":"last 24 hours","7d":"last 7 days","30d":"last 30 days","6m":"last 6 months","1y":"last year"};
+async function loadRangeKpis(){
+  // KPI cards scoped to the currently selected chart range + strip selection
   try{
-    const devs=(st&&st.devices)||[];
-    const totalW=devs.reduce((s,d)=>s+(d.total_power_w||0),0);
-    // Hero demand card (live)
-    if($("aHeroPower"))$("aHeroPower").innerHTML=totalW.toFixed(1)+" <span style='font-size:20px;font-weight:600'>W</span>";
-    const online=devs.filter(d=>d.online);
-    const volts=online.map(d=>d.voltage_v).filter(v=>v>0);
-    if($("aHeroVolt"))$("aHeroVolt").textContent=volts.length?(volts.reduce((a,b)=>a+b,0)/volts.length).toFixed(1)+"V":"—";
-    const temps=online.map(d=>Math.max(...(d.outlets||[]).map(o=>o.temp_c||0))).filter(t=>t>0);
-    if($("aHeroTemp"))$("aHeroTemp").textContent=temps.length?Math.max(...temps)+"°C":"—";
-    if($("aHeroUpdated"))$("aHeroUpdated").textContent="updated "+new Date().toLocaleTimeString();
-    if($("aHeroSub"))$("aHeroSub").textContent=`${online.length}/${devs.length} strips online · ${online.reduce((s,d)=>s+(d.outlets||[]).filter(o=>o.on).length,0)} outlets on`;
-    const info=await apit("/api/analytics/info");
-    const now=Math.floor(Date.now()/1000),start24=now-86400;
+    const now=Math.floor(Date.now()/1000);
+    const start=now-(RANGE_SEC[aRange]||86400);
+    const devs=((await ensureLive()).devices)||[];
+    const scoped=aMac==="__all__"?devs:devs.filter(d=>d.mac===aMac);
     let totalAvg=0,totalPeak=0,totalKwh=0,cnt=0;
-    for(const d of devs){
-      const r=await apit("/api/analytics/strip",{mac:d.mac,start_ts:start24,end_ts:now});
-      if(r.stats){totalAvg+=(r.stats.avg_power_w||0);totalPeak=Math.max(totalPeak,r.stats.peak_power_w||0);totalKwh+=(r.stats.energy_delta_kwh||0);cnt++;}
+    for(const d of scoped){
+      try{
+        const r=await apit("/api/analytics/strip",{mac:d.mac,start_ts:start,end_ts:now});
+        if(r.stats){totalAvg+=(r.stats.avg_power_w||0);totalPeak=Math.max(totalPeak,r.stats.peak_power_w||0);totalKwh+=(r.stats.energy_delta_kwh||0);cnt++;}
+      }catch{}
     }
     let cost_kwh=1.2,currency="EGP";
     try{const s=await apit("/api/settings");cost_kwh=s.cost_per_kwh||1.2;currency=s.currency||"EGP";}catch{}
-    if($("aAvgPower"))$("aAvgPower").textContent=cnt?(totalAvg/cnt).toFixed(1)+"W":"—";
+    const avg=cnt?totalAvg/cnt:0;
+    if($("aAvgPower"))$("aAvgPower").textContent=avg.toFixed(1)+"W";
     if($("aPeakPower"))$("aPeakPower").textContent=totalPeak.toFixed(1)+"W";
-    if($("aEnergyKwh"))$("aEnergyKwh").textContent=totalKwh.toFixed(2)+" kWh";
+    if($("aEnergyKwh"))$("aEnergyKwh").textContent=(totalKwh>=100?totalKwh.toFixed(1):totalKwh.toFixed(2))+" kWh";
     if($("aCost"))$("aCost").textContent=(totalKwh*cost_kwh).toFixed(2)+" "+currency;
+    if($("aHeroRange"))$("aHeroRange").textContent=`period: ${RANGE_LABEL[aRange]||aRange} · ${aMac==="__all__"?"all strips":nmOfMac(aMac)}`;
+  }catch(e){console.error("kpi error:",e);}
+}
+async function loadOverview(st){
+  try{
+    const devs=(st&&st.devices)||[];
+    const scoped=aMac==="__all__"?devs:devs.filter(d=>d.mac===aMac);
+    const scopedOnline=scoped.filter(d=>d.online);
+    const totalW=scoped.reduce((s,d)=>s+(d.total_power_w??d.power_w??(d.outlets||[]).reduce((a,o)=>a+(o.power_w||0),0)),0);
+    // Hero demand card (live)
+    if($("aHeroPower"))$("aHeroPower").innerHTML=totalW.toFixed(1)+" <span style='font-size:20px;font-weight:600'>W</span>";
+    const volts=scopedOnline.map(d=>d.voltage_v).filter(v=>v>0);
+    if($("aHeroVolt"))$("aHeroVolt").textContent=volts.length?(volts.reduce((a,b)=>a+b,0)/volts.length).toFixed(1)+"V":"—";
+    const temps=scopedOnline.map(d=>Math.max(...(d.outlets||[]).map(o=>o.temp_c||0),0)).filter(t=>t>0);
+    if($("aHeroTemp"))$("aHeroTemp").textContent=temps.length?Math.max(...temps)+"°C":"—";
+    if($("aHeroUpdated"))$("aHeroUpdated").textContent="updated "+new Date().toLocaleTimeString();
+    if($("aHeroSub")){
+      if(aMac==="__all__"){
+        $("aHeroSub").textContent=`${scopedOnline.length}/${scoped.length} strips online · ${scopedOnline.reduce((s,d)=>s+(d.outlets||[]).filter(o=>o.on).length,0)} outlets on`;
+      }else{
+        const nm=nmOfMac(aMac);
+        $("aHeroSub").textContent=`${nm} · ${scopedOnline.reduce((s,d)=>s+(d.outlets||[]).filter(o=>o.on).length,0)}/${scopedOnline.reduce((s,d)=>s+(d.outlets||[]).length,0)} outlets on`;
+      }
+    }
+    await loadRangeKpis();
   }catch(e){console.error("overview error:",e);}
 }
 async function loadLeaderboard(){
@@ -1577,14 +1603,14 @@ function statsHtml(s,cost_kwh,currency,titleNote){
   const tmax=(s.max_temp_c!=null)?s.max_temp_c+"°C":"—";
   return `
       <div class="grid cols4" style="gap:10px">
-        <div class="stat"><b>${kwh} kWh</b><span>energy consumed</span></div>
-        <div class="stat"><b>${cost} ${currency}</b><span>estimated cost</span></div>
-        <div class="stat"><b>${(s.avg_power_w||0).toFixed(1)}W</b><span>average power</span></div>
-        <div class="stat"><b>${(s.peak_power_w||0).toFixed(1)}W</b><span>peak power</span></div>
-        <div class="stat"><b>${vmax}</b><span>highest voltage ⚡</span></div>
-        <div class="stat"><b>${vmin}</b><span>lowest voltage ⚡</span></div>
-        <div class="stat"><b>${vavg}</b><span>average voltage</span></div>
-        <div class="stat"><b>${tmax} / ${tmin}</b><span>max / min temp</span></div>
+        <div class="stat"><b>${kwh} kWh</b><span>&nbsp;energy consumed</span></div>
+        <div class="stat"><b>${cost} ${currency}</b><span>&nbsp;estimated cost</span></div>
+        <div class="stat"><b>${(s.avg_power_w||0).toFixed(1)}W</b><span>&nbsp;average power</span></div>
+        <div class="stat"><b>${(s.peak_power_w||0).toFixed(1)}W</b><span>&nbsp;peak power</span></div>
+        <div class="stat"><b>${vmax}</b><span>&nbsp;highest voltage ⚡</span></div>
+        <div class="stat"><b>${vmin}</b><span>&nbsp;lowest voltage ⚡</span></div>
+        <div class="stat"><b>${vavg}</b><span>&nbsp;average voltage</span></div>
+        <div class="stat"><b>${tmax} / ${tmin}</b><span>&nbsp;max / min temp</span></div>
       </div>
       <p class="small" style="margin-top:12px">${s.samples||0} samples · Range: ${aRange}${titleNote?" · "+titleNote:""} · Temp avg: ${(s.avg_temp_c||0).toFixed(1)}°C</p>`;
 }
@@ -1614,11 +1640,8 @@ async function loadCharts(){
   if($("aChartMsg"))$("aChartMsg").textContent="loading…";
   try{
     const now=Math.floor(Date.now()/1000);
-    let start,ds;
-    if(aRange==="1h"){start=now-3600;ds=null;}
-    else if(aRange==="6h"){start=now-21600;ds="minute";}
-    else if(aRange==="24h"){start=now-86400;ds="minute";}
-    else if(aRange==="7d"){start=now-604800;ds="hour";}
+    const start=now-(RANGE_SEC[aRange]||86400);
+    const ds=rangeDownsample(aRange);
     const settings=await apit("/api/settings");
     const cost_kwh=settings.cost_per_kwh||1.2;
     const currency=settings.currency||"EGP";
@@ -1700,6 +1723,7 @@ on("aStrip","change",async()=>{
   const st=await ensureLive();
   updateOutletDropdown(st);
   updateHero(st);
+  loadOverview(st);
   loadCharts();
 });
 on("aOutlet","change",()=>{
@@ -1707,10 +1731,17 @@ on("aOutlet","change",()=>{
   aOutlet=(val==="__all__")?"__all__":parseInt(val);
   loadCharts();
 });
-on("aBtn1h","click",()=>{document.querySelectorAll("#aBtn1h,#aBtn6h,#aBtn24h,#aBtn7d").forEach(b=>b.classList.remove("on"));$("aBtn1h").classList.add("on");aRange="1h";loadCharts();});
-on("aBtn6h","click",()=>{document.querySelectorAll("#aBtn1h,#aBtn6h,#aBtn24h,#aBtn7d").forEach(b=>b.classList.remove("on"));$("aBtn6h").classList.add("on");aRange="6h";loadCharts();});
-on("aBtn24h","click",()=>{document.querySelectorAll("#aBtn1h,#aBtn6h,#aBtn24h,#aBtn7d").forEach(b=>b.classList.remove("on"));$("aBtn24h").classList.add("on");aRange="24h";loadCharts();});
-on("aBtn7d","click",()=>{document.querySelectorAll("#aBtn1h,#aBtn6h,#aBtn24h,#aBtn7d").forEach(b=>b.classList.remove("on"));$("aBtn7d").classList.add("on");aRange="7d";loadCharts();});
+function aSetRange(btn,range){
+  ["aBtn1h","aBtn6h","aBtn24h","aBtn7d","aBtn30d","aBtn6m","aBtn1y"].forEach(id=>{if($(id))$(id).classList.remove("on");});
+  btn.classList.add("on");aRange=range;loadCharts();loadRangeKpis();
+}
+on("aBtn1h","click",()=>aSetRange($("aBtn1h"),"1h"));
+on("aBtn6h","click",()=>aSetRange($("aBtn6h"),"6h"));
+on("aBtn24h","click",()=>aSetRange($("aBtn24h"),"24h"));
+on("aBtn7d","click",()=>aSetRange($("aBtn7d"),"7d"));
+on("aBtn30d","click",()=>aSetRange($("aBtn30d"),"30d"));
+on("aBtn6m","click",()=>aSetRange($("aBtn6m"),"6m"));
+on("aBtn1y","click",()=>aSetRange($("aBtn1y"),"1y"));
 on("aBtnRefresh","click",loadCharts);
 async function init(){try{const n=await api("/api/nets");if($("nets"))$("nets").value=(n.nets[0]||"192.168.1.0/24");}catch{}checkSrv();await reload();await live();await renderManage();await loadSettings();setInterval(log,4000);setInterval(()=>{if(prefs.auto&&$("pane-control").classList.contains("on"))live();},5000);setInterval(checkSrv,15000);}
 init();
