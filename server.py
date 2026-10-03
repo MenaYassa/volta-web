@@ -498,7 +498,7 @@ def timer_loop():
     while True:
         try:
             if CTL and CTL.wait_ready(0):
-                now = time.time()
+                now = int(time.time())
                 timers = get_timers()
                 dirty = False
                 for t in timers:
@@ -1254,7 +1254,7 @@ class Handler(BaseHTTPRequestHandler):
                 "mode": mode,
                 "on_sec": on_sec, "off_sec": off_sec,
                 "phase": "off" if body.get("on", False) is False else "on",
-                "phase_started": now,
+                "phase_started": int(now),
                 "repeat": repeat,
                 "repeat_n": max(1, int(body.get("repeat_n", 1) or 1)),
                 "cycles_done": 0,
