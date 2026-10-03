@@ -157,6 +157,48 @@ def query_all_strips_power(start_ts, end_ts, downsample=None, macs=None):
         return [dict(r) for r in rows]
 
 
+def _outlet_meter_deltas(db, mac, start_ts, end_ts):
+    """Per-outlet energy delta (kWh) within [start_ts, end_ts], robust to meter resets.
+    Sums positive increments of the cumulative meter between consecutive positive
+    samples (strip zeroes the meter when a relay is OFF or reboots). Falls back to
+    integrating positive power when the meter is unavailable."""
+    rows = db.execute("""
+        SELECT outlet, ts, energy_kwh, power_w
+        FROM readings
+        WHERE mac = ? AND ts >= ? AND ts <= ? AND (energy_kwh > 0 OR power_w > 0)
+        ORDER BY outlet, ts
+    """, (mac, start_ts, end_ts)).fetchall()
+    by_outlet = {}
+    for r in rows:
+        by_outlet.setdefault(r["outlet"], []).append(r)
+    total = 0.0
+    per_outlet = {}
+    for outlet, samples in by_outlet.items():
+        delta = 0.0
+        prev_e = None
+        prev_t = None
+        pos_w_sum = 0.0
+        pos_n = 0
+        for s in samples:
+            e = s["energy_kwh"]
+            if e and e > 0:
+                if prev_e is not None and e > prev_e:
+                    delta += e - prev_e
+                prev_e = e
+            if (s["power_w"] or 0) > 0:
+                pos_w_sum += s["power_w"]
+                pos_n += 1
+            prev_t = s["ts"]
+        if delta > 0.00001:
+            per_outlet[outlet] = delta
+            total += delta
+        elif pos_n > 1 and prev_t is not None and samples[0]["ts"] < prev_t:
+            avg_w = pos_w_sum / pos_n
+            per_outlet[outlet] = (avg_w * (prev_t - samples[0]["ts"])) / 3600000.0
+            total += per_outlet[outlet]
+    return total, per_outlet
+
+
 def strip_stats(mac, start_ts, end_ts):
     """Aggregate stats for entire strip (all 4 outlets combined)."""
     with _lock, _conn() as db:
@@ -175,29 +217,7 @@ def strip_stats(mac, start_ts, end_ts):
             WHERE mac = ? AND ts >= ? AND ts <= ?
         """, (mac.upper(), start_ts, end_ts)).fetchone()
         stats = dict(row) if row else {}
-        # Period energy: per-outlet meter delta (end - first sample in window).
-        # Outlets that are OFF report a zeroed meter, so MAX-MIN across the whole
-        # strip window overcounts; first/last per outlet is the correct delta.
-        rows = db.execute("""
-            SELECT outlet,
-                   MAX(energy_kwh) AS e_end,
-                   (SELECT energy_kwh FROM readings r2
-                     WHERE r2.mac = r.mac AND r2.outlet = r.outlet
-                       AND r2.ts >= ? AND r2.ts <= ? AND r2.energy_kwh > 0
-                     ORDER BY ts ASC LIMIT 1) AS e_start,
-                   AVG(CASE WHEN power_w > 0 THEN power_w END) AS avg_pos_w,
-                   MIN(ts) AS t_min, MAX(ts) AS t_max
-            FROM readings r
-            WHERE mac = ? AND ts >= ? AND ts <= ?
-            GROUP BY outlet
-        """, (start_ts, end_ts, mac.upper(), start_ts, end_ts)).fetchall()
-        kwh = 0.0
-        for r in rows:
-            if r["e_end"] is not None and r["e_start"] is not None:
-                kwh += max(0.0, r["e_end"] - r["e_start"])
-            elif r["avg_pos_w"] and r["t_max"] and r["t_min"] and r["t_max"] > r["t_min"]:
-                # meter unavailable: integrate positive power over the window
-                kwh += (r["avg_pos_w"] * (r["t_max"] - r["t_min"])) / 3600000.0
+        kwh, _per = _outlet_meter_deltas(db, mac.upper(), start_ts, end_ts)
         stats["energy_delta_kwh"] = kwh
         return stats
 
@@ -231,20 +251,8 @@ def outlet_leaderboard(start_ts, end_ts, limit=10, macs=None):
 
         out = []
         for r in base_rows:
-            # meter delta for this outlet within the window
-            er = db.execute("""
-                SELECT MAX(energy_kwh) AS e_end,
-                       (SELECT energy_kwh FROM readings r2
-                         WHERE r2.mac = ? AND r2.outlet = ?
-                           AND r2.ts >= ? AND r2.ts <= ? AND r2.energy_kwh > 0
-                         ORDER BY ts ASC LIMIT 1) AS e_start
-            """, (r["mac"], r["outlet"], start_ts, end_ts)).fetchone()
-            if er and er["e_end"] is not None and er["e_start"] is not None:
-                kwh = max(0.0, er["e_end"] - er["e_start"])
-            elif r["avg_pos_w"] and r["t_max"] > r["t_min"]:
-                kwh = (r["avg_pos_w"] * (r["t_max"] - r["t_min"])) / 3600000.0
-            else:
-                kwh = 0.0
+            kwh_total, per = _outlet_meter_deltas(db, r["mac"], start_ts, end_ts)
+            kwh = per.get(r["outlet"], 0.0)
             if kwh <= 0.00005 and (r["peak_power_w"] or 0) <= 0.1 and (r["avg_power_w"] or 0) <= 0.05:
                 continue
             out.append({
