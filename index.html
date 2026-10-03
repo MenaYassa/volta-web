@@ -702,11 +702,11 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </div>
 </div>
 
-<div class="card">
+<div class="card" id="srvInfoCard" style="display:none">
 <h3>Server</h3>
 <div id="srvInfo" class="small">—</div>
 </div>
-<div class="card">
+<div class="card" id="gatewayLogCard" style="display:none">
 <h3>Gateway log</h3>
 <div class="row" style="margin-bottom:4px"><button id="btnCopyLog" class="ghost">📋 Copy log</button><span id="copyMsg" class="small"></span></div>
 <pre id="log">—</pre>
@@ -844,6 +844,8 @@ async function checkSrv(){
             mgmt.style.display=who.is_admin?"block":"none";
             if(who.is_admin)loadUsers();
           }
+          if($("srvInfoCard"))$("srvInfoCard").style.display = who.is_admin ? "block" : "none";
+          if($("gatewayLogCard"))$("gatewayLogCard").style.display = who.is_admin ? "block" : "none";
           if($("fltManageUnassigned"))$("fltManageUnassigned").style.display = who.is_admin ? "" : "none";
           // Update setup termux command box with dynamic server host
           const dlBox=$("termuxDownloadCmd");
@@ -861,9 +863,13 @@ async function checkSrv(){
         }
       }catch(e){
         if($("userMgmtCard"))$("userMgmtCard").style.display="none";
+        if($("srvInfoCard"))$("srvInfoCard").style.display="none";
+        if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
       }
     }else{
       if($("userMgmtCard"))$("userMgmtCard").style.display="none";
+      if($("srvInfoCard"))$("srvInfoCard").style.display="none";
+      if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
     }
   }catch{
     if($("srvDot"))$("srvDot").className="dot bad";

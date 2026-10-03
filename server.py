@@ -948,8 +948,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "strips": formatted, "devices": formatted})
             return self._json({"error": "token required"}, 401)
         elif u.path == "/api/log":
-            if not self._authorized():
-                return self._json({"error": "token required"}, 401)
+            if not self._is_admin():
+                return self._json({"error": "admin access required"}, 403)
             self._json({"lines": LOG[-120:]})
         elif u.path == "/api/schedules":
             ctx = self._auth_ctx()
