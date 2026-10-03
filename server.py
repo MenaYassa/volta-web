@@ -21,6 +21,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import controller as ctrl
 import tonly
+import uuid
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 PORT = int(os.environ.get("VOLTA_WEB_PORT", os.environ.get("VOLTRA_WEB_PORT", "8080")))
@@ -93,6 +94,16 @@ def norm_mac(m):
 
 def get_schedules():
     return load_strips().get("schedules", [])
+
+
+def get_timers():
+    return load_strips().get("timers", [])
+
+
+def save_timers(timers):
+    data = load_strips()
+    data["timers"] = timers
+    save_strips(data)
 
 
 def get_users():
@@ -481,6 +492,80 @@ def scheduler_loop():
         time.sleep(20)
 
 
+def timer_loop():
+    """Evaluates outlet timers every 2s: countdowns + cyclic on/off loops.
+    Runs server-side so timers fire even with no phone/browser open."""
+    while True:
+        try:
+            if CTL and CTL.wait_ready(0):
+                now = time.time()
+                timers = get_timers()
+                dirty = False
+                for t in timers:
+                    if not t.get("enabled", True):
+                        continue
+                    try:
+                        phase_len = (t["on_sec"] if t.get("phase") == "on" else t["off_sec"]) or 0
+                    except (KeyError, TypeError):
+                        continue
+                    if phase_len <= 0:
+                        continue
+                    started = t.get("phase_started") or now
+                    elapsed = now - started
+                    if elapsed < phase_len:
+                        continue
+                    mac = t["mac"]
+                    mode = t.get("mode", "countdown")
+                    channels = [1, 2, 3, 4] if t.get("outlet", 0) == 0 else [int(t["outlet"])]
+                    if mode == "countdown":
+                        # fire once per phase: switch, then handle repeat
+                        ok, info = CTL.set_outlets(mac, channels, t.get("on", False),
+                                                   source=f"timer:{t['id']}")
+                        log(f'timer {t["id"]} fired {"on" if t.get("on") else "off"} '
+                            f'{mac} outlet {t.get("outlet")}: {"OK" if ok else info}')
+                        rep = t.get("repeat", "once")
+                        if rep == "forever":
+                            # invert action and restart
+                            t["on"] = not t.get("on", False)
+                            t["phase"] = "on" if t["on"] else "off"
+                            t["phase_started"] = now
+                            t["cycles_done"] = (t.get("cycles_done") or 0) + (1 if not t["on"] else 0)
+                        elif rep == "times":
+                            n = int(t.get("repeat_n", 1))
+                            done = (t.get("cycles_done") or 0) + 1
+                            if done >= n:
+                                t["enabled"] = False
+                                t["cycles_done"] = done
+                            else:
+                                t["on"] = not t.get("on", False)
+                                t["phase"] = "on" if t["on"] else "off"
+                                t["phase_started"] = now
+                                t["cycles_done"] = done
+                        else:  # once
+                            t["enabled"] = False
+                        dirty = True
+                    elif mode == "cyclic":
+                        # flip phase: ON duration -> OFF -> ON...
+                        new_on = t.get("phase") != "on"
+                        ok, info = CTL.set_outlets(mac, channels, new_on,
+                                                   source=f"timer:{t['id']}")
+                        log(f'timer {t["id"]} cyclic {mac} -> {"on" if new_on else "off"}: '
+                            f'{"OK" if ok else info}')
+                        t["phase"] = "on" if new_on else "off"
+                        t["phase_started"] = now
+                        if not new_on:
+                            t["cycles_done"] = (t.get("cycles_done") or 0) + 1
+                            rep = t.get("repeat", "forever")
+                            if rep == "times" and (t.get("cycles_done") or 0) >= int(t.get("repeat_n", 1)):
+                                t["enabled"] = False
+                        dirty = True
+                if dirty:
+                    save_timers(timers)
+        except Exception as e:  # noqa: BLE001
+            log(f"timer loop error: {e}")
+        time.sleep(2)
+
+
 def router_hint(ip, port=30300, timeout=0.5):
     """If ip answers like a router (and NOT like a strip), explain that.
 
@@ -836,6 +921,15 @@ class Handler(BaseHTTPRequestHandler):
                 allowed = set(ctx["strips"])
                 scheds = [s for s in scheds if norm_mac(s.get("mac", "")).upper() in allowed]
             self._json({"schedules": scheds})
+        elif u.path == "/api/timers":
+            ctx = self._auth_ctx()
+            if not ctx["authorized"]:
+                return self._json({"error": "token required"}, 401)
+            timers = get_timers()
+            if not ctx["is_admin"]:
+                allowed = set(ctx["strips"])
+                timers = [t for t in timers if norm_mac(t.get("mac", "")).upper() in allowed]
+            self._json({"timers": timers})
         elif u.path == "/api/settings":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
@@ -1114,6 +1208,61 @@ class Handler(BaseHTTPRequestHandler):
             log(f'sched saved {sched["id"]} {sched["mac"]} outlet {sched["outlet"]} '
                 f'{"on" if sched["on"] else "off"} {sched["time"]} {sched["tz"]}')
             return self._json({"ok": True, "schedule": sched, "schedules": scheds})
+        if u.path == "/api/timers":
+            # Create or update an outlet timer.
+            # Body: {mac, outlet, on, mode:countdown|cyclic, on_sec, off_sec,
+            #        repeat: once|times|forever, repeat_n, label, enabled, id?}
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            mac = norm_mac(body.get("mac", "")).upper()
+            outlet = int(body.get("outlet", 0) or 0)
+            if not mac or not (0 <= outlet <= 4):
+                return self._json({"error": "need mac + outlet 0-4"}, 400)
+            if not self._can_access_mac(mac):
+                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            try:
+                on_sec = max(5, int(body.get("on_sec", 0) or 0))
+                off_sec = max(5, int(body.get("off_sec", 0) or 0))
+            except (TypeError, ValueError):
+                return self._json({"error": "on_sec/off_sec must be integer seconds"}, 400)
+            mode = body.get("mode", "countdown")
+            if mode not in ("countdown", "cyclic"):
+                return self._json({"error": "mode must be countdown or cyclic"}, 400)
+            if mode == "countdown" and on_sec <= 0:
+                return self._json({"error": "countdown needs on_sec > 0"}, 400)
+            if mode == "cyclic" and (on_sec <= 0 or off_sec <= 0):
+                return self._json({"error": "cyclic needs on_sec and off_sec > 0"}, 400)
+            repeat = body.get("repeat", "once")
+            if repeat not in ("once", "times", "forever"):
+                return self._json({"error": "repeat must be once|times|forever"}, 400)
+            tid = body.get("id") or f"t_{uuid.uuid4().hex[:10]}"
+            now = time.time()
+            timers = get_timers()
+            timer = {
+                "id": tid, "mac": mac, "outlet": outlet,
+                "on": bool(body.get("on", False)),
+                "mode": mode,
+                "on_sec": on_sec, "off_sec": off_sec,
+                "phase": "off" if body.get("on", False) is False else "on",
+                "phase_started": now,
+                "repeat": repeat,
+                "repeat_n": max(1, int(body.get("repeat_n", 1) or 1)),
+                "cycles_done": 0,
+                "label": (body.get("label") or "")[:60],
+                "enabled": bool(body.get("enabled", True)),
+            }
+            for i, t in enumerate(timers):
+                if t.get("id") == tid:
+                    timer["cycles_done"] = t.get("cycles_done", 0)
+                    timer["phase_started"] = now  # reset phase clock on edit
+                    timers[i] = timer
+                    break
+            else:
+                timers.append(timer)
+            save_timers(timers)
+            log(f'timer saved {tid} {mac} outlet {outlet} {mode} '
+                f'on={on_sec}s off={off_sec}s repeat={repeat}')
+            return self._json({"ok": True, "timer": timer, "timers": timers})
         if u.path == "/api/settings":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
@@ -1726,6 +1875,20 @@ class Handler(BaseHTTPRequestHandler):
             save_schedules(scheds)
             log(f"sched deleted {sid}")
             return self._json({"ok": True, "schedules": scheds})
+        if u.path == "/api/timers":
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            tid = (q.get("id", [""])[0])
+            if not tid:
+                return self._json({"error": "id required"}, 400)
+            timers = get_timers()
+            target = next((t for t in timers if t.get("id") == tid), None)
+            if target and not self._can_access_mac(target.get("mac", "")):
+                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            timers = [t for t in timers if t.get("id") != tid]
+            save_timers(timers)
+            log(f"timer deleted {tid}")
+            return self._json({"ok": True, "timers": timers})
         return self._json({"error": "not found"}, 404)
 
     def log_message(self, *a):  # quiet default logging
@@ -1811,6 +1974,7 @@ if __name__ == "__main__":
     log("[analytics] database initialized")
     import threading as _th
     _th.Thread(target=scheduler_loop, daemon=True).start()
+    _th.Thread(target=timer_loop, daemon=True).start()
     _th.Thread(target=watcher_loop, daemon=True).start()
     _th.Thread(target=analytics.collector_loop, args=(CTL,), daemon=True).start()
     log("[analytics] collector thread started (30s interval)")

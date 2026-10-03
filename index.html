@@ -231,32 +231,150 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 <!-- ============ SCHEDULES ============ -->
 <section class="tabpane" id="pane-sched">
+<div class="row" style="margin-bottom:12px;gap:8px">
+  <button id="segSched" class="sm on" style="border-radius:99px;padding:8px 18px">📅 Daily Schedules</button>
+  <button id="segTimers" class="ghost sm" style="border-radius:99px;padding:8px 18px">⏱️ Outlet Timers <span id="timerBadge" class="tag">0</span></button>
+</div>
+
+<div id="schedPane">
+<div class="card" style="background:linear-gradient(135deg,#064e3b 0%,#059669 70%,#10b981 100%);border:none;color:#fff">
+  <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.85">Rule preview</div>
+  <div style="font-size:19px;font-weight:700;line-height:1.35;margin-top:4px" id="scPreview">Select a strip to begin…</div>
+</div>
+
 <div class="card">
-<h3>Schedules <span class="sub">— run on the server, phone can be off</span></h3>
-<p class="desc">Per-outlet on/off at a daily time, on chosen days. Times use the timezone you pick (default Egypt). A schedule fires even while a strip is offline — the command queues and applies on reconnect.</p>
-<div class="grid cols4">
-<div class="field"><span>Strip</span><select id="scMac"></select></div>
-<div class="field"><span>Outlet</span><select id="scOutlet"><option value="0">All 4</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
-<div class="field"><span>Action</span><select id="scOn"><option value="1">ON</option><option value="0">OFF</option></select></div>
-<div class="field"><span>When</span><select id="scKind"><option value="time">Fixed time</option><option value="rise">Sunrise</option><option value="set">Sunset</option></select></div>
+<h3>New schedule</h3>
+<div class="grid cols2">
+  <div class="field"><span>Target strip</span><select id="scMac"></select></div>
+  <div class="field"><span>Trigger</span><select id="scKind"><option value="time">🕐 Clock time</option><option value="rise">🌅 Astronomical sunrise</option><option value="set">🌇 Astronomical sunset</option></select></div>
 </div>
-<div class="grid cols4" id="scTimeRow">
-<div class="field"><span>Time</span><input id="scTime" type="time" value="23:00"></div>
-<div class="field"><span>Offset (min, for sun)</span><input id="scOffset" type="number" value="0" min="-360" max="360" placeholder="e.g. -30 = 30min before"></div>
-<div class="field"><span>Label (optional)</span><input id="scLabel" maxlength="60" placeholder="e.g. Night off"></div>
-<div class="field"><span>Timezone</span><select id="scTz"><option>Africa/Cairo</option><option>UTC</option><option>Europe/Berlin</option><option>Asia/Dubai</option><option>America/New_York</option></select></div>
+<div class="field"><span>Outlets</span><div id="scOutletPills" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>
+<div class="field" style="margin-top:10px"><span>Power action</span>
+  <div style="display:flex;gap:10px">
+    <button id="scOnBtn" class="on" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#059669;color:#fff;border:2px solid #059669">⚡ Turn ON</button>
+    <button id="scOffBtn" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)">⏻ Turn OFF</button>
+  </div>
 </div>
-<div class="row"><button id="btnSchedAdd">+ Add schedule</button></div>
-<div class="field"><span>Days</span><div class="daypick" id="scDays"></div></div>
+<div class="field" style="margin-top:10px"><span>Time</span>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <input id="scTime" type="time" value="23:00" style="max-width:140px">
+    <button class="ghost sm scPreset" data-t="06:00">06:00 Early</button>
+    <button class="ghost sm scPreset" data-t="08:30">08:30 Morning</button>
+    <button class="ghost sm scPreset" data-t="18:00">18:00 Evening</button>
+    <button class="ghost sm scPreset" data-t="22:00">22:00 Night</button>
+    <button class="ghost sm scPreset" data-t="23:00">23:00 Bedtime</button>
+  </div>
+</div>
+<div class="grid cols2" id="scSunRow" style="display:none">
+  <div class="field"><span>Sun offset</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="ghost sm scSunOff" data-o="-30">-30 min</button>
+      <button class="ghost sm scSunOff on" data-o="0">Exact</button>
+      <button class="ghost sm scSunOff" data-o="30">+30 min</button>
+    </div>
+  </div>
+  <div class="field"><span>Timezone</span><select id="scTz"><option>Africa/Cairo</option><option>UTC</option><option>Europe/Berlin</option><option>Asia/Dubai</option><option>America/New_York</option></select></div>
+</div>
+<div class="field" style="margin-top:10px"><span>Repeat days</span>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+    <button class="ghost sm scDayPreset" data-p="all">Everyday</button>
+    <button class="ghost sm scDayPreset" data-p="week">Weekdays</button>
+    <button class="ghost sm scDayPreset" data-p="end">Weekends</button>
+  </div>
+  <div id="scDayChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+</div>
+<div class="grid cols2" style="margin-top:10px">
+  <div class="field"><span>Label (optional)</span><input id="scLabel" maxlength="60" placeholder="e.g. Night off"></div>
+  <div class="field"><span>Suggestions</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="ghost sm scLabelSug" data-l="Bedtime Power Cut">+ Bedtime Power Cut</button>
+      <button class="ghost sm scLabelSug" data-l="Morning Routine">+ Morning Routine</button>
+      <button class="ghost sm scLabelSug" data-l="Save Standby Power">+ Save Standby Power</button>
+      <button class="ghost sm scLabelSug" data-l="Office Hours">+ Office Hours</button>
+    </div>
+  </div>
+</div>
+<div class="row"><button id="btnSchedAdd">💾 Save Schedule</button></div>
 <div id="schedMsg" class="msgline"></div>
-<p class="desc">Sun times use your saved location (Settings → Location &amp; alerts).</p>
+<p class="desc">Sun times use your saved location (Settings → Location &amp; alerts). Schedules run on the server — your phone can be off.</p>
 </div>
 <div class="card">
 <h3>Active schedules</h3>
 <div class="row" style="margin-bottom:8px"><button id="btnSchedReload" class="ghost sm">↻ Reload</button><span class="small" id="schedCount"></span></div>
 <div id="schedList"><p class="small">Loading…</p></div>
 </div>
+</div>
+
+<div id="timerPane" style="display:none">
+<div class="card" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 70%,#3b82f6 100%);border:none;color:#fff">
+  <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.85">Timer preview</div>
+  <div style="font-size:19px;font-weight:700;line-height:1.35;margin-top:4px" id="tmPreview">Configure a timer below…</div>
+</div>
+<div class="card">
+<h3>New outlet timer</h3>
+<p class="desc">Countdown to switch, or a repeating ON/OFF cycle — runs on the server even with every browser closed.</p>
+<div class="grid cols2">
+  <div class="field"><span>Target strip</span><select id="tmMac"></select></div>
+  <div class="field"><span>Mode</span><select id="tmMode"><option value="countdown">⏳ Countdown (switch after duration)</option><option value="cyclic">🔁 Cyclic loop (ON ↔ OFF)</option></select></div>
+</div>
+<div class="field"><span>Outlets</span><div id="tmOutletPills" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>
+<div class="field" style="margin-top:10px"><span>Action (when countdown fires / ON phase)</span>
+  <div style="display:flex;gap:10px">
+    <button id="tmOnBtn" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)">⚡ Turn ON</button>
+    <button id="tmOffBtn" class="on" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#dc2626;color:#fff;border:2px solid #dc2626">⏻ Turn OFF</button>
+  </div>
+</div>
+<div class="grid cols2" style="margin-top:10px">
+  <div class="field"><span>ON duration</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="tmOnMin" type="number" min="1" value="30" style="max-width:90px"> <span class="small">min</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+      <button class="ghost sm tmOnPreset" data-m="15">15m</button>
+      <button class="ghost sm tmOnPreset" data-m="30">30m</button>
+      <button class="ghost sm tmOnPreset" data-m="60">1h</button>
+      <button class="ghost sm tmOnPreset" data-m="120">2h</button>
+      <button class="ghost sm tmOnPreset" data-m="480">8h</button>
+    </div>
+  </div>
+  <div class="field" id="tmOffField"><span>OFF duration (cyclic)</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="tmOffMin" type="number" min="1" value="45" style="max-width:90px"> <span class="small">min</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+      <button class="ghost sm tmOffPreset" data-m="15">15m</button>
+      <button class="ghost sm tmOffPreset" data-m="45">45m</button>
+      <button class="ghost sm tmOffPreset" data-m="120">2h</button>
+    </div>
+  </div>
+</div>
+<div class="field" style="margin-top:10px"><span>Repeat</span>
+  <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <button class="ghost sm tmRep" data-r="once">Once</button>
+    <button class="ghost sm tmRep" data-r="times">N times</button>
+    <button class="ghost sm tmRep on" data-r="forever">♾️ Forever</button>
+    <input id="tmRepN" type="number" min="2" value="3" style="max-width:80px;display:none;margin-left:6px"> <span class="small" id="tmRepNLabel" style="display:none">cycles</span>
+  </div>
+</div>
+<div class="field" style="margin-top:10px"><span>Label (optional)</span>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <input id="tmLabel" maxlength="60" placeholder="e.g. Charger shutoff" style="max-width:220px">
+    <button class="ghost sm tmLabelSug" data-l="Phone Charger Shutoff">+ Charger Shutoff</button>
+    <button class="ghost sm tmLabelSug" data-l="Water Pump Loop">+ Pump Loop</button>
+    <button class="ghost sm tmLabelSug" data-l="Exhaust Fan Pulse">+ Fan Pulse</button>
+  </div>
+</div>
+<div class="row"><button id="btnTimerAdd">💾 Save Timer</button></div>
+<div id="timerMsg" class="msgline"></div>
+</div>
+<div class="card">
+<h3>Active timers</h3>
+<div class="row" style="margin-bottom:8px"><button id="btnTimerReload" class="ghost sm">↻ Reload</button><span class="small" id="timerCount"></span></div>
+<div id="timerList"><p class="small">Loading…</p></div>
+</div>
+</div>
 </section>
+
 
 <!-- ============ SETUP ============ -->
 <section class="tabpane" id="pane-setup">
@@ -840,21 +958,109 @@ function ago(s){if(s==null)return "?";s=Math.max(0,Math.round(s));
   const m=Math.floor(s/60);if(m<60)return m+"m ago";
   const h=Math.floor(m/60);if(h<24)return h+"h "+(m%60)+"m ago";
   return Math.floor(h/24)+"d ago";}
-/* ---- Schedules ---- */
-const DAYN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-function schedDaysUI(){const box=$("scDays");if(!box||box.children.length)return;const keep=new Set([0,1,2,3,4,5,6]);
-  try{const saved=JSON.parse(localStorage.getItem("voltra_days")||"");if(Array.isArray(saved)&&saved.length)saved.forEach(d=>keep.add(d));}catch{}
-  box.innerHTML="";DAYN.forEach((n,i)=>{const l=document.createElement("label");l.innerHTML=`<input type="checkbox" value="${i}"${[0,1,2,3,4,5,6].includes(i)?" checked":""}>${n}`;box.appendChild(l);});}
-function schedDaysGet(){return [...$("scDays").querySelectorAll("input:checked")].map(i=>+i.value).sort();}
-async function fillSchedMacs(){const sel=$("scMac");if(!sel)return;const s=await ensureLive();
-  const devs=(s&&s.devices)||[],names=(s&&s.names)||{};
+/* ---- Schedules (redesigned) ---- */
+const DAYN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],DAY1=["M","T","W","T","F","S","S"];
+let scDays=new Set([0,1,2,3,4,5,6]),scOutlet=0,scOn=true,scSunOff=0,tmOutlet=0,tmOn=true,tmRepeat="forever";
+function schedDaysUI(){
+  const box=$("scDayChips");if(!box)return;box.innerHTML="";
+  DAY1.forEach((d,i)=>{
+    const b=document.createElement("button");
+    b.className="sm"+(scDays.has(i)?" on":"");b.style.cssText="width:40px;height:40px;border-radius:99px;padding:0;font-weight:700";
+    b.textContent=d;
+    b.onclick=()=>{scDays.has(i)?scDays.delete(i):scDays.add(i);schedDaysUI();scPreviewUpd();};
+    box.appendChild(b);
+  });
+}
+function outletPills(boxId,sel,onSel){
+  const st=_last||{},devs=st.devices||[],names=st.names||{};
+  const box=$(boxId);if(!box)return;box.innerHTML="";
+  const mac=boxId==="scOutletPills"?$("scMac").value:$("tmMac").value;
+  const mkey=(mac||"").toLowerCase().replace(/:/g,"");
+  const oNames=(names[mkey]||{}).outlets||{};
+  const mk=(n,txt)=>{
+    const b=document.createElement("button");
+    b.className="sm"+(sel()===n?" on":"");
+    b.style.cssText="border-radius:99px;padding:8px 14px"+(sel()===n?"":"");
+    b.innerHTML=`<b>${n===0?"All (Master)":"#"+n}</b>${n!==0&&oNames[String(n)]?`<br><span class="small">${oNames[String(n)]}</span>`:""}`;
+    b.onclick=()=>{onSel(n);outletPills(boxId,sel,onSel);boxId==="scOutletPills"?scPreviewUpd():tmPreviewUpd();};
+    box.appendChild(b);
+  };
+  mk(0,"");for(let n=1;n<=4;n++)mk(n,"");
+}
+function fillSchedMacs(){
+  const sel=$("scMac"),tsel=$("tmMac");if(!sel)return;
+  const st=_last||{},devs=(st.devices||[]),names=(st.names||{});
+  const cur=sel.value,tcur=tsel?tsel.value:"";
   const macs=[...new Set([...devs.map(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()),...Object.keys(names)])].filter(Boolean);
-  const cur=sel.value;sel.innerHTML=macs.length?"":"<option value=''>— no strips yet —</option>";
+  const opts=macs.length?"":`<option value=''>— no strips yet —</option>`;
+  sel.innerHTML=opts;if(tsel)tsel.innerHTML=opts;
   for(const mac of macs){const d=devs.find(x=>(x.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()===mac);
     const nm=(names[mac]||{}).name||(d&&d.name!==d.mac?d.name:"")||mac.toUpperCase();
-    const o=document.createElement("option");o.value=mac.toUpperCase();o.textContent=nm;sel.appendChild(o);}
-  if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;}
+    for(const s of [sel,tsel]){if(!s)continue;
+      const o=document.createElement("option");o.value=mac.toUpperCase();o.textContent=nm;s.appendChild(o);}}
+  if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;
+  if(tsel&&tcur&&[...tsel.options].some(o=>o.value===tcur))tsel.value=tcur;
+}
+function nmOfMac(mac){
+  const st=_last||{},devs=st.devices||[],names=st.names||{};
+  return (names[(mac||"").toLowerCase().replace(/:/g,"")]||{}).name||(devs.find(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()===(mac||"").toLowerCase())||{}).name||mac;
+}
+function scPreviewUpd(){
+  const el=$("scPreview");if(!el)return;
+  const mac=$("scMac").value;
+  if(!mac){el.textContent="Select a strip to begin…";return;}
+  const kind=$("scKind").value;
+  const when=kind==="time"?`at ${$("scTime").value}`:
+    `at ☀ ${kind==="rise"?"sunrise":"sunset"}${scSunOff?` ${scSunOff>0?"+":""}${scSunOff}min`:""}`;
+  const days=scDays.size===7?"every day":scDays.size===5&&[0,1,2,3,4].every(i=>scDays.has(i))?"on weekdays":
+    scDays.size===2&&[5,6].every(i=>scDays.has(i))?"on weekends":
+    "on "+[...scDays].sort().map(i=>DAYN[i]).join(", ");
+  el.innerHTML=`<span style="background:${scOn?"#34d399":"#f87171"};color:#064e3b;border-radius:8px;padding:2px 10px;font-weight:800">${scOn?"ON":"OFF"}</span> `+
+    `<b>${nmOfMac(mac)}</b> · ${scOutlet===0?"ALL outlets":"outlet "+scOutlet} ${when} ${days}`;
+}
+function tmPreviewUpd(){
+  const el=$("tmPreview");if(!el)return;
+  const mac=$("tmMac").value;
+  if(!mac){el.textContent="Configure a timer below…";return;}
+  const onM=+$("tmOnMin").value||0,offM=+$("tmOffMin").value||0;
+  const mode=$("tmMode").value;
+  const rep=tmRepeat==="forever"?"♾️ repeating forever":tmRepeat==="times"?`repeating ${$("tmRepN").value}×`:"running once";
+  const target=`<b>${nmOfMac(mac)}</b> · ${tmOutlet===0?"ALL outlets":"outlet "+tmOutlet}`;
+  if(mode==="cyclic"){
+    el.innerHTML=`${target} · <span style="background:#34d399;color:#064e3b;border-radius:8px;padding:2px 8px;font-weight:800">ON ${onM}m</span> ↔ <span style="background:#f87171;color:#7f1d1d;border-radius:8px;padding:2px 8px;font-weight:800">OFF ${offM}m</span>, ${rep}`;
+  }else{
+    el.innerHTML=`${target} will <span style="background:${tmOn?"#34d399":"#f87171"};color:#064e3b;border-radius:8px;padding:2px 8px;font-weight:800">${tmOn?"TURN ON":"TURN OFF"}</span> after ${onM}m, ${rep}`;
+  }
+}
+on("scMac","change",()=>{outletPills("scOutletPills",()=>scOutlet,n=>scOutlet=n);scPreviewUpd();});
+on("tmMac","change",()=>{outletPills("tmOutletPills",()=>tmOutlet,n=>tmOutlet=n);tmPreviewUpd();});
+on("scKind","change",()=>{$("scTime").parentElement.style.display=$("scKind").value==="time"?"":"none";$("scSunRow").style.display=$("scKind").value==="time"?"none":"grid";scPreviewUpd();});
+on("scOnBtn","click",()=>{scOn=true;$("scOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#059669;color:#fff;border:2px solid #059669";$("scOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";scPreviewUpd();});
+on("scOffBtn","click",()=>{scOn=false;$("scOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#dc2626;color:#fff;border:2px solid #dc2626";$("scOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";scPreviewUpd();});
+document.querySelectorAll(".scPreset").forEach(b=>b.onclick=()=>{$("scTime").value=b.dataset.t;scPreviewUpd();});
+document.querySelectorAll(".scSunOff").forEach(b=>b.onclick=()=>{document.querySelectorAll(".scSunOff").forEach(x=>x.classList.remove("on"));b.classList.add("on");scSunOff=+b.dataset.o;scPreviewUpd();});
+document.querySelectorAll(".scDayPreset").forEach(b=>b.onclick=()=>{
+  scDays=b.dataset.p==="all"?new Set([0,1,2,3,4,5,6]):b.dataset.p==="week"?new Set([0,1,2,3,4]):new Set([5,6]);
+  schedDaysUI();scPreviewUpd();});
+document.querySelectorAll(".scLabelSug").forEach(b=>b.onclick=()=>{$("scLabel").value=b.dataset.l;});
+on("scTime","change",scPreviewUpd);
+on("tmMode","change",()=>{$("tmOffField").style.display=$("tmMode").value==="cyclic"?"":"none";tmPreviewUpd();});
+on("tmOnBtn","click",()=>{tmOn=true;$("tmOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#059669;color:#fff;border:2px solid #059669";$("tmOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";tmPreviewUpd();});
+on("tmOffBtn","click",()=>{tmOn=false;$("tmOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#dc2626;color:#fff;border:2px solid #dc2626";$("tmOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";tmPreviewUpd();});
+document.querySelectorAll(".tmOnPreset").forEach(b=>b.onclick=()=>{$("tmOnMin").value=b.dataset.m;tmPreviewUpd();});
+document.querySelectorAll(".tmOffPreset").forEach(b=>b.onclick=()=>{$("tmOffMin").value=b.dataset.m;tmPreviewUpd();});
+document.querySelectorAll(".tmRep").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tmRep").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+  tmRepeat=b.dataset.r;
+  $("tmRepN").style.display=tmRepeat==="times"?"":"none";$("tmRepNLabel").style.display=tmRepeat==="times"?"":"none";
+  tmPreviewUpd();});
+document.querySelectorAll(".tmLabelSug").forEach(b=>b.onclick=()=>{$("tmLabel").value=b.dataset.l;});
+on("tmOnMin","change",tmPreviewUpd);on("tmOffMin","change",tmPreviewUpd);on("tmRepN","change",tmPreviewUpd);
+/* seg toggle */
+on("segSched","click",()=>{$("segSched").classList.add("on");$("segSched").classList.remove("ghost");$("segTimers").classList.add("ghost");$("segTimers").classList.remove("on");$("schedPane").style.display="";$("timerPane").style.display="none";loadSched();});
+on("segTimers","click",()=>{$("segTimers").classList.add("on");$("segTimers").classList.remove("ghost");$("segSched").classList.add("ghost");$("segSched").classList.remove("on");$("timerPane").style.display="";$("schedPane").style.display="none";loadTimersUI();});
 async function loadSched(){schedDaysUI();await fillSchedMacs();
+  outletPills("scOutletPills",()=>scOutlet,n=>scOutlet=n);scPreviewUpd();
   const box=$("schedList");if(!box)return;box.innerHTML="<p class='small'>Loading…</p>";
   try{const r=await apit("/api/schedules");renderSched(r.schedules||[]);}
   catch(e){box.innerHTML=`<p class='err'>${e.message}</p>`;}}
@@ -883,20 +1089,80 @@ function renderSched(list){
 }
 on("btnSchedReload","click",loadSched);
 on("btnSchedAdd","click",async()=>{
-  const kind=$("scKind").value; // time | rise | set
-  const body={mac:$("scMac").value,outlet:+$("scOutlet").value,on:$("scOn").value==="1",
+  const kind=$("scKind").value;
+  const body={mac:$("scMac").value,outlet:scOutlet,on:scOn,
     kind:kind==="time"?"time":"sun",sun:kind==="time"?"set":kind,
-    offset_min:+($("scOffset").value||0),
-    time:$("scTime").value,days:schedDaysGet(),tz:$("scTz").value,label:$("scLabel").value,enabled:true};
+    offset_min:scSunOff,
+    time:$("scTime").value,days:[...scDays].sort(),tz:$("scTz").value,label:$("scLabel").value,enabled:true};
   if(!body.mac){$("schedMsg").textContent="✕ pick a strip first (provision one in Setup).";return;}
   if(!body.days.length){$("schedMsg").textContent="✕ pick at least one day.";return;}
   $("schedMsg").textContent="saving…";
   try{const r=await apit("/api/schedules",body);
-    const w=r.schedule.kind==="sun"?`☀ ${r.schedule.sun==="rise"?"sunrise":"sunset"}${r.schedule.offset_min?` ${r.schedule.offset_min>0?"+":""}${r.schedule.offset_min}min`:""}`:`${r.schedule.time}`;
+    const w=r.schedule.kind==="sun"?`☀ ${r.schedule.sun==="rise"?"sunrise":"sunset"}`:`${r.schedule.time}`;
     $("schedMsg").textContent=`✓ fires ${w} (${r.schedule.tz}) — runs on the server even with your phone off.`;
     $("scLabel").value="";await loadSched();}
   catch(e){showErr($("schedMsg"),"",e);}
 });
+/* ---- Outlet Timers (server-side engine) ---- */
+async function loadTimersUI(){
+  await fillSchedMacs();
+  outletPills("tmOutletPills",()=>tmOutlet,n=>tmOutlet=n);tmPreviewUpd();
+  await renderTimers();
+}
+async function renderTimers(){
+  const box=$("timerList");if(!box)return;box.innerHTML="<p class='small'>Loading…</p>";
+  try{
+    const r=await apit("/api/timers");
+    const list=(r.timers||[]);
+    const active=list.filter(t=>t.enabled).length;
+    if($("timerBadge"))$("timerBadge").textContent=active;
+    if($("timerCount"))$("timerCount").textContent=list.length?`${active}/${list.length} active`:"";
+    box.innerHTML=list.length?"":"<p class='small'>No timers yet. Create one above — e.g. turn the heater OFF after 2h.</p>";
+    for(const t of list){
+      const d=document.createElement("div");d.className="sched";d.style.opacity=t.enabled?"":"0.6";
+      const mode=t.mode==="cyclic"
+        ?`🔁 ON ${Math.round(t.on_sec/60)}m ↔ OFF ${Math.round(t.off_sec/60)}m`
+        :`⏳ after ${fmtDur(t.on_sec)} → ${t.on?"ON":"OFF"}`;
+      const rep=t.repeat==="forever"?"♾️ forever":t.repeat==="times"?`×${t.repeat_n}`:"once";
+      let live="";
+      if(t.enabled&&t.phase_started){
+        const phaseLen=(t.phase==="on"?t.on_sec:t.off_sec)||0;
+        const left=Math.max(0,Math.round(phaseLen-(Date.now()/1000-t.phase_started)));
+        live=` · <b class="mono" style="color:var(--blue)">⏱ ${fmtDur(left)} until ${t.mode==="cyclic"?(t.phase==="on"?"OFF":"ON"):"fire"}</b> · phase ${t.phase}${t.repeat!=="once"?` · cycle ${t.cycles_done||0}${t.repeat==="times"?"/"+t.repeat_n:""}`:""}`;
+      }
+      d.innerHTML=`<div class="row1"><b></b>
+        <span class="tag">${mode}</span><span class="tag">${rep}</span>
+        <span style="flex:1"></span>
+        <button class="ghost sm tgl">${t.enabled?"⏸ Pause":"▶ Resume"}</button>
+        <button class="danger sm del">Delete</button></div>
+        <div class="small" style="margin-top:4px"></div>`;
+      d.querySelector("b").textContent=`${nmOfMac(t.mac)} · ${t.outlet===0?"ALL outlets":"outlet "+t.outlet}${t.label?" · "+t.label:""}${t.enabled?"":" (paused)"}`;
+      d.querySelector(".small").innerHTML=live||"paused — will not fire until resumed";
+      d.querySelector(".tgl").onclick=async()=>{try{await apit("/api/timers",Object.assign({},t,{enabled:!t.enabled,phase_started:Date.now()/1000}));await renderTimers();}catch(e){alert(e.message);}};
+      d.querySelector(".del").onclick=async()=>{if(!confirm("Delete this timer?"))return;
+        try{await fetch("/api/timers?id="+encodeURIComponent(t.id),{method:"DELETE",headers:tok()?{"X-Token":tok()}:{}});await renderTimers();}catch(e){alert(e.message);}};
+      box.appendChild(d);
+    }
+  }catch(e){box.innerHTML=`<p class='err'>${e.message}</p>`;}
+}
+function fmtDur(s){s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return h?`${h}h ${m}m`:m?`${m}m`:`${s}s`;}
+on("btnTimerReload","click",renderTimers);
+on("btnTimerAdd","click",async()=>{
+  const body={mac:$("tmMac").value,outlet:tmOutlet,on:tmOn,
+    mode:$("tmMode").value,
+    on_sec:(+$("tmOnMin").value||0)*60,
+    off_sec:(+$("tmOffMin").value||0)*60,
+    repeat:tmRepeat,repeat_n:+$("tmRepN").value||1,
+    label:$("tmLabel").value,enabled:true};
+  if(!body.mac){$("timerMsg").textContent="✕ pick a strip first.";return;}
+  $("timerMsg").textContent="saving…";
+  try{await apit("/api/timers",body);
+    $("timerMsg").textContent="✓ timer saved — runs on the server even with every browser closed.";
+    $("tmLabel").value="";await renderTimers();}
+  catch(e){showErr($("timerMsg"),"",e);}
+});
+/* live countdown refresh while timers tab visible */
+setInterval(()=>{if($("pane-sched")&&$("pane-sched").classList.contains("on")&&$("timerPane").style.display!=="none")renderTimers();},10000);
 /* ---- Setup ---- */
 on("btnApPw","click",async()=>{
   const ssid=($("wAp").value||"").trim();
@@ -1172,14 +1438,24 @@ function stopAnalyticsTicker(){if(aTicker){clearInterval(aTicker);aTicker=null;}
 function updateHero(st){
   const devs=(st&&st.devices)||[];
   const online=devs.filter(d=>d.online);
-  const totalW=devs.reduce((s,d)=>s+(d.total_power_w||0),0);
+  const scoped=devs.filter(d=>aMac!=="__all__"?(d.mac===aMac):true);
+  const scopedOnline=scoped.filter(d=>d.online);
+  const totalW=scoped.reduce((s,d)=>s+(d.total_power_w||0),0);
   if($("aHeroPower"))$("aHeroPower").innerHTML=totalW.toFixed(1)+" <span style='font-size:20px;font-weight:600'>W</span>";
-  const volts=online.map(d=>d.voltage_v).filter(v=>v>0);
+  const volts=scopedOnline.map(d=>d.voltage_v).filter(v=>v>0);
   if($("aHeroVolt"))$("aHeroVolt").textContent=volts.length?(volts.reduce((a,b)=>a+b,0)/volts.length).toFixed(1)+"V":"—";
-  const temps=online.map(d=>Math.max(...(d.outlets||[]).map(o=>o.temp_c||0),0)).filter(t=>t>0);
+  const temps=scopedOnline.map(d=>Math.max(...(d.outlets||[]).map(o=>o.temp_c||0),0)).filter(t=>t>0);
   if($("aHeroTemp"))$("aHeroTemp").textContent=temps.length?Math.max(...temps)+"°C":"—";
   if($("aHeroUpdated"))$("aHeroUpdated").textContent="updated "+new Date().toLocaleTimeString();
-  if($("aHeroSub"))$("aHeroSub").textContent=`${online.length}/${devs.length} strips online · ${online.reduce((s,d)=>s+(d.outlets||[]).filter(o=>o.on).length,0)} outlets on`;
+  if($("aHeroSub")){
+    if(aMac==="__all__"){
+      $("aHeroSub").textContent=`${scopedOnline.length}/${scoped.length} strips online · ${scopedOnline.reduce((s,d)=>s+(d.outlets||[]).filter(o=>o.on).length,0)} outlets on`;
+    }else{
+      const names=(st&&st.names)||{};
+      const nm=(names[(aMac||"").toLowerCase().replace(/:/g,"")]||{}).name||(devs.find(d=>d.mac===aMac)||{}).name||aMac;
+      $("aHeroSub").textContent=`${nm} · ${scopedOnline.reduce((s,d)=>s+(d.outlets||[]).filter(o=>o.on).length,0)}/${scopedOnline.reduce((s,d)=>s+(d.outlets||[]).length,0)} outlets on`;
+    }
+  }
 }
 async function loadAnalytics(){  try{
     const st=await ensureLive();
@@ -1423,6 +1699,7 @@ on("aStrip","change",async()=>{
   aMac=$("aStrip").value;
   const st=await ensureLive();
   updateOutletDropdown(st);
+  updateHero(st);
   loadCharts();
 });
 on("aOutlet","change",()=>{
