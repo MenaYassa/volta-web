@@ -60,10 +60,14 @@ def check_and_apply_auto_claim(mac, client_ip):
         return None
     
     strips_list = user_entry.setdefault("strips", [])
+    max_strips = user_entry.get("max_strips", 10)
     if mac not in strips_list:
+        if len(strips_list) >= max_strips:
+            log(f"[auto-claim-rejected] User {user_entry.get('name')} reached max strip limit ({len(strips_list)}/{max_strips}) for strip {mac}")
+            return None
         strips_list.append(mac)
         save_users(users)
-        log(f"[auto-claim] Strip {mac} automatically claimed for user {user_entry.get('name')} ({token[:10]}...) via IP {client_ip}")
+        log(f"[auto-claim] Strip {mac} automatically claimed for user {user_entry.get('name')} ({token[:10]}...) [{len(strips_list)}/{max_strips}] via IP {client_ip}")
     return user_entry.get("name")
 
 
@@ -142,14 +146,32 @@ def resolve_auth_context(token_str):
         matched = token_str and (secrets.compare_digest(token_str, u_tok) or
                                  (token_str.startswith("voltra_") and secrets.compare_digest("volta_" + token_str[7:], u_tok)))
         if matched:
-            # User token match
+            # Check subscription status and expiry
+            status = info.get("status", "active")
+            expires_at = info.get("expires_at")
+            now = time.time()
+            if status == "canceled" or (expires_at and now > expires_at):
+                return {
+                    "authorized": False,
+                    "is_admin": False,
+                    "token": u_tok,
+                    "user_name": info.get("name", "User"),
+                    "strips": [],
+                    "subscription_expired": True,
+                    "status": status,
+                    "expires_at": expires_at
+                }
+
             user_strips = [str(m).upper().replace(":", "") for m in info.get("strips", [])]
             return {
                 "authorized": True,
                 "is_admin": False,
                 "token": u_tok,
                 "user_name": info.get("name", "User"),
-                "strips": user_strips
+                "strips": user_strips,
+                "max_strips": info.get("max_strips", 10),
+                "expires_at": expires_at,
+                "status": status
             }
             
     return {"authorized": False, "is_admin": False, "token": "", "user_name": "", "strips": []}
@@ -858,12 +880,21 @@ class Handler(BaseHTTPRequestHandler):
         elif u.path == "/api/auth/whoami":
             ctx = self._auth_ctx()
             if not ctx["authorized"]:
-                return self._json({"authorized": False}, 401)
+                res = {"authorized": False}
+                if ctx.get("subscription_expired"):
+                    res["subscription_expired"] = True
+                    res["status"] = ctx.get("status", "expired")
+                    res["expires_at"] = ctx.get("expires_at")
+                    res["error"] = "Subscription expired or canceled. Please contact admin."
+                return self._json(res, 401)
             return self._json({
                 "authorized": True,
                 "is_admin": ctx["is_admin"],
                 "name": ctx["user_name"],
-                "strips": ctx["strips"]
+                "strips": ctx["strips"],
+                "max_strips": ctx.get("max_strips"),
+                "expires_at": ctx.get("expires_at"),
+                "status": ctx.get("status", "active")
             })
         elif u.path == "/api/users":
             if not self._is_admin():
@@ -1069,26 +1100,83 @@ class Handler(BaseHTTPRequestHandler):
             users = get_users()
             req_token = (body.get("token") or "").strip()
             
+            # Helper to calculate expires_at from subscription input
+            def parse_expires_at(b, existing_created=None):
+                # Direct timestamp
+                if "expires_at" in b:
+                    v = b.get("expires_at")
+                    return int(v) if v is not None and v != "" else None
+                # Period helper: sub_value (int) + sub_unit ("months" or "years")
+                sub_val = b.get("sub_value")
+                sub_unit = b.get("sub_unit")
+                if sub_val is not None and sub_unit:
+                    try:
+                        val = int(sub_val)
+                        if val <= 0:
+                            return None # unlimited
+                        base = time.time()
+                        if sub_unit == "months":
+                            return int(base + val * 30 * 86400)
+                        elif sub_unit == "years":
+                            return int(base + val * 365 * 86400)
+                        elif sub_unit == "days":
+                            return int(base + val * 86400)
+                    except (ValueError, TypeError):
+                        pass
+                return None
+
             # If updating an existing user record
             if req_token and req_token in users:
+                user_obj = users[req_token]
                 if "name" in body:
-                    users[req_token]["name"] = (body.get("name") or "").strip()[:40] or users[req_token]["name"]
+                    user_obj["name"] = (body.get("name") or "").strip()[:40] or user_obj["name"]
                 if "strips" in body:
-                    users[req_token]["strips"] = [norm_mac(m).upper() for m in body.get("strips", []) if m]
+                    user_obj["strips"] = [norm_mac(m).upper() for m in body.get("strips", []) if m]
+                if "max_strips" in body:
+                    try:
+                        user_obj["max_strips"] = max(1, int(body.get("max_strips", 10)))
+                    except (ValueError, TypeError):
+                        pass
+                if "status" in body:
+                    st = (body.get("status") or "active").strip().lower()
+                    if st in ("active", "canceled", "expired"):
+                        user_obj["status"] = st
+                
+                # Check for expiry updates
+                if "expires_at" in body or "sub_value" in body:
+                    user_obj["expires_at"] = parse_expires_at(body, user_obj.get("created_at"))
+
                 save_users(users)
-                log(f"user updated: {users[req_token]['name']} ({req_token[:14]}...)")
-                return self._json({"ok": True, "token": req_token, "user": users[req_token]})
+                log(f"user updated: {user_obj['name']} ({req_token[:14]}...) [status={user_obj.get('status','active')}, max={user_obj.get('max_strips',10)}]")
+                return self._json({"ok": True, "token": req_token, "user": user_obj})
             
             # Creating a new user
             name = (body.get("name") or "").strip()[:40] or "User"
             new_token = req_token if req_token else f"volta_usr_{secrets.token_hex(8)}"
+            max_strips = 10
+            try:
+                if "max_strips" in body and body["max_strips"] is not None:
+                    max_strips = max(1, int(body["max_strips"]))
+            except (ValueError, TypeError):
+                max_strips = 10
+            
+            status = (body.get("status") or "active").strip().lower()
+            if status not in ("active", "canceled", "expired"):
+                status = "active"
+
+            created_time = int(time.time())
+            expires_at = parse_expires_at(body, created_time)
+
             users[new_token] = {
                 "name": name,
                 "strips": [norm_mac(m).upper() for m in body.get("strips", []) if m],
-                "created_at": int(time.time())
+                "max_strips": max_strips,
+                "created_at": created_time,
+                "expires_at": expires_at,
+                "status": status
             }
             save_users(users)
-            log(f"user created: {name} ({new_token[:14]}...)")
+            log(f"user created: {name} ({new_token[:14]}...) [status={status}, max={max_strips}, exp={expires_at}]")
             return self._json({"ok": True, "token": new_token, "user": users[new_token]})
         if u.path == "/api/claim":
             # Link a strip MAC to a user token, or register pending claim by IP.
@@ -1147,11 +1235,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "user record not found"}, 404)
             
             strips_list = user_entry.setdefault("strips", [])
+            max_strips = user_entry.get("max_strips", 10)
             if mac not in strips_list:
+                if len(strips_list) >= max_strips:
+                    return self._json({"error": f"Subscription strip limit reached ({len(strips_list)}/{max_strips}). Please upgrade your plan."}, 403)
                 strips_list.append(mac)
                 save_users(users)
-                log(f"[claim] strip {mac} claimed by {ctx['user_name']} ({ctx['token'][:10]}...)")
-            return self._json({"ok": True, "mac": mac, "user": ctx["user_name"], "strips": strips_list})
+                log(f"[claim] strip {mac} claimed by {ctx['user_name']} ({ctx['token'][:10]}...) [{len(strips_list)}/{max_strips}]")
+            return self._json({"ok": True, "mac": mac, "user": ctx["user_name"], "strips": strips_list, "max_strips": max_strips})
         if u.path == "/api/rename":
             # Friendly names (server-side, keyed by MAC, survive reboots).
             # Body: {mac, name?} or {mac, outlet:1-4, outlet_name?} or {mac, name?, outlets: {1:"..", 2:"..", ..}}

@@ -666,10 +666,30 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <div class="card" id="userMgmtCard" style="display:none;border-color:var(--blue)">
 <h3>👥 User Management <span class="tag" style="background:var(--blue);color:#fff">Admin</span></h3>
 <p class="desc">Create user tokens for other people. Each user only sees and controls the strips they provision or claim.</p>
-<div class="grid cols3">
-<div class="field"><span>User name / label</span><input id="uNewName" placeholder="e.g. Ahmed, Living Room"></div>
-<div class="field"><span>Optional custom token</span><input id="uNewTok" class="mono" placeholder="leave empty to auto-generate"></div>
-<div class="field"><span>&nbsp;</span><button id="btnCreateUser">+ Create User</button></div>
+<div class="grid cols2">
+  <div class="field"><span>User name / label</span><input id="uNewName" placeholder="e.g. Ahmed, Living Room"></div>
+  <div class="field"><span>Optional custom token</span><input id="uNewTok" class="mono" placeholder="leave empty to auto-generate"></div>
+</div>
+<div class="grid cols3" style="margin-top:6px">
+  <div class="field">
+    <span>Subscription Duration</span>
+    <select id="uNewDuration">
+      <option value="1_months">1 Month</option>
+      <option value="3_months">3 Months</option>
+      <option value="6_months" selected>6 Months</option>
+      <option value="1_years">1 Year</option>
+      <option value="2_years">2 Years</option>
+      <option value="0_unlimited">Lifetime / Unlimited</option>
+    </select>
+  </div>
+  <div class="field">
+    <span>Allowed Strips Limit</span>
+    <input id="uNewMaxStrips" type="number" min="1" max="1000" value="10" placeholder="e.g. 10">
+  </div>
+  <div class="field">
+    <span>&nbsp;</span>
+    <button id="btnCreateUser">+ Create User</button>
+  </div>
 </div>
 <div id="uMsg" class="msgline"></div>
 
@@ -763,6 +783,51 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
       <span class="small" id="msuSelectedCount" style="margin-right:auto"></span>
       <button class="ghost sm" id="msuCancel">Cancel</button>
       <button class="sm" id="msuSave">💾 Save Assignments</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit User Account & Subscription (Admin only) -->
+<div id="modalEditUser" class="modal-overlay">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head">
+      <h3 id="meuTitle">Edit User &amp; Subscription</h3>
+      <button class="ghost sm" id="meuClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:10px">
+        <span>User Name / Label</span>
+        <input id="meuName" maxlength="40">
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <span>Account / Subscription Status</span>
+        <select id="meuStatus">
+          <option value="active">Active</option>
+          <option value="canceled">Canceled / Suspended</option>
+          <option value="expired">Expired</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <span>Allowed Strips Limit</span>
+        <input id="meuMaxStrips" type="number" min="1" max="1000" placeholder="e.g. 10">
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <span>Extend / Set Subscription Period</span>
+        <select id="meuDuration">
+          <option value="keep" selected>— Keep Current Expiry Date —</option>
+          <option value="1_months">+ 1 Month from now</option>
+          <option value="3_months">+ 3 Months from now</option>
+          <option value="6_months">+ 6 Months from now</option>
+          <option value="1_years">+ 1 Year from now</option>
+          <option value="2_years">+ 2 Years from now</option>
+          <option value="0_unlimited">Lifetime / Unlimited (No Expiry)</option>
+        </select>
+      </div>
+      <div id="meuExpiryInfo" class="small" style="color:var(--mut);padding:4px 0"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="ghost sm" id="meuCancel">Cancel</button>
+      <button class="sm" id="meuSave">💾 Save User Changes</button>
     </div>
   </div>
 </div>
@@ -926,21 +991,56 @@ function renderUsersTable(){
   
   const pageItems = filtered.slice((_userPage-1)*USERS_PER_PAGE, _userPage*USERS_PER_PAGE);
   
-  let h='<table><tr><th>User</th><th>Token</th><th>Assigned Strips</th><th>Created</th><th>Action</th></tr>';
+  let h='<table><tr><th>User</th><th>Token</th><th>Subscription</th><th>Strips</th><th>Created</th><th>Action</th></tr>';
   for(const t of pageItems){
     const u=_cachedUsers[t];
     const sc=(u.strips||[]).length;
-    const stripBadge = sc > 0 
-      ? `<button class="ghost sm edit-user-strips" data-token="${esc(t)}" style="border-radius:99px;font-weight:600">🏷️ ${sc} strip${sc>1?"s":""} ▾</button>`
-      : `<button class="ghost sm edit-user-strips" data-token="${esc(t)}" style="border-radius:99px;color:var(--mut)">+ assign strips</button>`;
+    const maxStrips = u.max_strips || 10;
+    const stripBadge = `<button class="ghost sm edit-user-strips" data-token="${esc(t)}" style="border-radius:99px;font-weight:600">🏷️ ${sc}/${maxStrips} strips ▾</button>`;
+    
+    // Subscription status & expiry badge
+    const status = u.status || "active";
+    const now = Math.floor(Date.now() / 1000);
+    const isExpired = u.expires_at && now > u.expires_at;
+    let subBadge = `<span class="tag ok">● Active</span>`;
+    if(status === "canceled"){
+      subBadge = `<span class="tag bad">✕ Canceled</span>`;
+    }else if(isExpired || status === "expired"){
+      subBadge = `<span class="tag bad">⚠ Expired</span>`;
+    }
+    
+    let expStr = "Lifetime";
+    if(u.expires_at){
+      const expDate = new Date(u.expires_at * 1000);
+      const daysLeft = Math.ceil((u.expires_at - now) / 86400);
+      if(daysLeft < 0){
+        expStr = `<span style="color:var(--red)">Expired ${expDate.toLocaleDateString()}</span>`;
+      }else if(daysLeft <= 14){
+        expStr = `<span style="color:var(--amber);font-weight:600">${daysLeft}d left (${expDate.toLocaleDateString()})</span>`;
+      }else{
+        expStr = `${expDate.toLocaleDateString()} (${daysLeft}d)`;
+      }
+    }
+
     const createdStr=u.created_at?new Date(u.created_at*1000).toLocaleDateString():"—";
     const maskedTok = t.length > 20 ? t.slice(0, 14) + "…" + t.slice(-4) : t;
     h+=`<tr>
       <td><b>${esc(u.name||"User")}</b></td>
       <td><code class="mono" style="font-size:11px" title="${esc(t)}">${esc(maskedTok)}</code> <button class="ghost sm copy-tok-btn" data-tok="${esc(t)}" style="padding:2px 6px;font-size:11px" title="Copy full token">📋</button></td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div>${subBadge}</div>
+          <span class="small" style="font-size:11px">${expStr}</span>
+        </div>
+      </td>
       <td>${stripBadge}</td>
       <td>${createdStr}</td>
-      <td><button class="ghost sm danger del-usr" data-token="${esc(t)}">Revoke</button></td>
+      <td>
+        <div class="row" style="gap:4px">
+          <button class="ghost sm edit-usr-btn" data-token="${esc(t)}" title="Edit user, limits, or subscription">✏️ Edit</button>
+          <button class="ghost sm danger del-usr" data-token="${esc(t)}" title="Revoke user account">Revoke</button>
+        </div>
+      </td>
     </tr>`;
   }
   h+='</table>';
@@ -979,6 +1079,12 @@ function renderUsersTable(){
   box.querySelectorAll(".edit-user-strips").forEach(btn=>{
     btn.onclick=function(){
       openUserStripsModal(this.dataset.token);
+    };
+  });
+
+  box.querySelectorAll(".edit-usr-btn").forEach(btn=>{
+    btn.onclick=function(){
+      openEditUserModal(this.dataset.token);
     };
   });
   
@@ -1034,10 +1140,26 @@ on("btnTransferStrip","click",async()=>{
 on("btnCreateUser","click",async()=>{
   const name=($("uNewName")&&$("uNewName").value||"").trim();
   const ctok=($("uNewTok")&&$("uNewTok").value||"").trim();
+  const durVal=($("uNewDuration")&&$("uNewDuration").value||"6_months");
+  const maxStrips=parseInt($("uNewMaxStrips")&&$("uNewMaxStrips").value||"10",10)||10;
+
   if(!name){$("uMsg").textContent="✕ enter a user name.";return;}
   $("uMsg").textContent="creating user…";
+
+  const [countStr, unit] = durVal.split("_");
+  const subCount = parseInt(countStr, 10);
+
+  const payload = {
+    name,
+    token: ctok,
+    max_strips: maxStrips,
+    sub_value: subCount,
+    sub_unit: unit,
+    status: "active"
+  };
+
   try{
-    const r=await apit("/api/users",{name,token:ctok});
+    const r=await apit("/api/users", payload);
     if(r.ok){
       $("uMsg").textContent=`✓ User created! Token: ${r.token}`;
       $("uNewName").value="";$("uNewTok").value="";
@@ -1115,6 +1237,85 @@ async function live(){
   _liveBusy=false;
 }
 on("btnLiveRefresh","click",live);
+/* ---- Edit User Modal (Admin only) ---- */
+let _activeEditingAccountToken = null;
+
+function openEditUserModal(token){
+  const u = _cachedUsers[token];
+  if(!u)return;
+  _activeEditingAccountToken = token;
+  const modal = $("modalEditUser");
+  if(!modal)return;
+
+  if($("meuTitle"))$("meuTitle").textContent = `Edit User · ${u.name||"User"}`;
+  if($("meuName"))$("meuName").value = u.name || "";
+  if($("meuStatus"))$("meuStatus").value = u.status || "active";
+  if($("meuMaxStrips"))$("meuMaxStrips").value = u.max_strips || 10;
+  if($("meuDuration"))$("meuDuration").value = "keep";
+
+  const infoEl = $("meuExpiryInfo");
+  if(infoEl){
+    if(u.expires_at){
+      const exp = new Date(u.expires_at * 1000);
+      const days = Math.ceil((u.expires_at - Date.now()/1000)/86400);
+      infoEl.textContent = `Current Expiry: ${exp.toLocaleDateString()} (${days > 0 ? days + " days remaining" : "expired"})`;
+    }else{
+      infoEl.textContent = "Current Expiry: Lifetime / Unlimited";
+    }
+  }
+
+  modal.classList.add("open");
+}
+
+function closeEditUserModal(){
+  const modal = $("modalEditUser");
+  if(modal)modal.classList.remove("open");
+  _activeEditingAccountToken = null;
+}
+
+on("meuClose","click",closeEditUserModal);
+on("meuCancel","click",closeEditUserModal);
+
+on("meuSave","click",async()=>{
+  if(!_activeEditingAccountToken)return;
+  const name = ($("meuName")&&$("meuName").value||"").trim();
+  const status = ($("meuStatus")&&$("meuStatus").value||"active");
+  const maxStrips = parseInt($("meuMaxStrips")&&$("meuMaxStrips").value||"10",10)||10;
+  const durVal = ($("meuDuration")&&$("meuDuration").value||"keep");
+
+  const payload = {
+    token: _activeEditingAccountToken,
+    name,
+    status,
+    max_strips: maxStrips
+  };
+
+  if(durVal !== "keep"){
+    const [countStr, unit] = durVal.split("_");
+    payload.sub_value = parseInt(countStr, 10);
+    payload.sub_unit = unit;
+  }
+
+  const btn = $("meuSave");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try{
+    const r = await apit("/api/users", payload);
+    if(r.ok){
+      closeEditUserModal();
+      await loadUsers();
+      await renderManage();
+    }else{
+      alert("Failed to update user: " + (r.error||"unknown error"));
+    }
+  }catch(e){
+    alert("Error updating user: " + e.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "💾 Save User Changes";
+  }
+});
+
 /* ---- User Strips Modal ---- */
 async function openUserStripsModal(token){
   const u = _cachedUsers[token];
