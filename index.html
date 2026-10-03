@@ -253,7 +253,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     <button id="fltManageAll" class="ghost sm on">All (<span id="cntManageAll">0</span>)</button>
     <button id="fltManageOnline" class="ghost sm">● Online (<span id="cntManageOnline">0</span>)</button>
     <button id="fltManageOffline" class="ghost sm">○ Offline (<span id="cntManageOffline">0</span>)</button>
-    <button id="fltManageUnassigned" class="ghost sm">⚠️ Unassigned (<span id="cntManageUnassigned">0</span>)</button>
+    <button id="fltManageUnassigned" class="ghost sm" style="display:none">⚠️ Unassigned (<span id="cntManageUnassigned">0</span>)</button>
   </div>
   <button id="btnManageRefresh" class="ghost sm">↻ Reload</button>
 </div>
@@ -740,24 +740,29 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   </div>
 </div>
 
-<!-- Modal: Assign a strip to a user -->
+<!-- Modal: Assign a strip to users (Admin only) -->
 <div id="modalStripUser" class="modal-overlay">
-  <div class="modal-box" style="max-width:440px">
+  <div class="modal-box" style="max-width:480px">
     <div class="modal-head">
-      <h3 id="msuTitle">Assign Strip Owner</h3>
+      <h3 id="msuTitle">Assign Strip Users</h3>
       <button class="ghost sm" id="msuClose">✕</button>
     </div>
     <div class="modal-body">
       <p class="desc" id="msuDesc" style="margin-top:0"></p>
-      <div class="field">
-        <span>Owner / Assigned User</span>
-        <select id="msuUserSel"></select>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span class="small" style="font-weight:600">Select users who can access this strip:</span>
+        <div class="row" style="gap:4px">
+          <button id="msuSelectAll" class="ghost sm" style="padding:2px 8px;font-size:11px">Select All</button>
+          <button id="msuClearAll" class="ghost sm" style="padding:2px 8px;font-size:11px">Clear</button>
+        </div>
       </div>
-      <p class="small" style="margin-top:10px;color:var(--mut)">Selecting "Admin only" unassigns the strip so only administrators have access.</p>
+      <div id="msuUsersList" style="max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:6px 10px"></div>
+      <p class="small" style="margin-top:10px;color:var(--mut)">If no users are checked, the strip remains Admin-only (unassigned).</p>
     </div>
     <div class="modal-foot">
+      <span class="small" id="msuSelectedCount" style="margin-right:auto"></span>
       <button class="ghost sm" id="msuCancel">Cancel</button>
-      <button class="sm" id="msuSave">💾 Save Assignment</button>
+      <button class="sm" id="msuSave">💾 Save Assignments</button>
     </div>
   </div>
 </div>
@@ -832,12 +837,14 @@ async function checkSrv(){
       try{
         const who=await apit("/api/auth/whoami");
         if(who.authorized){
+          _currentUserIsAdmin = Boolean(who.is_admin);
           if($("srvState"))$("srvState").textContent=`${who.name} (${who.is_admin?"Admin":"User"})`;
           const mgmt=$("userMgmtCard");
           if(mgmt){
             mgmt.style.display=who.is_admin?"block":"none";
             if(who.is_admin)loadUsers();
           }
+          if($("fltManageUnassigned"))$("fltManageUnassigned").style.display = who.is_admin ? "" : "none";
           // Update setup termux command box with dynamic server host
           const dlBox=$("termuxDownloadCmd");
           if(dlBox){
@@ -864,6 +871,7 @@ async function checkSrv(){
   }
 }
 
+let _currentUserIsAdmin = false;
 let _cachedUsers = {};
 let _userSearchQuery = "";
 let _userPage = 1;
@@ -1237,10 +1245,12 @@ on("musSave","click",async()=>{
   }
 });
 
-/* ---- Single Strip Reassignment Modal ---- */
+/* ---- Strip Users Multi-Assignment Modal (Admin only) ---- */
 let _activeEditingStripMac = null;
+let _selectedStripUserTokens = new Set();
 
 async function openStripOwnerModal(mac){
+  if(!_currentUserIsAdmin)return; // Regular users cannot assign strips
   _activeEditingStripMac = mac.toUpperCase().replace(/[^0-9A-F]/g,"");
   const modal = $("modalStripUser");
   if(!modal)return;
@@ -1257,20 +1267,53 @@ async function openStripOwnerModal(mac){
   const names = (liveData && liveData.names) || {};
   const nm = (names[mac.toLowerCase()]||{}).name || (devs.find(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase()===_activeEditingStripMac)||{}).name || mac;
   
-  if($("msuTitle"))$("msuTitle").textContent = `Assign Strip Owner`;
-  if($("msuDesc"))$("msuDesc").innerHTML = `Assign ownership of <b>${esc(nm)}</b> (<code class="mono">${_activeEditingStripMac}</code>) to a user account.`;
+  if($("msuTitle"))$("msuTitle").textContent = `Assign Strip Users`;
+  if($("msuDesc"))$("msuDesc").innerHTML = `Configure which user accounts have access to <b>${esc(nm)}</b> (<code class="mono">${_activeEditingStripMac}</code>).`;
   
-  const sel = $("msuUserSel");
-  if(sel){
-    const keys = Object.keys(_cachedUsers);
-    let opts = `<option value="__none__">⚠️ Admin only (Unassigned)</option>`;
-    for(const t of keys){
-      const u = _cachedUsers[t];
-      const isOwner = (u.strips||[]).some(m=>m.toUpperCase().replace(/[^0-9A-F]/g,"")===_activeEditingStripMac);
-      opts += `<option value="${esc(t)}" ${isOwner?"selected":""}>👤 ${esc(u.name||"User")} (${(u.strips||[]).length} strips)</option>`;
+  const keys = Object.keys(_cachedUsers);
+  _selectedStripUserTokens.clear();
+  for(const t of keys){
+    const u = _cachedUsers[t];
+    if((u.strips||[]).some(m=>m.toUpperCase().replace(/[^0-9A-F]/g,"")===_activeEditingStripMac)){
+      _selectedStripUserTokens.add(t);
     }
-    sel.innerHTML = opts;
   }
+  
+  function updateStripUserCount(){
+    if($("msuSelectedCount")){
+      $("msuSelectedCount").textContent = `${_selectedStripUserTokens.size} of ${keys.length} users assigned`;
+    }
+  }
+
+  const list = $("msuUsersList");
+  if(list){
+    list.innerHTML = "";
+    if(!keys.length){
+      list.innerHTML = `<p class="small" style="padding:6px 0;margin:0">No users found. Create users in Settings → User Management first.</p>`;
+    }else{
+      for(const t of keys){
+        const u = _cachedUsers[t];
+        const row = document.createElement("label");
+        row.className = "switchrow";
+        row.style.cssText = "padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px";
+        const chk = document.createElement("input");
+        chk.type = "checkbox";
+        chk.value = t;
+        chk.checked = _selectedStripUserTokens.has(t);
+        chk.onchange = () => {
+          if(chk.checked) _selectedStripUserTokens.add(t); else _selectedStripUserTokens.delete(t);
+          updateStripUserCount();
+        };
+        const nameSpan = document.createElement("span");
+        nameSpan.style.flex = "1";
+        nameSpan.innerHTML = `<b>${esc(u.name||"User")}</b> <span style="font-size:11px;color:var(--mut)">(${(u.strips||[]).length} strips)</span>`;
+        row.appendChild(chk);
+        row.appendChild(nameSpan);
+        list.appendChild(row);
+      }
+    }
+  }
+  updateStripUserCount();
   modal.classList.add("open");
 }
 
@@ -1278,22 +1321,46 @@ function closeStripOwnerModal(){
   const modal = $("modalStripUser");
   if(modal)modal.classList.remove("open");
   _activeEditingStripMac = null;
+  _selectedStripUserTokens.clear();
 }
 
 on("msuClose","click",closeStripOwnerModal);
 on("msuCancel","click",closeStripOwnerModal);
 
+on("msuSelectAll","click",()=>{
+  const list = $("msuUsersList");
+  if(list){
+    list.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+      cb.checked = true;
+      cb.dispatchEvent(new Event("change"));
+    });
+  }
+});
+
+on("msuClearAll","click",()=>{
+  const list = $("msuUsersList");
+  if(list){
+    list.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+      cb.checked = false;
+      cb.dispatchEvent(new Event("change"));
+    });
+  }
+});
+
 on("msuSave","click",async()=>{
   if(!_activeEditingStripMac)return;
-  const sel = $("msuUserSel");
-  const targetToken = sel ? sel.value : "__none__";
+  const list = $("msuUsersList");
+  const selected = [];
+  if(list){
+    list.querySelectorAll("input[type=checkbox]:checked").forEach(cb=>selected.push(cb.value));
+  }
   const btn = $("msuSave");
   btn.disabled = true;
   btn.textContent = "Assigning…";
   try{
     const r = await apit("/api/claim",{
       mac: _activeEditingStripMac,
-      target_token: targetToken,
+      target_tokens: selected,
       token: tok()
     });
     if(r.ok){
@@ -1307,7 +1374,7 @@ on("msuSave","click",async()=>{
     alert("Error assigning: " + e.message);
   }finally{
     btn.disabled = false;
-    btn.textContent = "💾 Save Assignment";
+    btn.textContent = "💾 Save Assignments";
   }
 });
 
@@ -1379,16 +1446,17 @@ async function renderManage(){
   if($("cntManageOnline"))$("cntManageOnline").textContent = cntOnline;
   if($("cntManageOffline"))$("cntManageOffline").textContent = cntOffline;
   if($("cntManageUnassigned"))$("cntManageUnassigned").textContent = cntUnassigned;
+  if($("fltManageUnassigned"))$("fltManageUnassigned").style.display = _currentUserIsAdmin ? "" : "none";
 
   // Filter items
   const q = _manageSearchQuery.toLowerCase().trim();
   let filtered = stripItems.filter(item=>{
     if(_manageFilter==="online" && !item.isOnline)return false;
     if(_manageFilter==="offline" && item.isOnline)return false;
-    if(_manageFilter==="unassigned" && item.assigned.length > 0)return false;
+    if(_manageFilter==="unassigned" && (!_currentUserIsAdmin || item.assigned.length > 0))return false;
 
     if(!q)return true;
-    const assignedNames = item.assigned.map(a=>a.name).join(" ").toLowerCase();
+    const assignedNames = _currentUserIsAdmin ? item.assigned.map(a=>a.name).join(" ").toLowerCase() : "";
     return item.title.toLowerCase().includes(q) || 
            item.cleanMac.toLowerCase().includes(q) || 
            assignedNames.includes(q);
@@ -1431,13 +1499,16 @@ async function renderManage(){
     const onames=Object.assign({},{1:"",2:"",3:"",4:""},nm.outlets||{});
     if(d&&d.outlets)for(const o of d.outlets)if(o.nick&&!onames[String(o.n)])onames[String(o.n)]=o.nick;
 
-    // Build Assigned User badge
-    let ownerBadgeText = "⚠️ Unassigned";
-    let ownerBtnClass = "ghost sm assign-owner-btn";
-    if(assigned.length === 1){
-      ownerBadgeText = `👤 ${assigned[0].name}`;
-    }else if(assigned.length > 1){
-      ownerBadgeText = `👥 ${assigned.length} users`;
+    // Build Assigned User badge (Only visible to Admin)
+    let ownerBadgeHtml = "";
+    if(_currentUserIsAdmin){
+      let ownerBadgeText = "⚠️ Unassigned";
+      if(assigned.length === 1){
+        ownerBadgeText = `👤 ${assigned[0].name}`;
+      }else if(assigned.length > 1){
+        ownerBadgeText = `👥 ${assigned.length} users`;
+      }
+      ownerBadgeHtml = `<button class="ghost sm assign-owner-btn" data-mac="${cleanMac}" style="border-radius:99px;font-weight:600;font-size:11px" title="Configure assigned users">${esc(ownerBadgeText)} ▾</button>`;
     }
 
     card.innerHTML=`<div class="strip-head">
@@ -1445,7 +1516,7 @@ async function renderManage(){
       <span class="tag ${d?(d.online?"ok":"bad"):""}">${d?(d.online?"● online":"○ offline"):"never seen"}</span>
       <span class="tag mono"></span>
       ${d&&d.fw?`<span class="tag">fw ${d.fw}</span>`:""}
-      <button class="${ownerBtnClass}" data-mac="${cleanMac}" style="border-radius:99px;font-weight:600;font-size:11px" title="Change assigned user">${esc(ownerBadgeText)} ▾</button>
+      ${ownerBadgeHtml}
       <span style="flex:1"></span>
       <button class="danger sm remove-strip" title="Remove strip from dashboard">🗑 Remove</button>
     </div>
@@ -1465,9 +1536,12 @@ async function renderManage(){
       g4.appendChild(f);
     }
 
-    card.querySelector(".assign-owner-btn").onclick=()=>{
-      openStripOwnerModal(cleanMac);
-    };
+    const assignBtn = card.querySelector(".assign-owner-btn");
+    if(assignBtn){
+      assignBtn.onclick=()=>{
+        openStripOwnerModal(cleanMac);
+      };
+    }
 
     card.querySelector(".remove-strip").onclick=async()=>{
       if(!confirm(`Are you sure you want to remove ${title} (${(d?d.mac:mac).toUpperCase()})?`))return;
@@ -2350,7 +2424,7 @@ on("aBtn30d","click",()=>aSetRange($("aBtn30d"),"30d"));
 on("aBtn6m","click",()=>aSetRange($("aBtn6m"),"6m"));
 on("aBtn1y","click",()=>aSetRange($("aBtn1y"),"1y"));
 on("aBtnRefresh","click",loadCharts);
-async function init(){try{const n=await api("/api/nets");if($("nets"))$("nets").value=(n.nets[0]||"192.168.1.0/24");}catch{}checkSrv();await reload();await live();await renderManage();await loadSettings();setInterval(log,4000);setInterval(()=>{if(prefs.auto&&$("pane-control").classList.contains("on"))live();},5000);setInterval(checkSrv,15000);}
+async function init(){try{const n=await api("/api/nets");if($("nets"))$("nets").value=(n.nets[0]||"192.168.1.0/24");}catch{}await checkSrv();await reload();await live();await renderManage();await loadSettings();setInterval(log,4000);setInterval(()=>{if(prefs.auto&&$("pane-control").classList.contains("on"))live();},5000);setInterval(checkSrv,15000);}
 init();
 </script>
 </body>

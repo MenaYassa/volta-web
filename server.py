@@ -1116,25 +1116,28 @@ class Handler(BaseHTTPRequestHandler):
             
             users = get_users()
             
-            # If admin is performing a transfer / assignment to a specific user
-            if ctx["is_admin"] and target_user_token:
-                if target_user_token in ("__none__", "none", "clear"):
-                    for u_t, u_data in users.items():
-                        if mac in u_data.get("strips", []):
-                            u_data["strips"].remove(mac)
-                    save_users(users)
-                    log(f"[transfer] strip {mac} unassigned by Admin")
-                    return self._json({"ok": True, "unassigned": True, "mac": mac})
-                if target_user_token not in users:
-                    return self._json({"error": "target user not found"}, 404)
-                # Remove MAC from any previous owner first to transfer clean
+            # If admin is updating strip assignment (supports list of tokens or single token)
+            if ctx["is_admin"] and ("target_tokens" in body or target_user_token):
+                target_tokens = body.get("target_tokens")
+                if target_tokens is None:
+                    if target_user_token in ("__none__", "none", "clear"):
+                        target_tokens = []
+                    else:
+                        target_tokens = [target_user_token]
+                
+                target_set = set(target_tokens)
                 for u_t, u_data in users.items():
-                    if mac in u_data.get("strips", []):
-                        u_data["strips"].remove(mac)
-                users[target_user_token].setdefault("strips", []).append(mac)
+                    current_strips = u_data.setdefault("strips", [])
+                    if u_t in target_set:
+                        if mac not in current_strips:
+                            current_strips.append(mac)
+                    else:
+                        if mac in current_strips:
+                            current_strips.remove(mac)
                 save_users(users)
-                log(f"[transfer] strip {mac} transferred by Admin to {users[target_user_token].get('name')}")
-                return self._json({"ok": True, "transferred": True, "mac": mac, "user": users[target_user_token].get("name")})
+                assigned_names = [users[t].get("name", "User") for t in target_set if t in users]
+                log(f"[claim] strip {mac} assignments updated by Admin: {', '.join(assigned_names) if assigned_names else 'unassigned'}")
+                return self._json({"ok": True, "mac": mac, "assigned_users": assigned_names})
             
             if ctx["is_admin"]:
                 return self._json({"ok": True, "admin": True, "message": "Admin account has access to all strips."})
