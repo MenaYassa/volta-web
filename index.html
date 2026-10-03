@@ -619,9 +619,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </div>
 <div class="card">
 <h3>Energy cost tracking</h3>
-<p class="desc">Set your electricity rate to calculate energy costs in Analytics. Default: 1.20 EGP/kWh (average Egypt residential rate).</p>
+<p class="desc">Set your electricity rate to calculate energy costs in Analytics. Default: 2.18 EGP/kWh (average Egypt residential rate).</p>
 <div class="grid cols2">
-<div class="field"><span>Cost per kWh</span><input id="setCostKwh" type="number" step="0.01" value="1.20" min="0.01"></div>
+<div class="field"><span>Cost per kWh</span><input id="setCostKwh" type="number" step="0.01" value="2.18" min="0.01"></div>
 <div class="field"><span>Currency</span><input id="setCurrency" type="text" value="EGP" maxlength="10" placeholder="e.g. EGP, USD, EUR"></div>
 </div>
 <div class="row" style="margin-top:8px"><button id="btnCostSettings">💾 Save cost settings</button></div>
@@ -1372,7 +1372,7 @@ async function loadSettings(){try{const s=await apit("/api/settings");
   if($("setTempAlert"))$("setTempAlert").value=s.temp_alert_c||60;
   if($("setVoltMin"))$("setVoltMin").value=s.voltage_min||200;
   if($("setVoltMax"))$("setVoltMax").value=s.voltage_max||250;
-  if($("setCostKwh"))$("setCostKwh").value=s.cost_per_kwh||1.2;
+  if($("setCostKwh"))$("setCostKwh").value=s.cost_per_kwh||2.18;
   if($("setCurrency"))$("setCurrency").value=s.currency||"EGP";
   const filt=s.notify_filter||"all";
   if($("setFiltAll"))$("setFiltAll").checked=(filt==="all");
@@ -1550,7 +1550,7 @@ async function loadRangeKpis(){
     const totalKwh=s.energy_kwh||0;
     const avgW=s.avg_power_w||0;
     const peakW=s.peak_power_w||0;
-    const cost=s.cost!=null?s.cost:(totalKwh*(s.cost_per_kwh||1.2)).toFixed(2);
+    const cost=s.cost!=null?s.cost:(totalKwh*(s.cost_per_kwh||2.18)).toFixed(2);
     const currency=s.currency||"EGP";
 
     if($("aAvgPower"))$("aAvgPower").textContent=avgW.toFixed(1)+"W";
@@ -1602,7 +1602,7 @@ async function loadLeaderboard(){
     const r=await apit("/api/analytics/leaderboard",{start_ts:start,end_ts:now,limit:5});
     const st=await ensureLive();
     const settings=await apit("/api/settings");
-    const cost_kwh=settings.cost_per_kwh||1.2;
+    const cost_kwh=settings.cost_per_kwh||2.18;
     const currency=settings.currency||"EGP";
     const names=(st&&st.names)||{};
     const box=$("leaderboard");if(!box)return;
@@ -1692,7 +1692,7 @@ async function loadCharts(){
     const start=now-(RANGE_SEC[aRange]||86400);
     const ds=rangeDownsample(aRange);
     const settings=await apit("/api/settings");
-    const cost_kwh=settings.cost_per_kwh||1.2;
+    const cost_kwh=settings.cost_per_kwh||2.18;
     const currency=settings.currency||"EGP";
     const st=await ensureLive();
     const names=(st&&st.names)||{};

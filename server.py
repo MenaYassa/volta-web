@@ -171,7 +171,7 @@ def get_settings():
             "notify_switch": bool(d.get("notify_switch", False)),
             "notify_filter": d.get("notify_filter", "all"),  # 'all' or 'selected'
             "notify_targets": d.get("notify_targets", []),  # list of 'MAC' or 'MAC:outlet'
-            "cost_per_kwh": float(d.get("cost_per_kwh", 1.2) or 1.2),
+            "cost_per_kwh": float(d.get("cost_per_kwh", 2.18) or 2.18),
             "currency": (d.get("currency") or "EGP").strip()[:10],
             "temp_alert_c": int(d.get("temp_alert_c", 60) or 60),  # alert if outlet temp exceeds this
             "notify_temp": bool(d.get("notify_temp", True)),
@@ -1458,7 +1458,7 @@ class Handler(BaseHTTPRequestHandler):
             user_macs = None if ctx["is_admin"] else ctx["strips"]
             summary = analytics.summary_stats(start, end, mac=mac, macs=user_macs)
             cfg = get_settings()
-            cost_per_kwh = float(cfg.get("cost_per_kwh") or 1.2)
+            cost_per_kwh = float(cfg.get("cost_per_kwh") or 2.18)
             currency = cfg.get("currency") or "EGP"
             summary["cost"] = round(summary["energy_kwh"] * cost_per_kwh, 2)
             summary["currency"] = currency
