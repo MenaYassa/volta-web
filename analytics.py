@@ -165,10 +165,6 @@ def strip_stats(mac, start_ts, end_ts):
                    SUM(power_w) AS total_power_w,
                    AVG(power_w) AS avg_power_w,
                    MAX(power_w) AS peak_power_w,
-                   MAX(
-                       COALESCE(MAX(energy_kwh) - MIN(energy_kwh), 0.0),
-                       CASE WHEN MAX(ts) > MIN(ts) THEN (SUM(power_w) / COUNT(DISTINCT ts) * (MAX(ts) - MIN(ts))) / 3600000.0 ELSE 0.0 END
-                   ) AS energy_delta_kwh,
                    AVG(voltage_v) AS avg_voltage_v,
                    MIN(CASE WHEN voltage_v > 0 THEN voltage_v ELSE NULL END) AS min_voltage_v,
                    MAX(voltage_v) AS max_voltage_v,
@@ -178,15 +174,40 @@ def strip_stats(mac, start_ts, end_ts):
             FROM readings
             WHERE mac = ? AND ts >= ? AND ts <= ?
         """, (mac.upper(), start_ts, end_ts)).fetchone()
-        return dict(row) if row else {}
+        stats = dict(row) if row else {}
+        # Period energy: per-outlet meter delta (end - first sample in window).
+        # Outlets that are OFF report a zeroed meter, so MAX-MIN across the whole
+        # strip window overcounts; first/last per outlet is the correct delta.
+        rows = db.execute("""
+            SELECT outlet,
+                   MAX(energy_kwh) AS e_end,
+                   (SELECT energy_kwh FROM readings r2
+                     WHERE r2.mac = r.mac AND r2.outlet = r.outlet
+                       AND r2.ts >= ? AND r2.ts <= ? AND r2.energy_kwh > 0
+                     ORDER BY ts ASC LIMIT 1) AS e_start,
+                   AVG(CASE WHEN power_w > 0 THEN power_w END) AS avg_pos_w,
+                   MIN(ts) AS t_min, MAX(ts) AS t_max
+            FROM readings r
+            WHERE mac = ? AND ts >= ? AND ts <= ?
+            GROUP BY outlet
+        """, (start_ts, end_ts, mac.upper(), start_ts, end_ts)).fetchall()
+        kwh = 0.0
+        for r in rows:
+            if r["e_end"] is not None and r["e_start"] is not None:
+                kwh += max(0.0, r["e_end"] - r["e_start"])
+            elif r["avg_pos_w"] and r["t_max"] and r["t_min"] and r["t_max"] > r["t_min"]:
+                # meter unavailable: integrate positive power over the window
+                kwh += (r["avg_pos_w"] * (r["t_max"] - r["t_min"])) / 3600000.0
+        stats["energy_delta_kwh"] = kwh
+        return stats
 
 
 def outlet_leaderboard(start_ts, end_ts, limit=10, macs=None):
     """Top consumers in period: ranked strictly by cumulative consumption (kWh) first.
     If macs is provided (list or tuple), filters strictly to those MAC addresses.
-    Excludes outlets with zero consumption."""
+    Energy = per-outlet meter delta (last - first positive sample in window),
+    with power-integration fallback. Excludes outlets with zero consumption."""
     with _lock, _conn() as db:
-        params = [start_ts, end_ts]
         mac_clause = ""
         if macs is not None:
             clean_macs = [str(m).upper().replace(":", "") for m in macs]
@@ -194,30 +215,48 @@ def outlet_leaderboard(start_ts, end_ts, limit=10, macs=None):
                 return []
             placeholders = ",".join("?" for _ in clean_macs)
             mac_clause = f"AND mac IN ({placeholders})"
-            params.extend(clean_macs)
-        params.append(limit)
 
-        sql = f"""
+        # Base per-outlet aggregates
+        base_rows = db.execute(f"""
             SELECT mac, outlet,
-                   MAX(
-                       COALESCE(MAX(energy_kwh) - MIN(energy_kwh), 0.0),
-                       CASE WHEN MAX(ts) > MIN(ts) THEN (AVG(power_w) * (MAX(ts) - MIN(ts))) / 3600000.0 ELSE 0.0 END
-                   ) AS energy_kwh,
                    AVG(power_w) AS avg_power_w,
+                   AVG(CASE WHEN power_w > 0 THEN power_w END) AS avg_pos_w,
                    MAX(power_w) AS peak_power_w,
-                   SUM(power_w * 30.0) / 3600.0 AS watt_hours,
-                   COUNT(*) AS samples
+                   MIN(ts) AS t_min, MAX(ts) AS t_max
             FROM readings
             WHERE ts >= ? AND ts <= ? {mac_clause}
             GROUP BY mac, outlet
-            HAVING (MAX(energy_kwh) - MIN(energy_kwh) > 0.00005)
-                OR (MAX(power_w) > 0.1)
-                OR (AVG(power_w) > 0.05)
-            ORDER BY energy_kwh DESC, avg_power_w DESC, peak_power_w DESC
-            LIMIT ?
-        """
-        rows = db.execute(sql, params).fetchall()
-        return [dict(r) for r in rows]
+            HAVING (MAX(power_w) > 0.1) OR (AVG(power_w) > 0.05)
+        """, [start_ts, end_ts]).fetchall()
+
+        out = []
+        for r in base_rows:
+            # meter delta for this outlet within the window
+            er = db.execute("""
+                SELECT MAX(energy_kwh) AS e_end,
+                       (SELECT energy_kwh FROM readings r2
+                         WHERE r2.mac = ? AND r2.outlet = ?
+                           AND r2.ts >= ? AND r2.ts <= ? AND r2.energy_kwh > 0
+                         ORDER BY ts ASC LIMIT 1) AS e_start
+            """, (r["mac"], r["outlet"], start_ts, end_ts)).fetchone()
+            if er and er["e_end"] is not None and er["e_start"] is not None:
+                kwh = max(0.0, er["e_end"] - er["e_start"])
+            elif r["avg_pos_w"] and r["t_max"] > r["t_min"]:
+                kwh = (r["avg_pos_w"] * (r["t_max"] - r["t_min"])) / 3600000.0
+            else:
+                kwh = 0.0
+            if kwh <= 0.00005 and (r["peak_power_w"] or 0) <= 0.1 and (r["avg_power_w"] or 0) <= 0.05:
+                continue
+            out.append({
+                "mac": r["mac"], "outlet": r["outlet"],
+                "energy_kwh": kwh,
+                "avg_power_w": r["avg_power_w"] or 0.0,
+                "peak_power_w": r["peak_power_w"] or 0.0,
+                "watt_hours": kwh * 1000.0,
+                "samples": 0,
+            })
+        out.sort(key=lambda x: (x["energy_kwh"], x["avg_power_w"], x["peak_power_w"]), reverse=True)
+        return out[:limit]
 
 
 def prune_old(days=30):
