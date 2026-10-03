@@ -809,11 +809,22 @@ class Handler(BaseHTTPRequestHandler):
         clean_mac = norm_mac(mac).upper()
         return clean_mac in ctx["strips"]
 
+    def do_HEAD(self):  # noqa: N802
+        self.do_GET()
+
     def do_GET(self):  # noqa: N802
         u = urllib.parse.urlparse(self.path)
         if u.path in ("/", "/index.html"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Security-Policy",
+                             "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                             "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
+                             "font-src 'self'; manifest-src 'self'; frame-ancestors 'self';")
+            self.send_header("X-Frame-Options", "SAMEORIGIN")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+            self.send_header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
             self.end_headers()
             with open("index.html", "rb") as f:
                 self.wfile.write(f.read())

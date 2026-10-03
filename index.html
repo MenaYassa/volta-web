@@ -11,7 +11,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
 <style>
 :root{--bg:#eef2f7;--card:#fff;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;
 --blue:#2563eb;--blue-d:#1d4ed8;--green:#16a34a;--red:#dc2626;--amber:#b45309;
@@ -666,6 +667,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </div>
 
 <script>
+function esc(s){if(s==null)return "";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 const $=id=>document.getElementById(id);
 const on=(id,ev,fn)=>{const el=$(id);if(el)el.addEventListener(ev,fn);};
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
@@ -779,21 +781,21 @@ async function loadUsers(){
     let h='<table><tr><th>User</th><th>Token</th><th>Strips</th><th>Created</th><th>Action</th></tr>';
     for(const t of keys){
       const u=users[t];
-      const stripsStr=u.strips&&u.strips.length?u.strips.join(", "):"<i style='color:var(--mut)'>None yet</i>";
+      const stripsStr=u.strips&&u.strips.length?u.strips.map(esc).join(", "):"<i style='color:var(--mut)'>None yet</i>";
       const createdStr=u.created_at?new Date(u.created_at*1000).toLocaleDateString():"—";
       h+=`<tr>
-        <td><b>${u.name||"User"}</b></td>
-        <td><code class="mono" style="font-size:11px">${t}</code></td>
+        <td><b>${esc(u.name||"User")}</b></td>
+        <td><code class="mono" style="font-size:11px">${esc(t)}</code></td>
         <td>${stripsStr}</td>
         <td>${createdStr}</td>
-        <td><button class="ghost sm danger del-usr" data-token="${t}">Revoke</button></td>
+        <td><button class="ghost sm danger del-usr" data-token="${esc(t)}">Revoke</button></td>
       </tr>`;
     }
     box.innerHTML=h;
     // Update transfer user dropdown
     const trSel=$("trUserSel");
     if(trSel){
-      trSel.innerHTML=keys.map(k=>`<option value="${k}">${users[k].name||"User"} (${k.slice(0,12)}…)</option>`).join("");
+      trSel.innerHTML=keys.map(k=>`<option value="${esc(k)}">${esc(users[k].name||"User")} (${esc(k.slice(0,12))}…)</option>`).join("");
     }
     box.querySelectorAll(".del-usr").forEach(btn=>{
       btn.onclick=async function(){
@@ -1001,7 +1003,7 @@ function outletPills(boxId,sel,onSel){
       (active
         ?`background:#2563eb;color:#fff;border:2px solid #2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.25);font-weight:700`
         :`background:transparent;color:var(--ink);border:2px solid var(--line)`);
-    b.innerHTML=`<b>${n===0?"All (Master)":"#"+n}</b>${n!==0&&oNames[String(n)]?`<br><span class="small" style="color:${active?"rgba(255,255,255,.85)":"var(--mut)"}">${oNames[String(n)]}</span>`:""}`;
+    b.innerHTML=`<b>${n===0?"All (Master)":"#"+n}</b>${n!==0&&oNames[String(n)]?`<br><span class="small" style="color:${active?"rgba(255,255,255,.85)":"var(--mut)"}">${esc(oNames[String(n)])}</span>`:""}`;
     b.onclick=()=>{onSel(n);outletPills(boxId,sel,onSel);boxId==="scOutletPills"?scPreviewUpd():tmPreviewUpd();};
     box.appendChild(b);
   };
@@ -1036,7 +1038,7 @@ function scPreviewUpd(){
     scDays.size===2&&[5,6].every(i=>scDays.has(i))?"on weekends":
     "on "+[...scDays].sort().map(i=>DAYN[i]).join(", ");
   el.innerHTML=`<span style="background:${scOn?"#34d399":"#f87171"};color:#064e3b;border-radius:8px;padding:2px 10px;font-weight:800">${scOn?"ON":"OFF"}</span> `+
-    `<b>${nmOfMac(mac)}</b> · ${scOutlet===0?"ALL outlets":"outlet "+scOutlet} ${when} ${days}`;
+    `<b>${esc(nmOfMac(mac))}</b> · ${scOutlet===0?"ALL outlets":"outlet "+scOutlet} ${when} ${days}`;
 }
 function tmPreviewUpd(){
   const el=$("tmPreview");if(!el)return;
@@ -1045,7 +1047,7 @@ function tmPreviewUpd(){
   const onS=tmOnSec(),offS=tmOffSec();
   const mode=$("tmMode").value;
   const rep=tmRepeat==="forever"?"♾️ repeating forever":tmRepeat==="times"?`repeating ${$("tmRepN").value}×`:"running once";
-  const target=`<b>${nmOfMac(mac)}</b> · ${tmOutlet===0?"ALL outlets":"outlet "+tmOutlet}`;
+  const target=`<b>${esc(nmOfMac(mac))}</b> · ${tmOutlet===0?"ALL outlets":"outlet "+tmOutlet}`;
   if(mode==="cyclic"){
     el.innerHTML=`${target} · <span style="background:#34d399;color:#064e3b;border-radius:8px;padding:2px 8px;font-weight:800">ON ${fmtDur(onS)}</span> ↔ <span style="background:#f87171;color:#7f1d1d;border-radius:8px;padding:2px 8px;font-weight:800">OFF ${fmtDur(offS)}</span>, ${rep}`;
   }else{
@@ -1387,7 +1389,7 @@ async function renderNotifyTargets(s){
   for(const d of devs){
     const m=d.mac||"";const mn=names[m.toLowerCase().replace(/:/g,"")]||{};const strip_nm=mn.name||d.name||m;
     const row=document.createElement("div");row.style.cssText="margin:4px 0;border-bottom:1px solid var(--line);padding:4px 0";
-    row.innerHTML=`<b>${strip_nm}</b><div class="row" style="margin:4px 0">`;
+    row.innerHTML=`<b>${esc(strip_nm)}</b><div class="row" style="margin:4px 0">`;
     const all=document.createElement("label");all.classList.add("switchrow");all.style.fontSize="12px";
     all.innerHTML=`<input type="checkbox" class="tgt-mac" data-mac="${m}" value="${m}" ${cur.has(m)?"checked":""}> All outlets`;
     for(let o=1;o<=4;o++){
@@ -1627,8 +1629,8 @@ async function loadLeaderboard(){
         <div style="display:flex;gap:10px;align-items:center">
           <b style="font-size:20px;min-width:30px;text-align:center">${badge}</b>
           <div style="flex:1;min-width:0">
-            <b style="font-size:15px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${strip_nm} · ${outlet_nm}</b>
-            <span class="small" style="color:var(--mut)">${(e.avg_power_w||0).toFixed(1)}W avg · ${(e.peak_power_w||0).toFixed(1)}W peak · ~${cost} ${currency}</span>
+            <b style="font-size:15px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(strip_nm)} · ${esc(outlet_nm)}</b>
+            <span class="small" style="color:var(--mut)">${(e.avg_power_w||0).toFixed(1)}W avg · ${(e.peak_power_w||0).toFixed(1)}W peak · ~${cost} ${esc(currency)}</span>
           </div>
           <div style="text-align:right;white-space:nowrap">
             <b style="font-size:16px;color:var(--blue);display:block">${kwhStr} <span style="font-size:12px">kWh</span></b>
@@ -1655,7 +1657,7 @@ function statsHtml(s,cost_kwh,currency,titleNote){
   return `
       <div class="grid cols4" style="gap:10px">
         <div class="stat"><b>${kwh} kWh</b><span>&nbsp;energy consumed</span></div>
-        <div class="stat"><b>${cost} ${currency}</b><span>&nbsp;estimated cost</span></div>
+        <div class="stat"><b>${cost} ${esc(currency)}</b><span>&nbsp;estimated cost</span></div>
         <div class="stat"><b>${(s.avg_power_w||0).toFixed(1)}W</b><span>&nbsp;average power</span></div>
         <div class="stat"><b>${(s.peak_power_w||0).toFixed(1)}W</b><span>&nbsp;peak power</span></div>
         <div class="stat"><b>${vmax}</b><span>&nbsp;highest voltage ⚡</span></div>
@@ -1663,7 +1665,7 @@ function statsHtml(s,cost_kwh,currency,titleNote){
         <div class="stat"><b>${vavg}</b><span>&nbsp;average voltage</span></div>
         <div class="stat"><b>${tmax} / ${tmin}</b><span>&nbsp;max / min temp</span></div>
       </div>
-      <p class="small" style="margin-top:12px">${s.samples||0} samples · Range: ${aRange}${titleNote?" · "+titleNote:""} · Temp avg: ${(s.avg_temp_c||0).toFixed(1)}°C</p>`;
+      <p class="small" style="margin-top:12px">${s.samples||0} samples · Range: ${esc(aRange)}${titleNote?" · "+esc(titleNote):""} · Temp avg: ${(s.avg_temp_c||0).toFixed(1)}°C</p>`;
 }
 function pivot(rows,keyField,valField){
   const tsSet=[...new Set(rows.map(r=>r.ts))].sort((a,b)=>a-b);
