@@ -505,7 +505,15 @@ def timer_loop():
                     if not t.get("enabled", True):
                         continue
                     try:
-                        phase_len = (t["on_sec"] if t.get("phase") == "on" else t["off_sec"]) or 0
+                        if t.get("mode", "countdown") == "countdown":
+                            # countdown: first wait is always on_sec; after a fired
+                            # inversion (repeat modes) alternate on/off waits
+                            if t.get("cycles_done"):
+                                phase_len = (t["on_sec"] if t.get("phase") == "on" else t["off_sec"]) or 0
+                            else:
+                                phase_len = t["on_sec"] or 0
+                        else:
+                            phase_len = (t["on_sec"] if t.get("phase") == "on" else t["off_sec"]) or 0
                     except (KeyError, TypeError):
                         continue
                     if phase_len <= 0:

@@ -322,10 +322,10 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   <div class="field"><span>Mode</span><select id="tmMode"><option value="countdown">⏳ Countdown (switch after duration)</option><option value="cyclic">🔁 Cyclic loop (ON ↔ OFF)</option></select></div>
 </div>
 <div class="field"><span>Outlets</span><div id="tmOutletPills" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>
-<div class="field" style="margin-top:10px"><span>Action (when countdown fires / ON phase)</span>
+<div class="field" style="margin-top:10px"><span>Action (when countdown fires)</span>
   <div style="display:flex;gap:10px">
     <button id="tmOnBtn" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)">⚡ Turn ON</button>
-    <button id="tmOffBtn" class="on" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#dc2626;color:#fff;border:2px solid #dc2626">⏻ Turn OFF</button>
+    <button id="tmOffBtn" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#dc2626;color:#fff;border:2px solid #dc2626">⏻ Turn OFF</button>
   </div>
 </div>
 <div class="grid cols2" style="margin-top:10px">
@@ -358,9 +358,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </div>
 <div class="field" style="margin-top:10px"><span>Repeat</span>
   <div style="display:flex;gap:6px;flex-wrap:wrap">
-    <button class="ghost sm tmRep" data-r="once">Once</button>
+    <button class="ghost sm tmRep on" data-r="once">Once</button>
     <button class="ghost sm tmRep" data-r="times">N times</button>
-    <button class="ghost sm tmRep on" data-r="forever">♾️ Forever</button>
+    <button class="ghost sm tmRep" data-r="forever">♾️ Forever</button>
     <input id="tmRepN" type="number" min="2" value="3" style="max-width:80px;display:none;margin-left:6px"> <span class="small" id="tmRepNLabel" style="display:none">cycles</span>
   </div>
 </div>
@@ -968,7 +968,7 @@ function ago(s){if(s==null)return "?";s=Math.max(0,Math.round(s));
   return Math.floor(h/24)+"d ago";}
 /* ---- Schedules (redesigned) ---- */
 const DAYN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],DAY1=["M","T","W","T","F","S","S"];
-let scDays=new Set([0,1,2,3,4,5,6]),scOutlet=0,scOn=true,scSunOff=0,tmOutlet=0,tmOn=true,tmRepeat="forever";
+let scDays=new Set([0,1,2,3,4,5,6]),scOutlet=0,scOn=true,scSunOff=0,tmOutlet=0,tmOn=false,tmRepeat="once";
 function schedDaysUI(){
   const box=$("scDayChips");if(!box)return;box.innerHTML="";
   DAY1.forEach((d,i)=>{
@@ -1152,7 +1152,8 @@ async function renderTimers(){
       const rep=t.repeat==="forever"?"♾️ forever":t.repeat==="times"?`×${t.repeat_n}`:"once";
       let live="";
       if(t.enabled&&t.phase_started){
-        const phaseLen=(t.phase==="on"?t.on_sec:t.off_sec)||0;
+        const first=(t.mode!=="cyclic")&&!(t.cycles_done||0);
+        const phaseLen=first?(t.on_sec||0):((t.phase==="on"?t.on_sec:t.off_sec)||0);
         const left=Math.max(0,Math.round(phaseLen-(Date.now()/1000-t.phase_started)));
         live=` · <b class="mono" style="color:var(--blue)">⏱ ${fmtDur(left)} until ${t.mode==="cyclic"?(t.phase==="on"?"OFF":"ON"):"fire"}</b> · phase ${t.phase}${t.repeat!=="once"?` · cycle ${t.cycles_done||0}${t.repeat==="times"?"/"+t.repeat_n:""}`:""}`;
       }
@@ -1522,6 +1523,12 @@ function updateOutletDropdown(st){
 }
 const RANGE_SEC={"1h":3600,"6h":21600,"24h":86400,"7d":604800,"30d":2592000,"6m":15552000,"1y":31536000};
 const RANGE_LABEL={"1h":"last hour","6h":"last 6 hours","24h":"last 24 hours","7d":"last 7 days","30d":"last 30 days","6m":"last 6 months","1y":"last year"};
+function rangeDownsample(rs){
+  if(rs==="1h"||rs==="6h")return null;
+  if(rs==="24h")return "minute";
+  if(rs==="7d"||rs==="30d")return "hour";
+  return "day";
+}
 async function loadRangeKpis(){
   // KPI cards scoped to the currently selected chart range + strip selection
   try{
