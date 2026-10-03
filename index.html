@@ -615,11 +615,57 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <p class="desc">Per-outlet taps apply immediately and show strip-confirmed state. ALL switches ask first (they move 4 relays).</p>
 </div>
 <div class="card">
-<h3>Location &amp; solar calculations</h3>
-<p class="desc">Powers sunrise/sunset schedules. Set to <b>Cairo, Egypt</b> (30.0444°N, 31.2357°E) by default.</p>
-<div class="grid cols2">
-<div class="field"><span>Latitude</span><input id="setLat" type="number" step="0.0001" value="30.0444"></div>
-<div class="field"><span>Longitude</span><input id="setLon" type="number" step="0.0001" value="31.2357"></div>
+<h3>Location, Timezone &amp; Solar Times</h3>
+<p class="desc">Select your country and city to automatically sync your local timezone and precise sunrise/sunset times for solar schedules and timers.</p>
+
+<div class="grid cols2" style="position:relative">
+  <div class="field" style="position:relative">
+    <span>Search City &amp; Country</span>
+    <input id="geoSearchInput" type="search" placeholder="Type city, e.g. Cairo, Alexandria, Dubai, London..." autocomplete="off">
+    <div id="geoSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:220px;overflow-y:auto;z-index:50;margin-top:4px"></div>
+  </div>
+  <div class="field">
+    <span>Selected Location</span>
+    <div id="geoSelectedLoc" style="padding:10px 12px;background:rgba(0,0,0,.03);border:1px solid var(--line);border-radius:10px;font-size:14px;min-height:42px;display:flex;align-items:center;justify-content:space-between">
+      <span id="geoLocText"><b>Cairo</b>, Egypt (Africa/Cairo)</span>
+      <span class="tag ok" id="geoTzBadge">GMT+3</span>
+    </div>
+  </div>
+</div>
+
+<!-- Live Solar & Local Time Preview Box -->
+<div id="geoPreviewBox" style="margin:12px 0 6px;padding:12px 14px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#fff;border-radius:12px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+  <div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.75">Local Time</div>
+    <div style="font-size:22px;font-weight:700" id="geoLocalTime">—</div>
+  </div>
+  <div class="row" style="gap:16px">
+    <div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.75">🌅 Sunrise</div>
+      <div style="font-size:18px;font-weight:700;color:#fde047" id="geoSunrise">—</div>
+    </div>
+    <div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.75">🌇 Sunset</div>
+      <div style="font-size:18px;font-weight:700;color:#fb923c" id="geoSunset">—</div>
+    </div>
+  </div>
+  <div style="font-size:12px;opacity:.8;text-align:right">
+    <div id="geoCoords">30.0626°N, 31.2497°E</div>
+    <div id="geoTimezoneName" style="font-size:11px;opacity:.7">Africa/Cairo</div>
+  </div>
+</div>
+
+<details class="adv" style="margin-top:10px">
+  <summary style="font-size:12px;color:var(--mut)">⚙️ Advanced coordinates (manual override)</summary>
+  <div class="grid cols2" style="margin-top:8px">
+    <div class="field"><span>Latitude</span><input id="setLat" type="number" step="0.0001" value="30.0444"></div>
+    <div class="field"><span>Longitude</span><input id="setLon" type="number" step="0.0001" value="31.2357"></div>
+  </div>
+</details>
+
+<div class="row" style="margin-top:10px">
+  <button id="btnSaveLocation" class="sm">💾 Save Location &amp; Sync Solar Times</button>
+  <span class="small" id="geoMsg"></span>
 </div>
 </div>
 <div class="card">
@@ -2252,8 +2298,116 @@ on("btnProbe","click",async()=>{
   catch(e){showErr($("learnMsg"),$("lIp").value.trim(),e);}
 });
 /* ---- Settings ---- */
+let _selectedGeo = {city:"Cairo", country:"Egypt", timezone:"Africa/Cairo", lat:30.0444, lon:31.2357};
+
+async function updateGeoPreview(lat, lon, tz){
+  try{
+    const q = new URLSearchParams({lat: lat||_selectedGeo.lat, lon: lon||_selectedGeo.lon, tz: tz||_selectedGeo.timezone});
+    const res = await apit("/api/geo/sun?" + q.toString());
+    if(res && res.ok){
+      if($("geoLocalTime")) $("geoLocalTime").textContent = res.local_time || "—";
+      if($("geoSunrise")) $("geoSunrise").textContent = res.sunrise || "—";
+      if($("geoSunset")) $("geoSunset").textContent = res.sunset || "—";
+      if($("geoCoords")) $("geoCoords").textContent = `${Number(res.latitude).toFixed(4)}°N, ${Number(res.longitude).toFixed(4)}°E`;
+      if($("geoTimezoneName")) $("geoTimezoneName").textContent = res.timezone || "—";
+      if($("geoLocText")) $("geoLocText").innerHTML = `<b>${esc(res.city||"Cairo")}</b>, ${esc(res.country||"Egypt")} (${esc(res.timezone)})`;
+      if($("geoTzBadge")) $("geoTzBadge").textContent = (res.timezone||"").split("/").pop().replace(/_/g," ");
+    }
+  }catch(e){console.error("geo preview error:", e);}
+}
+
+// City Search Autocomplete & Selection
+let _geoDebounce = null;
+on("geoSearchInput", "input", (e)=>{
+  clearTimeout(_geoDebounce);
+  const q = (e.target.value || "").trim();
+  const box = $("geoSearchResults");
+  if(!box) return;
+  if(q.length < 2){
+    box.style.display = "none";
+    box.innerHTML = "";
+    return;
+  }
+  _geoDebounce = setTimeout(async ()=>{
+    try{
+      const res = await apit("/api/geo/search?q=" + encodeURIComponent(q));
+      if(res && res.results && res.results.length > 0){
+        box.innerHTML = res.results.map(item => {
+          const region = item.admin1 ? `${item.admin1}, ` : "";
+          const label = `${item.name}, ${region}${item.country}`;
+          return `<div class="geo-opt" data-city="${esc(item.name)}" data-country="${esc(item.country)}" data-tz="${esc(item.timezone)}" data-lat="${item.latitude}" data-lon="${item.longitude}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--line);font-size:13px;display:flex;justify-content:space-between;align-items:center">
+            <div><b>${esc(item.name)}</b> <span class="small">${esc(region + item.country)}</span></div>
+            <span class="tag ok" style="font-size:11px">${esc(item.timezone)}</span>
+          </div>`;
+        }).join("");
+        box.style.display = "block";
+
+        box.querySelectorAll(".geo-opt").forEach(el => {
+          el.addEventListener("click", ()=>{
+            _selectedGeo.city = el.dataset.city;
+            _selectedGeo.country = el.dataset.country;
+            _selectedGeo.timezone = el.dataset.tz;
+            _selectedGeo.lat = parseFloat(el.dataset.lat);
+            _selectedGeo.lon = parseFloat(el.dataset.lon);
+
+            if($("setLat")) $("setLat").value = _selectedGeo.lat;
+            if($("setLon")) $("setLon").value = _selectedGeo.lon;
+            if($("geoSearchInput")) $("geoSearchInput").value = `${_selectedGeo.city}, ${_selectedGeo.country}`;
+            box.style.display = "none";
+
+            updateGeoPreview(_selectedGeo.lat, _selectedGeo.lon, _selectedGeo.timezone);
+          });
+        });
+      }else{
+        box.innerHTML = `<div style="padding:10px;color:var(--mut);font-size:12px;text-align:center">No matching cities found</div>`;
+        box.style.display = "block";
+      }
+    }catch(err){
+      box.style.display = "none";
+    }
+  }, 350);
+});
+
+// Hide autocomplete when clicking outside
+document.addEventListener("click", (e)=>{
+  const box = $("geoSearchResults");
+  const input = $("geoSearchInput");
+  if(box && e.target !== input && !box.contains(e.target)){
+    box.style.display = "none";
+  }
+});
+
+// Save Location button
+on("btnSaveLocation", "click", async ()=>{
+  const msg = $("geoMsg");
+  if(msg) msg.textContent = "Saving location...";
+  try{
+    const lat = $("setLat") ? $("setLat").value : _selectedGeo.lat;
+    const lon = $("setLon") ? $("setLon").value : _selectedGeo.lon;
+    const payload = {
+      city: _selectedGeo.city,
+      country: _selectedGeo.country,
+      timezone: _selectedGeo.timezone,
+      lat: lat,
+      lon: lon
+    };
+    const r = await apit("/api/settings", payload);
+    if(msg) msg.textContent = `✓ Saved! Synced to ${r.settings.city}, ${r.settings.country} (${r.settings.timezone})`;
+    await updateGeoPreview(r.settings.lat, r.settings.lon, r.settings.timezone);
+    if(typeof loadSched === "function") await loadSched();
+  }catch(e){
+    if(msg) showErr(msg, "Save failed: ", e);
+  }
+});
+
 async function loadSettings(){try{const s=await apit("/api/settings");
   if($("setLat"))$("setLat").value=s.lat;if($("setLon"))$("setLon").value=s.lon;
+  _selectedGeo.city = s.city || "Cairo";
+  _selectedGeo.country = s.country || "Egypt";
+  _selectedGeo.timezone = s.timezone || "Africa/Cairo";
+  _selectedGeo.lat = s.lat || 30.0444;
+  _selectedGeo.lon = s.lon || 31.2357;
+  await updateGeoPreview(_selectedGeo.lat, _selectedGeo.lon, _selectedGeo.timezone);
   if($("setNtfy"))$("setNtfy").value=s.ntfy||"";if($("setAlertMin"))$("setAlertMin").value=s.alert_offline_min||10;
   if($("setNotifyOffline"))$("setNotifyOffline").checked=s.notify_offline;
   if($("setNotifySwitch"))$("setNotifySwitch").checked=s.notify_switch;

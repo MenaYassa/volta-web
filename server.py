@@ -187,6 +187,9 @@ def save_schedules(scheds):
 def get_settings():
     d = load_strips().get("settings", {})
     return {"lat": d.get("lat", 30.0444), "lon": d.get("lon", 31.2357),
+            "city": d.get("city", "Cairo"),
+            "country": d.get("country", "Egypt"),
+            "timezone": d.get("timezone", "Africa/Cairo"),
             "ntfy": (d.get("ntfy") or "").strip(),
             "alert_offline_min": int(d.get("alert_offline_min", 10) or 10),
             "notify_offline": bool(d.get("notify_offline", True)),
@@ -205,7 +208,7 @@ def get_settings():
 def save_settings(patch):
     data = load_strips()
     d = data.setdefault("settings", {})
-    for k in ("lat", "lon", "ntfy", "alert_offline_min", "notify_offline",
+    for k in ("lat", "lon", "city", "country", "timezone", "ntfy", "alert_offline_min", "notify_offline",
               "notify_switch", "notify_filter", "notify_targets", "cost_per_kwh",
               "currency", "temp_alert_c", "notify_temp", "voltage_min", "voltage_max", "notify_voltage"):
         if k in patch:
@@ -250,7 +253,8 @@ def sched_fire_time(s, now):
         import datetime as _dt
         try:
             st = get_settings()
-            ev = sun_times(now.date(), float(st["lat"]), float(st["lon"]), s.get("tz") or "Africa/Cairo")
+            tz_name = s.get("tz") or st.get("timezone") or "Africa/Cairo"
+            ev = sun_times(now.date(), float(st["lat"]), float(st["lon"]), tz_name)
             fire = ev["rise" if s.get("sun") == "rise" else "set"] + \
                 _dt.timedelta(minutes=int(s.get("offset_min", 0) or 0))
             return fire.strftime("%H:%M"), "sun %s%+dmin" % (s.get("sun"), int(s.get("offset_min", 0) or 0))
@@ -302,7 +306,9 @@ def validate_schedule(b):
         return None, "days must be 0-6 (Mon=0)"
     if not days or any(d < 0 or d > 6 for d in days):
         return None, "days must be 0-6 (Mon=0)"
-    tz = (b.get("tz") or "Africa/Cairo").strip() or "Africa/Cairo"
+    st_settings = get_settings()
+    default_tz = st_settings.get("timezone", "Africa/Cairo")
+    tz = (b.get("tz") or default_tz).strip() or default_tz
     try:
         import zoneinfo as _zi
         _zi.ZoneInfo(tz)
@@ -490,8 +496,10 @@ def scheduler_loop():
                 for s in scheds:
                     if not s.get("enabled"):
                         continue
+                    st_settings = get_settings()
+                    default_tz = st_settings.get("timezone", "Africa/Cairo")
                     try:
-                        now = _dt.datetime.now(_zi.ZoneInfo(s.get("tz") or "Africa/Cairo"))
+                        now = _dt.datetime.now(_zi.ZoneInfo(s.get("tz") or default_tz))
                     except Exception:
                         continue
                     if now.weekday() not in s.get("days", []):
@@ -838,6 +846,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         u = urllib.parse.urlparse(self.path)
+        q = urllib.parse.parse_qs(u.query)
         if u.path in ("/", "/index.html"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -1000,6 +1009,90 @@ class Handler(BaseHTTPRequestHandler):
                 allowed = set(ctx["strips"])
                 timers = [t for t in timers if norm_mac(t.get("mac", "")).upper() in allowed]
             self._json({"timers": timers})
+        elif u.path == "/api/geo/search":
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            q_city = (q.get("q", [""])[0] or "").strip()
+            if not q_city or len(q_city) < 2:
+                return self._json({"error": "query too short (minimum 2 chars)"}, 400)
+            
+            import urllib.parse as _up
+            import urllib.request as _ur
+            try:
+                url = f"https://geocoding-api.open-meteo.com/v1/search?name={_up.quote(q_city)}&count=10&language=en&format=json"
+                req = _ur.Request(url, headers={"User-Agent": "VoltaSmartController/1.0"})
+                with _ur.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                
+                results = []
+                for item in data.get("results", []):
+                    results.append({
+                        "name": item.get("name"),
+                        "country": item.get("country"),
+                        "country_code": item.get("country_code"),
+                        "admin1": item.get("admin1"),
+                        "latitude": float(item.get("latitude")),
+                        "longitude": float(item.get("longitude")),
+                        "timezone": item.get("timezone", "UTC")
+                    })
+                return self._json({"ok": True, "results": results})
+            except Exception as e:
+                log(f"[geo] search failed for '{q_city}': {e}")
+                return self._json({"error": f"Geocoding service unavailable: {str(e)}"}, 502)
+
+        elif u.path == "/api/geo/sun":
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            st = get_settings()
+            try:
+                lat = float(q.get("lat", [st["lat"]])[0])
+                lon = float(q.get("lon", [st["lon"]])[0])
+                tz = q.get("tz", [st.get("timezone", "Africa/Cairo")])[0]
+            except (ValueError, TypeError):
+                lat, lon, tz = float(st["lat"]), float(st["lon"]), st.get("timezone", "Africa/Cairo")
+
+            import datetime as _dt
+            now = _dt.datetime.now()
+            today_date = now.date()
+            
+            # Calculate NOAA local sunrise/sunset
+            try:
+                ev = sun_times(today_date, lat, lon, tz)
+                rise_time = ev["rise"].strftime("%H:%M")
+                set_time = ev["set"].strftime("%H:%M")
+                rise_iso = ev["rise"].isoformat()
+                set_iso = ev["set"].isoformat()
+            except Exception as e:
+                log(f"[geo] sun_times failed: {e}")
+                rise_time, set_time = "06:00", "18:00"
+                rise_iso, set_iso = "", ""
+
+            # Resolve local time in configured timezone
+            import zoneinfo as _zi
+            try:
+                zi = _zi.ZoneInfo(tz)
+                local_now = _dt.datetime.now(zi)
+                local_time_str = local_now.strftime("%H:%M:%S")
+                local_date_str = local_now.strftime("%Y-%m-%d")
+            except Exception:
+                local_time_str = now.strftime("%H:%M:%S")
+                local_date_str = now.strftime("%Y-%m-%d")
+
+            return self._json({
+                "ok": True,
+                "city": st.get("city", "Cairo"),
+                "country": st.get("country", "Egypt"),
+                "timezone": tz,
+                "latitude": lat,
+                "longitude": lon,
+                "local_time": local_time_str,
+                "local_date": local_date_str,
+                "sunrise": rise_time,
+                "sunset": set_time,
+                "sunrise_iso": rise_iso,
+                "sunset_iso": set_iso
+            })
+
         elif u.path == "/api/settings":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
@@ -1439,6 +1532,18 @@ class Handler(BaseHTTPRequestHandler):
                 if not (-90 <= lat <= 90 and -180 <= lon <= 180):
                     return self._json({"error": "lat -90..90, lon -180..180"}, 400)
                 patch["lat"], patch["lon"] = lat, lon
+            if "city" in body:
+                patch["city"] = (body.get("city") or "").strip()[:50] or "Cairo"
+            if "country" in body:
+                patch["country"] = (body.get("country") or "").strip()[:50] or "Egypt"
+            if "timezone" in body:
+                tz_val = (body.get("timezone") or "").strip()[:50] or "Africa/Cairo"
+                import zoneinfo as _zi
+                try:
+                    _zi.ZoneInfo(tz_val)
+                    patch["timezone"] = tz_val
+                except Exception:
+                    patch["timezone"] = "Africa/Cairo"
             if "ntfy" in body:
                 val = (body.get("ntfy") or "").strip()
                 # Clean up leading https://ntfy.sh/ or ntfy.sh/ if provided
