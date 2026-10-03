@@ -906,6 +906,8 @@ class Handler(BaseHTTPRequestHandler):
                         "voltage_v": d.get("voltage_v") or 220.0,
                         "rssi": d.get("rssi") or -65,
                         "last_seen": d.get("last_seen", time.time()),
+                        "power_w": d.get("power_w", sum(o.get("power_w", 0.0) for o in outs)),
+                        "total_power_w": sum(o.get("power_w", 0.0) for o in outs),
                         "outlets": outs
                     })
                 return self._json({"ok": True, "strips": formatted, "devices": formatted})

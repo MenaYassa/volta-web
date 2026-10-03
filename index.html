@@ -1440,7 +1440,7 @@ function updateHero(st){
   const online=devs.filter(d=>d.online);
   const scoped=devs.filter(d=>aMac!=="__all__"?(d.mac===aMac):true);
   const scopedOnline=scoped.filter(d=>d.online);
-  const totalW=scoped.reduce((s,d)=>s+(d.total_power_w||0),0);
+  const totalW=scoped.reduce((s,d)=>s+(d.total_power_w??d.power_w??(d.outlets||[]).reduce((a,o)=>a+(o.power_w||0),0)),0);
   if($("aHeroPower"))$("aHeroPower").innerHTML=totalW.toFixed(1)+" <span style='font-size:20px;font-weight:600'>W</span>";
   const volts=scopedOnline.map(d=>d.voltage_v).filter(v=>v>0);
   if($("aHeroVolt"))$("aHeroVolt").textContent=volts.length?(volts.reduce((a,b)=>a+b,0)/volts.length).toFixed(1)+"V":"—";
