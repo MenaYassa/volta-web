@@ -749,11 +749,25 @@ def run_sweep(ip, port, start, end, timeout=1.5):
 class Handler(BaseHTTPRequestHandler):
     server_version = "volta-local/1.0"
 
+    def _send_cors_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Token")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+
+    def do_OPTIONS(self):  # noqa: N802
+        self.send_response(204)
+        self._send_cors_headers()
+        self.end_headers()
+
     def _json(self, obj, status=200):
         body = json.dumps(obj).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self._send_cors_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -919,8 +933,10 @@ class Handler(BaseHTTPRequestHandler):
                         "outlets": outs
                     })
                 return self._json({"ok": True, "strips": formatted, "devices": formatted})
-            self._json(load_strips())
+            return self._json({"error": "token required"}, 401)
         elif u.path == "/api/log":
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
             self._json({"lines": LOG[-120:]})
         elif u.path == "/api/schedules":
             ctx = self._auth_ctx()
@@ -972,10 +988,14 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif u.path == "/api/hunt":
+            if not self._is_admin():
+                return self._json({"error": "admin access required"}, 403)
             q = urllib.parse.parse_qs(u.query)
             ip = q.get("ip", [""])[0]
             self._json({"snaps": load_strips().get("hunt", {}).get(ip, [])})
         elif u.path == "/api/hunt-diff":
+            if not self._is_admin():
+                return self._json({"error": "admin access required"}, 403)
             q = urllib.parse.parse_qs(u.query)
             ip = q.get("ip", [""])[0]
             self._json(diff_states(load_strips().get("hunt", {}).get(ip, [])))
@@ -990,6 +1010,8 @@ class Handler(BaseHTTPRequestHandler):
         u = urllib.parse.urlparse(self.path)
         body = self._body()
         if u.path == "/api/discover":
+            if not self._is_admin():
+                return self._json({"error": "admin access required"}, 403)
             nets = body.get("nets") or local_nets()[:1]
             ports = [int(p) for p in body.get("ports", [30300])]
             timeout = float(body.get("timeout", 0.6))
@@ -1013,17 +1035,21 @@ class Handler(BaseHTTPRequestHandler):
                 log(f"  hit {f['ip']}{tag}")
             return self._json({"found": found, "scanned": len(targets)})
         if u.path == "/api/strips":
+            if not self._is_admin():
+                return self._json({"error": "admin access required"}, 403)
             ip = (body.get("ip") or "").strip()
             if not ip:
                 return self._json({"error": "ip required"}, 400)
             data = load_strips()
+            new_entry = None
             if not any(s["ip"] == ip for s in data["strips"]):
-                data["strips"].append({"ip": ip, "port": int(body.get("port", 30300)),
-                                       "name": body.get("name", ip), "codes": {},
-                                       "esp_ip": (body.get("esp_ip") or "").strip()})
+                new_entry = {"ip": ip, "port": int(body.get("port", 30300)),
+                             "name": body.get("name", ip), "codes": {},
+                             "esp_ip": (body.get("esp_ip") or "").strip()}
+                data["strips"].append(new_entry)
                 save_strips(data)
                 log(f"strip added {ip}")
-            return self._json(data)
+            return self._json({"ok": True, "strip": new_entry or {"ip": ip}})
         if u.path == "/api/users":
             if not self._is_admin():
                 return self._json({"error": "admin access required"}, 403)
@@ -1348,6 +1374,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:  # noqa: BLE001
                 return self._json({"error": f"ntfy failed: {e}"}, 502)
             return self._json({"ok": True})
+        if u.path.startswith("/api/analytics/"):
+            print(f"[analytics-req] {u.path} body={body}", flush=True)
         if u.path == "/api/analytics/range":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
@@ -1411,6 +1439,14 @@ class Handler(BaseHTTPRequestHandler):
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
             return self._json({"ok": True, "db_size_mb": analytics.db_size_mb()})
+        if u.path in (
+            "/api/learn", "/api/probe", "/api/control", "/api/state-poll",
+            "/api/diagnose", "/api/lg-info", "/api/lg-state", "/api/lg-wifi",
+            "/api/lg-raw", "/api/arp-hunt", "/api/verify-join", "/api/hunt-snap",
+            "/api/hunt-clear", "/api/sweep", "/api/ap-hunt", "/api/probe-shots"
+        ):
+            if not self._is_admin():
+                return self._json({"error": "admin access required"}, 403)
         if u.path == "/api/learn":
             # store learned hex codes: {ip, outlet, action(on|off|state), hex}
             ip, outlet, action = body.get("ip"), str(body.get("outlet")), body.get("action")
@@ -1827,6 +1863,8 @@ class Handler(BaseHTTPRequestHandler):
             data = load_strips()
             # If removing by IP from manual list
             if ip and not mac:
+                if not ctx["is_admin"]:
+                    return self._json({"error": "admin access required"}, 403)
                 data["strips"] = [s for s in data["strips"] if s.get("ip") != ip]
                 save_strips(data)
                 log(f"strip removed by IP {ip}")

@@ -137,10 +137,13 @@ class Session:
 
 
 class Hub:
+    MAX_ACTIVE_CONNS = 40
+
     def __init__(self, on_event=None, on_switch=None, on_connect=None):
         self.devices = {}
         self.sessions = {}
         self.pending = {}  # mac -> [{channels:[..], on:bool, ts:float, source:str}]
+        self.active_conns = 0
         self.on_event = on_event  # fn(msg) for server log
         self.on_switch = on_switch  # fn(mac, outlet, on, source)
         self.on_connect = on_connect  # fn(mac, ip)
@@ -212,6 +215,17 @@ class Hub:
         peer = writer.get_extra_info("peername")
         ip = peer[0] if peer else "?"
 
+        if self.active_conns >= self.MAX_ACTIVE_CONNS:
+            self._log(f"[device] rejecting connection from {ip}: connection limit ({self.MAX_ACTIVE_CONNS}) reached")
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+            return
+
+        self.active_conns += 1
+
         # Enable aggressive TCP keepalive to detect dead sockets from router restarts / IP rotation
         try:
             sock = writer.get_extra_info("socket")
@@ -230,6 +244,39 @@ class Hub:
         s = Session(ip, reader, writer)
         self._log(f"[device] connection from {ip}")
         try:
+            # Enforce 10-second handshake timeout on first frame to drop scanners / slowloris
+            first_raw = await asyncio.wait_for(reader.readline(), timeout=10.0)
+            if not first_raw:
+                return
+            if len(first_raw) > 8192:
+                raise ValueError("line too long")
+            first_line = first_raw.replace(b"\x00", b"").decode("utf-8", "replace").strip("\r\n ")
+            m = BOOTINFO_RE.match(first_line)
+            if not m:
+                self._log(f"[device] invalid handshake from {ip}: {first_line[:40]!r}")
+                return
+
+            mac = m.group(2).upper()
+            d = self.devices.get(mac) or Device(mac, m.group(1), m.group(4), ip)
+            d.model, d.fw, d.ip, d.online = m.group(1), m.group(4), ip, True
+            d.touch()
+            s.device = d
+            self.devices[mac] = d
+            old = self.sessions.get(mac)
+            if old and old is not s:
+                old.writer.close()
+            self.sessions[mac] = s
+            self._log(f"[device] {d.name} model={d.model} fw={d.fw}")
+            if self.on_connect:
+                try:
+                    self.on_connect(mac, ip)
+                except Exception:
+                    pass
+            async def _join(sess):
+                await sess.refresh()
+                await self.drain_pending(sess)
+            asyncio.create_task(_join(s))
+
             while True:
                 raw = await reader.readline()
                 if not raw:
@@ -255,10 +302,10 @@ class Hub:
                             self.on_connect(mac, ip)
                         except Exception:
                             pass
-                    async def _join(sess):
+                    async def _rejoin(sess):
                         await sess.refresh()
                         await self.drain_pending(sess)
-                    asyncio.create_task(_join(s))
+                    asyncio.create_task(_rejoin(s))
                     continue
                 if not s.device:
                     continue
@@ -292,11 +339,12 @@ class Hub:
                     continue
                 if ONOFF_ACK_RE.fullmatch(line):
                     continue
-        except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
+        except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError, asyncio.TimeoutError):
             pass
         except Exception as err:
             self._log(f"[device] session error {ip}: {err!r}")
         finally:
+            self.active_conns = max(0, self.active_conns - 1)
             if s.device and self.sessions.get(s.device.mac) is s:
                 self.sessions.pop(s.device.mac, None)
                 s.device.online = False
