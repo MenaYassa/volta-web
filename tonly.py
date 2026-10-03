@@ -222,7 +222,7 @@ COMMON_PORTS = [22, 23, 53, 80, 443, 3000, 5000, 6666, 6667, 6668, 8000, 8001,
 
 def http_get(ip, port, path="/", timeout=3.0):
     req = (f"GET {path} HTTP/1.0\r\nHost: {ip}\r\n"
-           f"User-Agent: voltra-local\r\nConnection: close\r\n\r\n").encode()
+           f"User-Agent: volta-local\r\nConnection: close\r\n\r\n").encode()
     return tcp_exchange(ip, port, send=req, timeout=timeout)
 
 

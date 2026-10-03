@@ -139,7 +139,9 @@ def resolve_auth_context(token_str):
     
     users = get_users()
     for u_tok, info in users.items():
-        if token_str and secrets.compare_digest(token_str, u_tok):
+        matched = token_str and (secrets.compare_digest(token_str, u_tok) or
+                                 (token_str.startswith("voltra_") and secrets.compare_digest("volta_" + token_str[7:], u_tok)))
+        if matched:
             # User token match
             user_strips = [str(m).upper().replace(":", "") for m in info.get("strips", [])]
             return {
