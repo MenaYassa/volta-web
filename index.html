@@ -97,6 +97,14 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .daypick label{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;cursor:pointer;color:var(--mut)}
 .daypick input{display:none}
 .daypick label:has(input:checked){background:#dbeafe;border-color:var(--blue);color:var(--blue-d);font-weight:700}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.6);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:999;padding:16px}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);max-width:540px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 25px -5px rgba(0,0,0,.2);overflow:hidden}
+.modal-head{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.modal-head h3{margin:0;font-size:16px}
+.modal-body{padding:14px 18px;overflow-y:auto;flex:1}
+.modal-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;background:rgba(0,0,0,.02)}
+.pagination{display:flex;justify-content:space-between;align-items:center;margin:12px 0 6px;flex-wrap:wrap;gap:8px}
 /* dark mode: auto + manual override */
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none} :root:not([data-theme="light"]) input,:root:not([data-theme="light"]) select{background:#0f1830;color:#e2e8f0;border-color:#24314f} :root:not([data-theme="light"]) button.ghost,:root:not([data-theme="light"]) button.danger{background:#0f1830;color:#e2e8f0} :root:not([data-theme="light"]) .ov .stat,:root:not([data-theme="light"]) .strip,:root:not([data-theme="light"]) details.adv{background:#131c31} :root:not([data-theme="light"]) .tag{background:#0f1830;color:#94a3b8} :root:not([data-theme="light"]) .sw{background:#334155}}
 :root[data-theme="dark"]{--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none}
@@ -238,8 +246,36 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <div class="card">
 <h3>Strips &amp; names <span class="sub">— saved on the server, survive reboots</span></h3>
 <p class="desc">Rename strips and each outlet. Works even for offline strips — names reappear when they dial back in. Empty name = back to default.</p>
-<div class="row" style="margin-bottom:8px"><button id="btnManageRefresh" class="ghost sm">↻ Reload</button><span class="small" id="manageMsg"></span></div>
+
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 8px">
+  <input id="manageSearch" type="search" placeholder="🔍 Search strips by name, MAC, or user..." style="flex:1;min-width:180px">
+  <div class="row" style="gap:4px">
+    <button id="fltManageAll" class="ghost sm on">All (<span id="cntManageAll">0</span>)</button>
+    <button id="fltManageOnline" class="ghost sm">● Online (<span id="cntManageOnline">0</span>)</button>
+    <button id="fltManageOffline" class="ghost sm">○ Offline (<span id="cntManageOffline">0</span>)</button>
+    <button id="fltManageUnassigned" class="ghost sm">⚠️ Unassigned (<span id="cntManageUnassigned">0</span>)</button>
+  </div>
+  <button id="btnManageRefresh" class="ghost sm">↻ Reload</button>
+</div>
+
+<div id="managePagination" class="pagination" style="display:none">
+  <span class="small" id="managePageInfo">Showing 1–10 of 100 strips</span>
+  <div class="row" style="gap:6px">
+    <button id="managePrevPage" class="ghost sm">← Prev</button>
+    <span id="manageCurrentPage" class="tag">1 / 1</span>
+    <button id="manageNextPage" class="ghost sm">Next →</button>
+  </div>
+</div>
+
 <div id="manage"><p class="small">Loading…</p></div>
+
+<div id="managePaginationBottom" class="pagination" style="display:none">
+  <span class="small"></span>
+  <div class="row" style="gap:6px">
+    <button id="managePrevPageBtm" class="ghost sm">← Prev</button>
+    <button id="manageNextPageBtm" class="ghost sm">Next →</button>
+  </div>
+</div>
 </div>
 </section>
 
@@ -649,7 +685,21 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </div>
 </details>
 
-<div id="usersTableBox" style="margin-top:12px"></div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0 8px">
+  <input id="userSearch" type="search" placeholder="🔍 Search users by name or token..." style="flex:1;min-width:180px">
+  <span class="small" id="userCountBadge"></span>
+</div>
+
+<div id="usersTableBox" style="margin-top:8px;overflow-x:auto"></div>
+
+<div id="usersPagination" class="pagination" style="display:none">
+  <span class="small" id="usersPageInfo">Showing 1–10 of 100 users</span>
+  <div class="row" style="gap:6px">
+    <button id="usersPrevPage" class="ghost sm">← Prev</button>
+    <span id="usersCurrentPage" class="tag">1 / 1</span>
+    <button id="usersNextPage" class="ghost sm">Next →</button>
+  </div>
+</div>
 </div>
 
 <div class="card">
@@ -664,6 +714,52 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <footer>Volta · MTTL-W01 (TONLY) · local-first, no cloud</footer>
 </section>
 
+</div>
+
+<!-- Modal: Assign strips to a specific user -->
+<div id="modalUserStrips" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="musTitle">Manage Assigned Strips</h3>
+      <button class="ghost sm" id="musClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="desc" id="musDesc" style="margin-top:0"></p>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="musSearch" type="search" placeholder="🔍 Filter strips..." style="flex:1">
+        <button id="musSelectAll" class="ghost sm">Select All</button>
+        <button id="musClearAll" class="ghost sm">Clear</button>
+      </div>
+      <div id="musList" style="max-height:300px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:6px 10px"></div>
+    </div>
+    <div class="modal-foot">
+      <span class="small" id="musSelectedCount" style="margin-right:auto"></span>
+      <button class="ghost sm" id="musCancel">Cancel</button>
+      <button class="sm" id="musSave">💾 Save Assignments</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Assign a strip to a user -->
+<div id="modalStripUser" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head">
+      <h3 id="msuTitle">Assign Strip Owner</h3>
+      <button class="ghost sm" id="msuClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="desc" id="msuDesc" style="margin-top:0"></p>
+      <div class="field">
+        <span>Owner / Assigned User</span>
+        <select id="msuUserSel"></select>
+      </div>
+      <p class="small" style="margin-top:10px;color:var(--mut)">Selecting "Admin only" unassigns the strip so only administrators have access.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="ghost sm" id="msuCancel">Cancel</button>
+      <button class="sm" id="msuSave">💾 Save Assignment</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -768,52 +864,140 @@ async function checkSrv(){
   }
 }
 
+let _cachedUsers = {};
+let _userSearchQuery = "";
+let _userPage = 1;
+const USERS_PER_PAGE = 10;
+let _activeEditingUserToken = null;
+
 async function loadUsers(){
   const box=$("usersTableBox");if(!box)return;
   try{
     const r=await apit("/api/users");
-    const users=r.users||{};
-    const keys=Object.keys(users);
-    if(!keys.length){
-      box.innerHTML='<p class="small">No additional users created yet. All existing strips are currently managed by Admin.</p>';
-      return;
-    }
-    let h='<table><tr><th>User</th><th>Token</th><th>Strips</th><th>Created</th><th>Action</th></tr>';
-    for(const t of keys){
-      const u=users[t];
-      const stripsStr=u.strips&&u.strips.length?u.strips.map(esc).join(", "):"<i style='color:var(--mut)'>None yet</i>";
-      const createdStr=u.created_at?new Date(u.created_at*1000).toLocaleDateString():"—";
-      h+=`<tr>
-        <td><b>${esc(u.name||"User")}</b></td>
-        <td><code class="mono" style="font-size:11px">${esc(t)}</code></td>
-        <td>${stripsStr}</td>
-        <td>${createdStr}</td>
-        <td><button class="ghost sm danger del-usr" data-token="${esc(t)}">Revoke</button></td>
-      </tr>`;
-    }
-    box.innerHTML=h;
-    // Update transfer user dropdown
-    const trSel=$("trUserSel");
-    if(trSel){
-      trSel.innerHTML=keys.map(k=>`<option value="${esc(k)}">${esc(users[k].name||"User")} (${esc(k.slice(0,12))}…)</option>`).join("");
-    }
-    box.querySelectorAll(".del-usr").forEach(btn=>{
-      btn.onclick=async function(){
-        const targetTok=this.dataset.token;
-        if(!confirm(`Revoke access for this user token?`))return;
-        try{
-          await fetch(`/api/users?token=${encodeURIComponent(targetTok)}`,{
-            method:"DELETE",
-            headers:tok()?{"X-Token":tok()}:{}
-          });
-          loadUsers();
-        }catch(e){alert("Error: "+e.message);}
-      };
-    });
+    _cachedUsers=r.users||{};
+    renderUsersTable();
   }catch(e){
-    box.innerHTML='<p class="err">'+e.message+'</p>';
+    box.innerHTML='<p class="err">'+esc(e.message)+'</p>';
   }
 }
+
+function renderUsersTable(){
+  const box=$("usersTableBox");if(!box)return;
+  const keys=Object.keys(_cachedUsers);
+  if($("userCountBadge")){
+    const withStrips = keys.filter(k=>(_cachedUsers[k].strips||[]).length>0).length;
+    $("userCountBadge").textContent = `${keys.length} total user${keys.length===1?"":"s"} · ${withStrips} with assigned strips`;
+  }
+  
+  if(!keys.length){
+    box.innerHTML='<p class="small">No additional users created yet. All existing strips are currently managed by Admin.</p>';
+    if($("usersPagination"))$("usersPagination").style.display="none";
+    return;
+  }
+  
+  // Filter by search query
+  let filtered = keys.filter(t=>{
+    const u=_cachedUsers[t]||{};
+    const q=_userSearchQuery.toLowerCase().trim();
+    if(!q)return true;
+    return (u.name||"").toLowerCase().includes(q) || t.toLowerCase().includes(q);
+  });
+  
+  // Sort users alphabetically by name
+  filtered.sort((a,b)=>((_cachedUsers[a].name||"").localeCompare(_cachedUsers[b].name||"")));
+  
+  const totalPages = Math.max(1, Math.ceil(filtered.length / USERS_PER_PAGE));
+  if(_userPage > totalPages) _userPage = totalPages;
+  if(_userPage < 1) _userPage = 1;
+  
+  const pageItems = filtered.slice((_userPage-1)*USERS_PER_PAGE, _userPage*USERS_PER_PAGE);
+  
+  let h='<table><tr><th>User</th><th>Token</th><th>Assigned Strips</th><th>Created</th><th>Action</th></tr>';
+  for(const t of pageItems){
+    const u=_cachedUsers[t];
+    const sc=(u.strips||[]).length;
+    const stripBadge = sc > 0 
+      ? `<button class="ghost sm edit-user-strips" data-token="${esc(t)}" style="border-radius:99px;font-weight:600">🏷️ ${sc} strip${sc>1?"s":""} ▾</button>`
+      : `<button class="ghost sm edit-user-strips" data-token="${esc(t)}" style="border-radius:99px;color:var(--mut)">+ assign strips</button>`;
+    const createdStr=u.created_at?new Date(u.created_at*1000).toLocaleDateString():"—";
+    const maskedTok = t.length > 20 ? t.slice(0, 14) + "…" + t.slice(-4) : t;
+    h+=`<tr>
+      <td><b>${esc(u.name||"User")}</b></td>
+      <td><code class="mono" style="font-size:11px" title="${esc(t)}">${esc(maskedTok)}</code> <button class="ghost sm copy-tok-btn" data-tok="${esc(t)}" style="padding:2px 6px;font-size:11px" title="Copy full token">📋</button></td>
+      <td>${stripBadge}</td>
+      <td>${createdStr}</td>
+      <td><button class="ghost sm danger del-usr" data-token="${esc(t)}">Revoke</button></td>
+    </tr>`;
+  }
+  h+='</table>';
+  box.innerHTML=h;
+  
+  // Update transfer user dropdown
+  const trSel=$("trUserSel");
+  if(trSel){
+    trSel.innerHTML=keys.map(k=>`<option value="${esc(k)}">${esc(_cachedUsers[k].name||"User")} (${esc(k.slice(0,12))}…)</option>`).join("");
+  }
+  
+  // Pagination UI
+  const pBox=$("usersPagination");
+  if(pBox){
+    if(filtered.length > USERS_PER_PAGE){
+      pBox.style.display="flex";
+      const start = (_userPage-1)*USERS_PER_PAGE + 1;
+      const end = Math.min(_userPage*USERS_PER_PAGE, filtered.length);
+      if($("usersPageInfo"))$("usersPageInfo").textContent = `Showing ${start}–${end} of ${filtered.length} users`;
+      if($("usersCurrentPage"))$("usersCurrentPage").textContent = `${_userPage} / ${totalPages}`;
+      if($("usersPrevPage"))$("usersPrevPage").disabled = (_userPage <= 1);
+      if($("usersNextPage"))$("usersNextPage").disabled = (_userPage >= totalPages);
+    }else{
+      pBox.style.display="none";
+    }
+  }
+  
+  // Event listeners
+  box.querySelectorAll(".copy-tok-btn").forEach(btn=>{
+    btn.onclick=function(){
+      navigator.clipboard.writeText(this.dataset.tok);
+      this.textContent="✓";setTimeout(()=>{this.textContent="📋";},1500);
+    };
+  });
+  
+  box.querySelectorAll(".edit-user-strips").forEach(btn=>{
+    btn.onclick=function(){
+      openUserStripsModal(this.dataset.token);
+    };
+  });
+  
+  box.querySelectorAll(".del-usr").forEach(btn=>{
+    btn.onclick=async function(){
+      const targetTok=this.dataset.token;
+      const uName=(_cachedUsers[targetTok]||{}).name||"this user";
+      if(!confirm(`Revoke access for ${uName}?`))return;
+      try{
+        await fetch(`/api/users?token=${encodeURIComponent(targetTok)}`,{
+          method:"DELETE",
+          headers:tok()?{"X-Token":tok()}:{}
+        });
+        await loadUsers();
+        await renderManage();
+      }catch(e){alert("Error: "+e.message);}
+    };
+  });
+}
+
+on("userSearch","input",e=>{
+  _userSearchQuery = e.target.value;
+  _userPage = 1;
+  renderUsersTable();
+});
+
+on("usersPrevPage","click",()=>{
+  if(_userPage > 1){_userPage--;renderUsersTable();}
+});
+
+on("usersNextPage","click",()=>{
+  _userPage++;renderUsersTable();
+});
 
 on("btnTransferStrip","click",async()=>{
   const mac=($("trMac")&&$("trMac").value||"").trim();
@@ -917,34 +1101,374 @@ async function live(){
   _liveBusy=false;
 }
 on("btnLiveRefresh","click",live);
-/* ---- Strips manage ---- */
+/* ---- User Strips Modal ---- */
+async function openUserStripsModal(token){
+  const u = _cachedUsers[token];
+  if(!u)return;
+  _activeEditingUserToken = token;
+  const modal = $("modalUserStrips");
+  if(!modal)return;
+  
+  if($("musTitle"))$("musTitle").textContent = `Assigned Strips · ${u.name||"User"}`;
+  if($("musDesc"))$("musDesc").textContent = `Select which strips ${u.name||"this user"} is permitted to view and control.`;
+  
+  const liveData = await ensureLive();
+  const devs = (liveData && liveData.devices) || [];
+  const names = (liveData && liveData.names) || {};
+  const allMacs = [...new Set([...devs.map(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase()), ...Object.keys(names).map(m=>m.toUpperCase())])].filter(Boolean);
+  
+  const ownedSet = new Set((u.strips||[]).map(m=>m.toUpperCase().replace(/[^0-9A-F]/g,"")));
+  const list = $("musList");
+  if(!list)return;
+  
+  function renderChecklist(q=""){
+    list.innerHTML="";
+    const filt = allMacs.filter(m=>{
+      const nm = (names[m.toLowerCase()]||{}).name || (devs.find(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase()===m)||{}).name || m;
+      return !q || nm.toLowerCase().includes(q.toLowerCase()) || m.toLowerCase().includes(q.toLowerCase());
+    });
+    
+    if(!filt.length){
+      list.innerHTML = `<p class="small" style="padding:8px 0;margin:0">No strips match search.</p>`;
+      return;
+    }
+    
+    for(const m of filt){
+      const d = devs.find(x=>(x.mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase()===m);
+      const nm = (names[m.toLowerCase()]||{}).name || (d&&d.name!==d.mac?d.name:"") || m;
+      const row = document.createElement("label");
+      row.className = "switchrow";
+      row.style.cssText = "padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px";
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.value = m;
+      chk.checked = ownedSet.has(m);
+      chk.onchange = () => {
+        if(chk.checked) ownedSet.add(m); else ownedSet.delete(m);
+        updateSelectedCount();
+      };
+      const titleSpan = document.createElement("span");
+      titleSpan.style.flex = "1";
+      titleSpan.innerHTML = `<b>${esc(nm)}</b> <code class="mono" style="font-size:11px;color:var(--mut)">(${m})</code>`;
+      const stTag = document.createElement("span");
+      stTag.className = "tag " + (d?(d.online?"ok":"bad"):"");
+      stTag.textContent = d?(d.online?"● online":"○ offline"):"unseen";
+      stTag.style.fontSize = "10px";
+      
+      row.appendChild(chk);
+      row.appendChild(titleSpan);
+      row.appendChild(stTag);
+      list.appendChild(row);
+    }
+  }
+  
+  function updateSelectedCount(){
+    if($("musSelectedCount")){
+      $("musSelectedCount").textContent = `${ownedSet.size} of ${allMacs.length} strips assigned`;
+    }
+  }
+  
+  if($("musSearch")){
+    $("musSearch").value = "";
+    $("musSearch").oninput = (e) => renderChecklist(e.target.value.trim());
+  }
+  
+  renderChecklist();
+  updateSelectedCount();
+  modal.classList.add("open");
+}
+
+function closeUserStripsModal(){
+  const modal = $("modalUserStrips");
+  if(modal)modal.classList.remove("open");
+  _activeEditingUserToken = null;
+}
+
+on("musClose","click",closeUserStripsModal);
+on("musCancel","click",closeUserStripsModal);
+
+on("musSelectAll","click",async()=>{
+  const list = $("musList");
+  if(list){
+    list.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+      cb.checked = true;
+      cb.dispatchEvent(new Event("change"));
+    });
+  }
+});
+
+on("musClearAll","click",()=>{
+  const list = $("musList");
+  if(list){
+    list.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+      cb.checked = false;
+      cb.dispatchEvent(new Event("change"));
+    });
+  }
+});
+
+on("musSave","click",async()=>{
+  if(!_activeEditingUserToken)return;
+  const list = $("musList");
+  const selected = [];
+  if(list){
+    list.querySelectorAll("input[type=checkbox]:checked").forEach(cb=>selected.push(cb.value));
+  }
+  const btn = $("musSave");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try{
+    const r = await apit("/api/users", {
+      token: _activeEditingUserToken,
+      strips: selected
+    });
+    if(r.ok){
+      closeUserStripsModal();
+      await loadUsers();
+      await renderManage();
+    }else{
+      alert("Failed to save assignments: " + (r.error || "unknown error"));
+    }
+  }catch(e){
+    alert("Error saving: " + e.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "💾 Save Assignments";
+  }
+});
+
+/* ---- Single Strip Reassignment Modal ---- */
+let _activeEditingStripMac = null;
+
+async function openStripOwnerModal(mac){
+  _activeEditingStripMac = mac.toUpperCase().replace(/[^0-9A-F]/g,"");
+  const modal = $("modalStripUser");
+  if(!modal)return;
+  
+  if(!Object.keys(_cachedUsers).length){
+    try{
+      const uRes = await apit("/api/users");
+      _cachedUsers = uRes.users || {};
+    }catch{}
+  }
+  
+  const liveData = await ensureLive();
+  const devs = (liveData && liveData.devices) || [];
+  const names = (liveData && liveData.names) || {};
+  const nm = (names[mac.toLowerCase()]||{}).name || (devs.find(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase()===_activeEditingStripMac)||{}).name || mac;
+  
+  if($("msuTitle"))$("msuTitle").textContent = `Assign Strip Owner`;
+  if($("msuDesc"))$("msuDesc").innerHTML = `Assign ownership of <b>${esc(nm)}</b> (<code class="mono">${_activeEditingStripMac}</code>) to a user account.`;
+  
+  const sel = $("msuUserSel");
+  if(sel){
+    const keys = Object.keys(_cachedUsers);
+    let opts = `<option value="__none__">⚠️ Admin only (Unassigned)</option>`;
+    for(const t of keys){
+      const u = _cachedUsers[t];
+      const isOwner = (u.strips||[]).some(m=>m.toUpperCase().replace(/[^0-9A-F]/g,"")===_activeEditingStripMac);
+      opts += `<option value="${esc(t)}" ${isOwner?"selected":""}>👤 ${esc(u.name||"User")} (${(u.strips||[]).length} strips)</option>`;
+    }
+    sel.innerHTML = opts;
+  }
+  modal.classList.add("open");
+}
+
+function closeStripOwnerModal(){
+  const modal = $("modalStripUser");
+  if(modal)modal.classList.remove("open");
+  _activeEditingStripMac = null;
+}
+
+on("msuClose","click",closeStripOwnerModal);
+on("msuCancel","click",closeStripOwnerModal);
+
+on("msuSave","click",async()=>{
+  if(!_activeEditingStripMac)return;
+  const sel = $("msuUserSel");
+  const targetToken = sel ? sel.value : "__none__";
+  const btn = $("msuSave");
+  btn.disabled = true;
+  btn.textContent = "Assigning…";
+  try{
+    const r = await apit("/api/claim",{
+      mac: _activeEditingStripMac,
+      target_token: targetToken,
+      token: tok()
+    });
+    if(r.ok){
+      closeStripOwnerModal();
+      await loadUsers();
+      await renderManage();
+    }else{
+      alert("Failed to assign strip: " + (r.error||"unknown error"));
+    }
+  }catch(e){
+    alert("Error assigning: " + e.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "💾 Save Assignment";
+  }
+});
+
+/* ---- Strips manage (scalable with search, filter, pagination, user badge) ---- */
+let _manageSearchQuery = "";
+let _manageFilter = "all"; // all | online | offline | unassigned
+let _managePage = 1;
+const STRIPS_PER_PAGE = 10;
+
 async function ensureLive(){if(_last)return _last;try{_last=await apit("/api/live");}catch(e){}return _last;}
+
 async function renderManage(){
   const box=$("manage");if(!box)return;
   const s=await ensureLive();
   if(!s){box.innerHTML="<p class='err'>Set the token in Settings first.</p>";return;}
+  
+  // Ensure we have current user mappings for owner badges
+  if(!Object.keys(_cachedUsers).length){
+    try{
+      const uRes = await apit("/api/users");
+      _cachedUsers = uRes.users || {};
+    }catch{}
+  }
+  
+  const macToUsers = {};
+  for(const [t, u] of Object.entries(_cachedUsers)){
+    for(const m of (u.strips||[])){
+      const clean = m.toUpperCase().replace(/[^0-9A-F]/g,"");
+      if(!macToUsers[clean])macToUsers[clean] = [];
+      macToUsers[clean].push({name: u.name, token: t});
+    }
+  }
+  
   const devs=s.devices||[],names=s.names||{};
-  const macs=[...new Set([...devs.map(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()),...Object.keys(names)])].filter(Boolean);
-  if(!macs.length){box.innerHTML="<p class='small'>No strips known yet — provision one in Setup and it appears here.</p>";return;}
-  box.innerHTML="";
-  for(const mac of macs){
+  const allMacs=[...new Set([...devs.map(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()),...Object.keys(names)])].filter(Boolean);
+  if(!allMacs.length){
+    box.innerHTML="<p class='small'>No strips known yet — provision one in Setup and it appears here.</p>";
+    if($("managePagination"))$("managePagination").style.display="none";
+    if($("managePaginationBottom"))$("managePaginationBottom").style.display="none";
+    return;
+  }
+
+  // Pre-calculate strip metadata for filtering & counts
+  const stripItems = allMacs.map(mac=>{
     const d=devs.find(x=>(x.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()===mac);
     const nm=names[mac]||{};
-    const card=document.createElement("div");card.className="strip"+(d&&!d.online?" off":"");
     const title=(nm.name)||(d&&(d.name!==d.mac?d.name:""))||(d?d.mac:mac.toUpperCase());
+    const cleanMac=(d?d.mac:mac).toUpperCase().replace(/[^0-9A-F]/g,"");
+    const isOnline=Boolean(d && d.online);
+    const assigned=macToUsers[cleanMac]||[];
+    return {
+      mac,
+      cleanMac,
+      d,
+      nm,
+      title,
+      isOnline,
+      assigned
+    };
+  });
+
+  // Calculate counts for chips
+  const cntAll = stripItems.length;
+  const cntOnline = stripItems.filter(x=>x.isOnline).length;
+  const cntOffline = stripItems.filter(x=>!x.isOnline).length;
+  const cntUnassigned = stripItems.filter(x=>x.assigned.length===0).length;
+
+  if($("cntManageAll"))$("cntManageAll").textContent = cntAll;
+  if($("cntManageOnline"))$("cntManageOnline").textContent = cntOnline;
+  if($("cntManageOffline"))$("cntManageOffline").textContent = cntOffline;
+  if($("cntManageUnassigned"))$("cntManageUnassigned").textContent = cntUnassigned;
+
+  // Filter items
+  const q = _manageSearchQuery.toLowerCase().trim();
+  let filtered = stripItems.filter(item=>{
+    if(_manageFilter==="online" && !item.isOnline)return false;
+    if(_manageFilter==="offline" && item.isOnline)return false;
+    if(_manageFilter==="unassigned" && item.assigned.length > 0)return false;
+
+    if(!q)return true;
+    const assignedNames = item.assigned.map(a=>a.name).join(" ").toLowerCase();
+    return item.title.toLowerCase().includes(q) || 
+           item.cleanMac.toLowerCase().includes(q) || 
+           assignedNames.includes(q);
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / STRIPS_PER_PAGE));
+  if(_managePage > totalPages) _managePage = totalPages;
+  if(_managePage < 1) _managePage = 1;
+
+  const pageItems = filtered.slice((_managePage-1)*STRIPS_PER_PAGE, _managePage*STRIPS_PER_PAGE);
+
+  // Pagination UI
+  const pTop = $("managePagination");
+  const pBtm = $("managePaginationBottom");
+  if(filtered.length > STRIPS_PER_PAGE){
+    if(pTop)pTop.style.display="flex";
+    if(pBtm)pBtm.style.display="flex";
+    const start = (_managePage-1)*STRIPS_PER_PAGE + 1;
+    const end = Math.min(_managePage*STRIPS_PER_PAGE, filtered.length);
+    if($("managePageInfo"))$("managePageInfo").textContent = `Showing ${start}–${end} of ${filtered.length} strips`;
+    if($("manageCurrentPage"))$("manageCurrentPage").textContent = `${_managePage} / ${totalPages}`;
+    if($("managePrevPage"))$("managePrevPage").disabled = (_managePage <= 1);
+    if($("manageNextPage"))$("manageNextPage").disabled = (_managePage >= totalPages);
+    if($("managePrevPageBtm"))$("managePrevPageBtm").disabled = (_managePage <= 1);
+    if($("manageNextPageBtm"))$("manageNextPageBtm").disabled = (_managePage >= totalPages);
+  }else{
+    if(pTop)pTop.style.display="none";
+    if(pBtm)pBtm.style.display="none";
+  }
+
+  box.innerHTML="";
+  if(!pageItems.length){
+    box.innerHTML="<p class='small' style='padding:12px 0'>No strips match the current filter.</p>";
+    return;
+  }
+
+  for(const item of pageItems){
+    const { mac, cleanMac, d, nm, title, assigned } = item;
+    const card=document.createElement("div");card.className="strip"+(d&&!d.online?" off":"");
     const onames=Object.assign({},{1:"",2:"",3:"",4:""},nm.outlets||{});
     if(d&&d.outlets)for(const o of d.outlets)if(o.nick&&!onames[String(o.n)])onames[String(o.n)]=o.nick;
-    card.innerHTML=`<div class="strip-head"><b></b><span class="tag ${d?(d.online?"ok":"bad"):""}">${d?(d.online?"● online":"○ offline"):"never seen"}</span><span class="tag mono"></span>${d&&d.fw?`<span class="tag">fw ${d.fw}</span>`:""}<span style="flex:1"></span><button class="danger sm remove-strip" title="Remove strip from dashboard">🗑 Remove</button></div>
+
+    // Build Assigned User badge
+    let ownerBadgeText = "⚠️ Unassigned";
+    let ownerBtnClass = "ghost sm assign-owner-btn";
+    if(assigned.length === 1){
+      ownerBadgeText = `👤 ${assigned[0].name}`;
+    }else if(assigned.length > 1){
+      ownerBadgeText = `👥 ${assigned.length} users`;
+    }
+
+    card.innerHTML=`<div class="strip-head">
+      <b></b>
+      <span class="tag ${d?(d.online?"ok":"bad"):""}">${d?(d.online?"● online":"○ offline"):"never seen"}</span>
+      <span class="tag mono"></span>
+      ${d&&d.fw?`<span class="tag">fw ${d.fw}</span>`:""}
+      <button class="${ownerBtnClass}" data-mac="${cleanMac}" style="border-radius:99px;font-weight:600;font-size:11px" title="Change assigned user">${esc(ownerBadgeText)} ▾</button>
+      <span style="flex:1"></span>
+      <button class="danger sm remove-strip" title="Remove strip from dashboard">🗑 Remove</button>
+    </div>
     <div class="grid cols2" style="margin-top:8px">
       <div class="field"><span>Strip name</span><input data-f="name" maxlength="40"></div>
       <div class="field"><span>&nbsp;</span><div class="row"><button class="ghost sm save">💾 Save names</button><button class="danger sm clear">Reset</button></div></div>
     </div>
     <div class="grid cols4 outs4"></div><div class="msg small"></div>`;
+    
     card.querySelector("b").textContent=title;
     card.querySelector(".mono").textContent=(d?d.mac:mac.toUpperCase());
     card.querySelector('[data-f="name"]').value=nm.name||"";
     const g4=card.querySelector(".outs4"),msg=card.querySelector(".msg");
-    for(let n=1;n<=4;n++){const f=document.createElement("div");f.className="field";f.innerHTML=`<span>Outlet ${n}</span><input data-o="${n}" maxlength="40">`;f.querySelector("input").value=onames[String(n)]||"";g4.appendChild(f);}
+    for(let n=1;n<=4;n++){
+      const f=document.createElement("div");f.className="field";f.innerHTML=`<span>Outlet ${n}</span><input data-o="${n}" maxlength="40">`;
+      f.querySelector("input").value=onames[String(n)]||"";
+      g4.appendChild(f);
+    }
+
+    card.querySelector(".assign-owner-btn").onclick=()=>{
+      openStripOwnerModal(cleanMac);
+    };
+
     card.querySelector(".remove-strip").onclick=async()=>{
       if(!confirm(`Are you sure you want to remove ${title} (${(d?d.mac:mac).toUpperCase()})?`))return;
       try{
@@ -960,17 +1484,51 @@ async function renderManage(){
         }
       }catch(e){showErr(msg,"",e);}
     };
+
     card.querySelector(".save").onclick=async()=>{
       const outlets={};g4.querySelectorAll("input").forEach(i=>{outlets[i.dataset.o]=i.value.trim();});
       try{await apit("/api/rename",{mac,name:card.querySelector('[data-f="name"]').value.trim(),outlets});msg.textContent="✓ saved";_last=null;await live();}
-      catch(e){showErr(msg,"",e);}};
+      catch(e){showErr(msg,"",e);}
+    };
+
     card.querySelector(".clear").onclick=async()=>{
       if(!confirm("Clear all custom names for this strip?"))return;
       try{await apit("/api/rename",{mac,name:"",outlets:{"1":"","2":"","3":"","4":""}});msg.textContent="✓ reset";_last=null;await live();}
-      catch(e){showErr(msg,"",e);}};
+      catch(e){showErr(msg,"",e);}
+    };
+
     box.appendChild(card);
   }
 }
+
+// Strips search, filter, and pagination event listeners
+on("manageSearch","input",e=>{
+  _manageSearchQuery = e.target.value;
+  _managePage = 1;
+  renderManage();
+});
+
+function setManageFilter(flt){
+  _manageFilter = flt;
+  _managePage = 1;
+  ["fltManageAll","fltManageOnline","fltManageOffline","fltManageUnassigned"].forEach(id=>{
+    const btn = $(id);
+    if(btn)btn.classList.remove("on");
+  });
+  const activeBtn = $(`fltManage${flt.charAt(0).toUpperCase() + flt.slice(1)}`);
+  if(activeBtn)activeBtn.classList.add("on");
+  renderManage();
+}
+
+on("fltManageAll","click",()=>setManageFilter("all"));
+on("fltManageOnline","click",()=>setManageFilter("online"));
+on("fltManageOffline","click",()=>setManageFilter("offline"));
+on("fltManageUnassigned","click",()=>setManageFilter("unassigned"));
+
+on("managePrevPage","click",()=>{if(_managePage>1){_managePage--;renderManage();}});
+on("manageNextPage","click",()=>{_managePage++;renderManage();});
+on("managePrevPageBtm","click",()=>{if(_managePage>1){_managePage--;renderManage();}});
+on("manageNextPageBtm","click",()=>{_managePage++;renderManage();});
 on("btnManageRefresh","click",async()=>{_last=null;await live();await renderManage();});
 function ago(s){if(s==null)return "?";s=Math.max(0,Math.round(s));
   if(s<10)return "just now";if(s<60)return s+"s ago";

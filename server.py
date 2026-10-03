@@ -1066,10 +1066,22 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/users":
             if not self._is_admin():
                 return self._json({"error": "admin access required"}, 403)
-            name = (body.get("name") or "").strip()[:40] or "User"
-            custom_token = (body.get("token") or "").strip()
-            new_token = custom_token if custom_token else f"volta_usr_{secrets.token_hex(8)}"
             users = get_users()
+            req_token = (body.get("token") or "").strip()
+            
+            # If updating an existing user record
+            if req_token and req_token in users:
+                if "name" in body:
+                    users[req_token]["name"] = (body.get("name") or "").strip()[:40] or users[req_token]["name"]
+                if "strips" in body:
+                    users[req_token]["strips"] = [norm_mac(m).upper() for m in body.get("strips", []) if m]
+                save_users(users)
+                log(f"user updated: {users[req_token]['name']} ({req_token[:14]}...)")
+                return self._json({"ok": True, "token": req_token, "user": users[req_token]})
+            
+            # Creating a new user
+            name = (body.get("name") or "").strip()[:40] or "User"
+            new_token = req_token if req_token else f"volta_usr_{secrets.token_hex(8)}"
             users[new_token] = {
                 "name": name,
                 "strips": [norm_mac(m).upper() for m in body.get("strips", []) if m],
@@ -1106,6 +1118,13 @@ class Handler(BaseHTTPRequestHandler):
             
             # If admin is performing a transfer / assignment to a specific user
             if ctx["is_admin"] and target_user_token:
+                if target_user_token in ("__none__", "none", "clear"):
+                    for u_t, u_data in users.items():
+                        if mac in u_data.get("strips", []):
+                            u_data["strips"].remove(mac)
+                    save_users(users)
+                    log(f"[transfer] strip {mac} unassigned by Admin")
+                    return self._json({"ok": True, "unassigned": True, "mac": mac})
                 if target_user_token not in users:
                     return self._json({"error": "target user not found"}, 404)
                 # Remove MAC from any previous owner first to transfer clean
