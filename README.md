@@ -8,14 +8,14 @@ No cloud subscriptions. No Korean phone numbers. No vendor lock-in.
 
 ## Highlights
 
-- **Direct Dial-In Architecture**: Strips dial outbound to your server over TCP port `10086`. No open incoming ports needed on your home network.
-- **Fast Local Web Dashboard**: Control individual outlets or master switch in real time with immediate socket confirmation.
-- **Full Electrical Telemetry**: Live power (W), cumulative energy (kWh), grid voltage (V), current (A), internal temperature (°C), and Wi-Fi signal (dBm).
-- **Time-Series Analytics**: Interactive charts for house load, per-strip power, voltage fluctuations, temperature, and top energy-consuming outlets.
-- **Multi-Tenant User Isolation**: Create scoped user accounts with restricted visibility; users can only see and control the power strips assigned to them.
-- **Automated Provisioning**: One-shot setup script for Android/Termux or CLI that pairs strips and claims them automatically.
-- **Schedules & Offline Queuing**: Configure daily outlet schedules with timezone support. Commands issued while a strip is offline are queued and executed automatically upon reconnect.
-- **Instant Alerts**: Push notifications for power outages, strip dropouts, and extreme temperature thresholds via [ntfy.sh](https://ntfy.sh).
+- **Direct Dial-In Architecture**: Strips dial outbound to your server over TCP port `10086`. No open incoming ports or router port forwards needed on your home network.
+- **Fast Local Web Dashboard**: Control individual outlets or master switches in real time with instantaneous socket confirmation.
+- **Full Electrical Telemetry**: Live power (W), cumulative energy (kWh), grid voltage (V), internal temperature (°C), and Wi-Fi signal (dBm).
+- **Time-Series Analytics**: Interactive charts for aggregate house load, per-strip power, voltage fluctuations, temperature, and top energy-consuming outlets.
+- **Multi-Tenant User Isolation & Subscriptions**: Create scoped user accounts with restricted device visibility, subscription expiration dates, maximum strip quotas, and multi-user device assignment.
+- **Automated Provisioning & Mobile Pairing**: Seamless Android app setup wizard and one-shot Termux script that pairs strips and claims them automatically.
+- **Location, Timezone & Solar Engine**: Select your country and city to automatically sync your local timezone and precise sunrise/sunset times for solar schedules and timers.
+- **Instant Alerts**: Push notifications for power outages, strip dropouts, voltage sags/surges, and extreme temperature thresholds via [ntfy.sh](https://ntfy.sh).
 
 ---
 
@@ -30,17 +30,17 @@ No cloud subscriptions. No Korean phone numbers. No vendor lock-in.
 │  Volta Server (VPS or Local Machine)                   │
 │                                                        │
 │   controller.py (TCP daemon, ASCII protocol parser)    │
-│   server.py     (HTTP API, Multi-tenancy, Auth)        │
+│   server.py     (HTTP API, Multi-tenancy, Solar/Geo)   │
 │   analytics.py  (Timeseries collector, SQLite store)   │
 │   index.html    (Modern responsive web interface)      │
 │                                                        │
 │   Persistent Stores:                                   │
-│    ├── strips.json   (Names, schedules, user registry) │
+│    ├── strips.json   (Names, schedules, user accounts) │
 │    └── analytics.db  (Historical sensor data)          │
 └────────────────────────────────────────────────────────┘
             ▲
             │ HTTPS (Port 8080 or Reverse Proxy)
-   [ Web Browser / Mobile ]
+   [ Web Browser / Mobile App ]
 ```
 
 ---
@@ -49,8 +49,8 @@ No cloud subscriptions. No Korean phone numbers. No vendor lock-in.
 
 ### 1. Clone & Configure
 ```bash
-git clone https://github.com/your-repo/volta-web.git
-cd volta-web
+git clone https://github.com/MenaYassa/volta.git
+cd volta
 ```
 
 Create a `.env` file with your master admin token:
@@ -62,7 +62,7 @@ echo "VOLTA_TOKEN=$(openssl rand -hex 16)" > .env
 ```bash
 docker compose up -d --build
 ```
-- Web UI & REST API: `http://localhost:8080` (or your domain/reverse proxy)
+- Web UI & REST API: `http://localhost:8080` (or via Cloudflare Tunnel / reverse proxy)
 - Strip TCP Dial-in: `0.0.0.0:10086`
 
 ### 3. Verify Health
@@ -71,7 +71,7 @@ curl -s http://localhost:8080/api/health
 ```
 Expected output:
 ```json
-{"ok": true, "controller": true, "auth": true}
+{"ok": true, "controller": true, "auth_required": true, "auth": true}
 ```
 
 ---
@@ -80,11 +80,12 @@ Expected output:
 
 Detailed engineering guides and specifications are organized in the [`docs/`](./docs) folder:
 
-- **[Architecture & Protocol (`docs/architecture.md`)](./docs/architecture.md)**: Deep dive into the `up:` text protocol, framing, and command flows.
-- **[Setup & Provisioning (`docs/setup-and-provisioning.md`)](./docs/setup-and-provisioning.md)**: Step-by-step pairing guide using Termux, Wi-Fi AP handshake, and claiming.
-- **[Multi-Tenancy & Permissions (`docs/multi-tenancy.md`)](./docs/multi-tenancy.md)**: Managing user accounts, scoped tokens, and transferring strips.
-- **[Analytics & Metrics Engine (`docs/analytics.md`)](./docs/analytics.md)**: Database schema, rolling downsampling, and leaderboard ranking.
+- **[Architecture, Protocol & Solar Engine (`docs/architecture.md`)](./docs/architecture.md)**: Deep dive into the `up:` text protocol, framing, geocoding, and solar calculations.
+- **[Setup & Provisioning (`docs/setup-and-provisioning.md`)](./docs/setup-and-provisioning.md)**: Mobile pairing wizard, Termux script, Wi-Fi AP handshake, and claiming.
+- **[Multi-Tenancy, Subscriptions & Security (`docs/multi-tenancy.md`)](./docs/multi-tenancy.md)**: User accounts, plan limits, duration stacking, expiration warnings, and multi-user device assignment.
+- **[Analytics & Metrics Engine (`docs/analytics.md`)](./docs/analytics.md)**: Database schema, canonical KPIs summary endpoint, and leaderboard ranking.
 - **[Hardware Reference & Modding (`docs/hardware-reference.md`)](./docs/hardware-reference.md)**: Teardown, RTL8711AF SoC, I2C relay codes, and USB rail details.
+- **[Hardware Mod Guide (ESP-01) (`docs/hardware-mod/README.md`)](./docs/hardware-mod/README.md)**: Circuit wiring, firmware sketch, and pinout instructions for replacing a dead MCU with an ESP-01.
 
 ---
 
@@ -93,10 +94,3 @@ Detailed engineering guides and specifications are organized in the [`docs/`](./
 - **Device**: LG U+ / TONLY MTTL-W01 Smart Power Strip (Korean 4-Outlet + 2 USB).
 - **SoC**: Realtek RTL8711AF (ARM Cortex-M3).
 - **Firmware Tested**: `0.1.32-1.0.38`, `0.1.50-1.0.60`, `0.1.52-1.0.62`, `0.1.54-1.0.105`.
-
----
-
-## License & Credits
-
-- Licensed under the MIT License.
-- Reverse engineering and protocol rederivation informed by open community research (Hackaday project 202043 & powerk protocol notes).

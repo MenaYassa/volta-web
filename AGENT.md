@@ -21,26 +21,27 @@ The system runs inside the Docker container named `volta` (`volta-local:latest`)
 | Component | File | Port | Role |
 |---|---|---|---|
 | **Controller Daemon** | `controller.py` | `10086` | Asyncio TCP server. Handles native `up:` text wire protocol, session handshakes (`up:bootinfo`), polling loop (`up:getinfo:all`), outlet switching (`up:onoff`), and Wi-Fi diagnostics. |
-| **Web API & Auth** | `server.py` | `8080` | Multi-tenant HTTP API and web server. Handles user token resolution, strip ownership scoping, relay dispatch, custom naming, schedules, and ntfy alerts. |
-| **Analytics Engine** | `analytics.py` | — | Background collector thread (30s interval) logging power, voltage, temperature, and cumulative energy to SQLite (`analytics.db`). Powers interactive charts and the energy leaderboard. |
-| **Frontend UI** | `index.html` | — | Single-page PWA dashboard. Tabs: Live Control, Analytics & Charts, Strips & Names, Schedules, Setup & Pairing, and Settings/Users. |
+| **Web API & Auth** | `server.py` | `8080` | Multi-tenant HTTP API and web server. Handles user token resolution, strip ownership scoping, relay dispatch, custom naming, schedules, geocoding solar times, and ntfy alerts. |
+| **Analytics Engine** | `analytics.py` | — | Background collector thread (30s interval) logging power, voltage, temperature, and cumulative energy to SQLite (`analytics.db`). Powers interactive charts and canonical `/api/analytics/summary` KPIs. |
+| **Frontend UI** | `index.html` | — | Single-page PWA dashboard. Tabs: Live Control, Analytics & Charts, Strips & Names, Schedules & Timers, Setup & Pairing, and Settings/Users. |
 
 ---
 
 ## 3. Data Storage & Persistence
 
 Mounted into the container to survive rebuilds and restarts:
-- **`strips.json`**: Stores custom strip/outlet names, schedules, alert settings, and multi-tenant user accounts (`users: { token: { name, strips, created_at } }`).
+- **`strips.json`**: Stores custom strip/outlet names, schedules, alert settings, geo location, and multi-tenant user accounts (`users: { token: { name, strips, max_strips, expires_at, status, created_at } }`).
 - **`analytics.db`**: SQLite database storing 30-second interval timeseries readings (`readings` table).
-- **`.env`**: Master administrator token (`VOLTA_TOKEN` / `VOLTRA_TOKEN`).
+- **`.env`**: Master administrator token (`VOLTA_TOKEN`).
 
 ---
 
 ## 4. Multi-Tenancy & Authorization Rules
 
 All `/api/*` endpoints (except `/api/health`, `/api/nets`, and public static files) require authentication via `X-Token` header.
-- **Admin**: Matches `VOLTA_TOKEN`. Can see, switch, name, and transfer all strips, as well as create/revoke tenant accounts.
-- **Scoped User (`volta_usr_...`)**: Resolved via `strips.json` -> `users`. Endpoints automatically scope returned devices (`GET /api/live`), verify ownership before switching (`POST /api/onoff`), and restrict leaderboard/chart queries (`POST /api/analytics/*`).
+- **Admin**: Matches `VOLTA_TOKEN`. Can see, switch, name, and transfer all strips, inspect gateway logs, and manage user accounts/subscriptions.
+- **Scoped User (`volta_usr_...`)**: Resolved via `strips.json` -> `users`. Endpoints automatically scope returned devices (`GET /api/live`), verify ownership before switching (`POST /api/onoff`), enforce capacity quotas (`POST /api/claim`), and restrict leaderboard/chart queries.
+- **Subscriptions & Limits**: Users with expired or canceled accounts receive `401 Unauthorized` with `subscription_expired: true`. Users with $\le$ 30 days remaining receive automated renewal banners.
 
 ---
 
@@ -64,5 +65,5 @@ All `/api/*` endpoints (except `/api/health`, `/api/nets`, and public static fil
    - Never use `docker compose down` unless instructed (to avoid volume detach issues).
 3. **Telemetry & DB Safety**:
    - Never drop or truncate `analytics.db` or delete `strips.json`.
-4. **Secrets**:
-   - Never hardcode or echo master tokens in scripts or git commits. Read from `.env`.
+4. **Secrets & Hygiene**:
+   - Never hardcode or echo master tokens, VPS IP, or private domains in git commits.

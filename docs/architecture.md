@@ -1,6 +1,6 @@
-# Architecture & Protocol
+# Architecture, Protocol & Solar Geocoding
 
-Volta eliminates reliance on vendor cloud infrastructure (LG U+ / OMMEQ) through **role reversal**: instead of the server polling strips on local LAN (where strips have zero open ports in station mode), the strips dial **outbound** to Volta over a persistent TCP socket.
+Volta eliminates reliance on vendor cloud infrastructure (LG U+ / OMMEQ) through **role reversal**: instead of the server attempting to poll strips across home firewalls (where strips have zero open incoming ports in station mode), the strips dial **outbound** to Volta over a persistent TCP socket on port `10086`.
 
 ```
 +-------------------------------------------------------------+
@@ -77,3 +77,37 @@ up:onoff:<outlet_num>:<on|off>
 ### D. Diagnostics (`up:power_report` & `up:query`)
 - **Voltage measurement**: Server sends `up:power_report:1:vol`. The strip returns `up:power_report:1:<millivolts>` (e.g. `238400` = 238.4 V).
 - **Wi-Fi Signal**: Server sends `up:query:wifirssi`. The strip returns `up:query:<rssi_dBm>` (e.g. `-65`).
+
+---
+
+## 3. Location, Timezone & Solar Engine
+
+Volta features integrated geocoding and astronomical solar calculations so users never need to manually enter raw GPS coordinates.
+
+### A. City Search & Geocoding (`GET /api/geo/search?q=...`)
+Users select their city and country via an autocomplete lookup:
+- **Query**: `GET /api/geo/search?q=Dubai`
+- **Output**: Returns matching cities with country, region, coordinates, and exact IANA Timezone (`Asia/Dubai`, `Africa/Cairo`, etc.).
+
+### B. Live Solar Times & Clock (`GET /api/geo/sun`)
+Computes NOAA sunrise, sunset, and localized wall-clock time for the configured location:
+```json
+{
+  "ok": true,
+  "city": "Cairo",
+  "country": "Egypt",
+  "timezone": "Africa/Cairo",
+  "latitude": 30.0444,
+  "longitude": 31.2357,
+  "local_time": "20:30:15",
+  "local_date": "2026-10-03",
+  "sunrise": "06:49",
+  "sunset": "18:38",
+  "sunrise_iso": "2026-10-03T06:49:12+03:00",
+  "sunset_iso": "2026-10-03T18:38:38+03:00"
+}
+```
+
+### C. Solar & Timezone-Aware Scheduler
+- **Schedules (`kind: "sun"`)**: Automatically fire relative to local sunrise or sunset (e.g., Turn Garden Lights ON at `Sunset - 15min`).
+- **Timezone Sync**: The background scheduler loop evaluates target times against the configured local timezone rather than server UTC.

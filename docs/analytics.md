@@ -29,11 +29,37 @@ CREATE TABLE IF NOT EXISTS readings (
 
 ---
 
-## 2. Downsampling & Query Performance
+## 2. Canonical Summary & KPIs (`POST /api/analytics/summary`)
 
-To ensure responsive charting even over 7-day ranges with thousands of data points, queries support SQL bucket downsampling:
-- **`minute` downsampling**: `(ts / 60) * 60`
-- **`hour` downsampling**: `(ts / 3600) * 3600`
+To eliminate wasteful client-side loops and inconsistent multi-strip calculations across web and mobile clients, Volta provides a single canonical endpoint for period KPIs:
+
+- **Endpoint**: `POST /api/analytics/summary` (or alias `POST /api/analytics/kpis`)
+- **Payload**:
+  ```json
+  {
+    "range": "24h",
+    "mac": "__all__"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "ok": true,
+    "range": "24h",
+    "kpis": {
+      "avg_power_w": 284.5,
+      "energy_kwh": 6.828,
+      "cost": 14.88,
+      "cost_rate": 2.18,
+      "currency": "EGP",
+      "avg_voltage_v": 221.4,
+      "max_temp_c": 38.0
+    }
+  }
+  ```
+
+### Multi-Strip Power Summation:
+When querying all strips (`mac: "__all__"`), `avg_power_w` represents the **sum of all online strips' average loads** over the chosen period, ensuring the dashboard shows the true aggregate house power rather than an unweighted average of individual devices.
 
 ---
 
