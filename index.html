@@ -217,8 +217,17 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </div>
 
 <details class="adv">
-<summary style="cursor:pointer;font-weight:600;font-size:15px;padding:4px 0">⚡ Top energy consumers (last 24h)</summary>
+<summary style="cursor:pointer;font-weight:600;font-size:15px;padding:4px 0">⚡ Top energy consumers (<span id="lbRangeLabel">last 24 hours</span>)</summary>
 <p class="desc" style="margin-top:8px">Which outlets are using the most energy. Sorted by total kWh consumed.</p>
+<div class="row" style="margin:10px 0 4px;gap:8px;flex-wrap:wrap">
+  <button id="lbBtn1h" class="ghost sm">1h</button>
+  <button id="lbBtn6h" class="ghost sm">6h</button>
+  <button id="lbBtn24h" class="ghost sm on">24h</button>
+  <button id="lbBtn7d" class="ghost sm">7d</button>
+  <button id="lbBtn30d" class="ghost sm">30d</button>
+  <button id="lbBtn6m" class="ghost sm">6mo</button>
+  <button id="lbBtn1y" class="ghost sm">1y</button>
+</div>
 <div id="leaderboard" style="margin:12px 0"><p class="small">Loading…</p></div>
 </details>
 </section>
@@ -1577,9 +1586,21 @@ async function loadOverview(st){
     await loadRangeKpis();
   }catch(e){console.error("overview error:",e);}
 }
+let lbRange="24h";
+function lbSetRange(btn,range){
+  ["lbBtn1h","lbBtn6h","lbBtn24h","lbBtn7d","lbBtn30d","lbBtn6m","lbBtn1y"].forEach(id=>{if($(id))$(id).classList.remove("on");});
+  btn.classList.add("on");lbRange=range;loadLeaderboard();
+}
+on("lbBtn1h","click",()=>lbSetRange($("lbBtn1h"),"1h"));
+on("lbBtn6h","click",()=>lbSetRange($("lbBtn6h"),"6h"));
+on("lbBtn24h","click",()=>lbSetRange($("lbBtn24h"),"24h"));
+on("lbBtn7d","click",()=>lbSetRange($("lbBtn7d"),"7d"));
+on("lbBtn30d","click",()=>lbSetRange($("lbBtn30d"),"30d"));
+on("lbBtn6m","click",()=>lbSetRange($("lbBtn6m"),"6m"));
+on("lbBtn1y","click",()=>lbSetRange($("lbBtn1y"),"1y"));
 async function loadLeaderboard(){
   try{
-    const now=Math.floor(Date.now()/1000),start=now-86400;
+    const now=Math.floor(Date.now()/1000),start=now-(RANGE_SEC[lbRange]||86400);
     const r=await apit("/api/analytics/leaderboard",{start_ts:start,end_ts:now,limit:5});
     const st=await ensureLive();
     const settings=await apit("/api/settings");
@@ -1587,8 +1608,9 @@ async function loadLeaderboard(){
     const currency=settings.currency||"EGP";
     const names=(st&&st.names)||{};
     const box=$("leaderboard");if(!box)return;
+    if($("lbRangeLabel"))$("lbRangeLabel").textContent=RANGE_LABEL[lbRange]||lbRange;
     const list=(r.leaderboard||[]).filter(e=>((e.energy_kwh||e.energy_delta_kwh||0)>0.00005)||(e.peak_power_w>0.05)||(e.avg_power_w>0.05)).slice(0,5);
-    if(!list.length){box.innerHTML='<p class="small">No active consumers recorded yet in the last 24h.</p>';return;}
+    if(!list.length){box.innerHTML=`<p class="small">No active consumers recorded yet (${RANGE_LABEL[lbRange]||lbRange}).</p>`;return;}
     const maxKwh=Math.max(...list.map(e=>Number(e.energy_kwh!=null?e.energy_kwh:e.energy_delta_kwh)||0),0.0001);
     const medals=["🥇","🥈","🥉"];
     box.innerHTML=list.map((e,i)=>{
