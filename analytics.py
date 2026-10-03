@@ -228,6 +228,7 @@ def outlet_leaderboard(start_ts, end_ts, limit=10, macs=None):
     Energy = per-outlet meter delta (last - first positive sample in window),
     with power-integration fallback. Excludes outlets with zero consumption."""
     with _lock, _conn() as db:
+        params = [start_ts, end_ts]
         mac_clause = ""
         if macs is not None:
             clean_macs = [str(m).upper().replace(":", "") for m in macs]
@@ -235,6 +236,7 @@ def outlet_leaderboard(start_ts, end_ts, limit=10, macs=None):
                 return []
             placeholders = ",".join("?" for _ in clean_macs)
             mac_clause = f"AND mac IN ({placeholders})"
+            params.extend(clean_macs)
 
         # Base per-outlet aggregates
         base_rows = db.execute(f"""
@@ -247,7 +249,7 @@ def outlet_leaderboard(start_ts, end_ts, limit=10, macs=None):
             WHERE ts >= ? AND ts <= ? {mac_clause}
             GROUP BY mac, outlet
             HAVING (MAX(power_w) > 0.1) OR (AVG(power_w) > 0.05)
-        """, [start_ts, end_ts]).fetchall()
+        """, params).fetchall()
 
         out = []
         for r in base_rows:
