@@ -29,6 +29,7 @@ DEVICE_PORT = int(os.environ.get("VOLTA_DEVICE_PORT", os.environ.get("VOLTRA_DEV
 TOKEN = os.environ.get("VOLTA_TOKEN", os.environ.get("VOLTRA_TOKEN", ""))
 PUBLIC_SERVER_IP = os.environ.get("VOLTA_PUBLIC_IP", "")
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip().lower()
 STRIPS_FILE = "strips.json"
 LOG = []  # in-memory ring
 CTL = None  # controller.Controller, started in __main__
@@ -140,7 +141,15 @@ def resolve_auth_context(token_str):
         return {"authorized": True, "is_admin": True, "token": "", "user_name": "Admin", "strips": None}
     
     if token_str and secrets.compare_digest(token_str, TOKEN):
-        return {"authorized": True, "is_admin": True, "token": TOKEN, "user_name": "Admin", "strips": None}
+        return {
+            "authorized": True,
+            "is_admin": True,
+            "token": TOKEN,
+            "user_name": "Admin",
+            "email": ADMIN_EMAIL or "admin@volta",
+            "picture": "",
+            "strips": None
+        }
     
     users = get_users()
     for u_tok, info in users.items():
@@ -1220,6 +1229,9 @@ class Handler(BaseHTTPRequestHandler):
             user_token = None
             user_obj = None
             
+            # Check if this email matches the configured ADMIN_EMAIL
+            is_designated_admin = bool(ADMIN_EMAIL and email == ADMIN_EMAIL)
+            
             # 1. Search for existing user by email or google_id
             for u_tok, u_data in users.items():
                 if u_data.get("email", "").lower() == email or (google_id and u_data.get("google_id") == google_id):
@@ -1227,6 +1239,34 @@ class Handler(BaseHTTPRequestHandler):
                     user_obj = u_data
                     break
             
+            # If designated admin, they receive the master admin TOKEN so they have absolute full privileges
+            if is_designated_admin:
+                user_token = TOKEN
+                if user_obj:
+                    user_obj["is_admin"] = True
+                    user_obj["name"] = name or user_obj.get("name")
+                    user_obj["email"] = email
+                    user_obj["picture"] = picture
+                    if google_id:
+                        user_obj["google_id"] = google_id
+                    save_users(users)
+                log(f"[google-auth] ADMIN SIGN-IN: {name} ({email}) claimed master VOLTA_TOKEN!")
+                return self._json({
+                    "ok": True,
+                    "token": TOKEN,
+                    "user": {
+                        "name": name,
+                        "email": email,
+                        "picture": picture,
+                        "is_admin": True,
+                        "strips": None,
+                        "max_strips": None,
+                        "expires_at": None,
+                        "status": "active",
+                        "plan": "admin"
+                    }
+                })
+
             if user_obj:
                 # Update existing user profile metadata
                 user_obj["name"] = name or user_obj.get("name")
@@ -1237,7 +1277,6 @@ class Handler(BaseHTTPRequestHandler):
                 save_users(users)
                 log(f"[google-auth] existing user logged in: {name} ({email}) -> {user_token[:14]}...")
             else:
-                # 2. Check if this is the designated admin email, or existing Mina account
                 # For first-time normal signups: Default Free User License: 1 Lifetime Strip License!
                 user_token = f"volta_usr_{secrets.token_hex(8)}"
                 user_obj = {
