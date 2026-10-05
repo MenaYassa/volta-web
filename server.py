@@ -1020,6 +1020,97 @@ class Handler(BaseHTTPRequestHandler):
                     })
                 return self._json({"ok": True, "strips": formatted, "devices": formatted})
             return self._json({"error": "token required"}, 401)
+        elif u.path == "/api/alexa/devices":
+            # Endpoint formatted for Alexa Smart Home Discovery
+            ctx = self._auth_ctx()
+            if not ctx["authorized"]:
+                return self._json({"error": "token required"}, 401)
+            raw_snap = CTL.snapshot() if CTL else {"devices": []}
+            devs = raw_snap.get("devices", [])
+            if not ctx["is_admin"]:
+                allowed = set(ctx["strips"])
+                devs = [d for d in devs if norm_mac(d.get("mac", "")).upper() in allowed]
+            names = load_strips().get("names", {})
+            endpoints = []
+            for d in devs:
+                clean_m = norm_mac(d.get("mac", "")).upper()
+                nm = names.get(clean_m.lower(), {})
+                strip_name = nm.get("name") or d.get("name") or f"Strip {clean_m[-6:]}"
+                onames = nm.get("outlets", {})
+                for o in d.get("outlets", []):
+                    onum = o.get("n")
+                    outlet_label = onames.get(str(onum)) or o.get("nick") or f"Outlet {onum}"
+                    # Avoid duplicated label if strip name already equals outlet label
+                    if outlet_label.lower() in strip_name.lower():
+                        friendly_name = strip_name
+                    else:
+                        friendly_name = f"{strip_name} {outlet_label}"
+                    endpoint_id = f"{clean_m}_{onum}"
+                    endpoints.append({
+                        "endpointId": endpoint_id,
+                        "manufacturerName": "Volta / TONLY",
+                        "friendlyName": friendly_name,
+                        "description": f"Volta Smart Outlet {onum} on {strip_name}",
+                        "displayCategories": ["SMARTPLUG"],
+                        "cookie": {
+                            "mac": clean_m,
+                            "outlet": str(onum)
+                        },
+                        "capabilities": [
+                            {
+                                "type": "AlexaInterface",
+                                "interface": "Alexa.PowerController",
+                                "version": "3",
+                                "properties": {
+                                    "supported": [{"name": "powerState"}],
+                                    "proactivelyReported": False,
+                                    "retrievable": True
+                                }
+                            },
+                            {
+                                "type": "AlexaInterface",
+                                "interface": "Alexa.EndpointHealth",
+                                "version": "3",
+                                "properties": {
+                                    "supported": [{"name": "connectivity"}],
+                                    "proactivelyReported": False,
+                                    "retrievable": True
+                                }
+                            }
+                        ]
+                    })
+            return self._json({"ok": True, "endpoints": endpoints})
+
+        elif u.path == "/api/alexa/state":
+            # Endpoint for Alexa to query state of an endpoint
+            ctx = self._auth_ctx()
+            if not ctx["authorized"]:
+                return self._json({"error": "token required"}, 401)
+            endpoint_id = q.get("endpointId", [""])[0]
+            if not endpoint_id or "_" not in endpoint_id:
+                return self._json({"error": "valid endpointId required"}, 400)
+            mac_part, outlet_part = endpoint_id.split("_", 1)
+            mac = norm_mac(mac_part).upper()
+            if not self._can_access_mac(mac):
+                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            try:
+                outlet_num = int(outlet_part)
+            except ValueError:
+                return self._json({"error": "invalid outlet index"}, 400)
+            
+            raw_snap = CTL.snapshot() if CTL else {"devices": []}
+            dev = next((d for d in raw_snap.get("devices", []) if norm_mac(d.get("mac", "")).upper() == mac), None)
+            if not dev:
+                return self._json({"ok": True, "connected": False, "powerState": "OFF"})
+            
+            target_out = next((o for o in dev.get("outlets", []) if o.get("n") == outlet_num), None)
+            is_on = bool(target_out and target_out.get("on"))
+            return self._json({
+                "ok": True,
+                "connected": bool(dev.get("online")),
+                "powerState": "ON" if is_on else "OFF"
+            })
+
         elif u.path == "/api/log":
             if not self._is_admin():
                 return self._json({"error": "admin access required"}, 403)
