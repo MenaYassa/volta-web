@@ -115,7 +115,17 @@ def save_timers(timers):
 def get_users():
     """Return dictionary of user accounts: {token: {name, strips, created_at}}."""
     data = load_strips()
-    return data.setdefault("users", {})
+    users = data.setdefault("users", {})
+    dirty = False
+    for tok, u in users.items():
+        if not u.get("email"):
+            short_id = tok.replace("volta_usr_", "").replace("voltra_usr_", "")[:8]
+            u["email"] = f"user_{short_id}@volta.local"
+            dirty = True
+    if dirty:
+        data["users"] = users
+        save_strips(data)
+    return users
 
 
 def save_users(users_dict):
@@ -1279,9 +1289,11 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 # For first-time normal signups: Default Free User License: 1 Lifetime Strip License!
                 user_token = f"volta_usr_{secrets.token_hex(8)}"
+                clean_short_id = user_token.replace("volta_usr_", "")[:8]
+                user_email = email if email else f"user_{clean_short_id}@volta.local"
                 user_obj = {
-                    "name": name,
-                    "email": email,
+                    "name": name or f"User-{clean_short_id}",
+                    "email": user_email,
                     "picture": picture,
                     "google_id": google_id,
                     "strips": [],
@@ -1293,7 +1305,7 @@ class Handler(BaseHTTPRequestHandler):
                 }
                 users[user_token] = user_obj
                 save_users(users)
-                log(f"[google-auth] NEW user auto-provisioned: {name} ({email}) with 1 Lifetime Strip Free License! Token={user_token[:14]}...")
+                log(f"[google-auth] NEW user auto-provisioned: {user_obj['name']} ({user_email}) with 1 Lifetime Strip Free License! Token={user_token[:14]}...")
             
             # Check if this user is marked as admin (e.g., if token matches or admin flag set)
             is_adm = (user_token == TOKEN) or bool(user_obj.get("is_admin"))
@@ -1393,10 +1405,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "token": req_token, "user": user_obj})
             
             # Creating a new user
-            name = (body.get("name") or "").strip()[:40] or "User"
-            email = (body.get("email") or "").strip().lower()
-            plan = (body.get("plan") or "custom").strip()[:30]
             new_token = req_token if req_token else f"volta_usr_{secrets.token_hex(8)}"
+            clean_short_id = new_token.replace("volta_usr_", "").replace("voltra_usr_", "")[:8]
+            name = (body.get("name") or "").strip()[:40] or f"User-{clean_short_id}"
+            
+            # If no email is provided, assign a deterministic generated email for this token
+            email = (body.get("email") or "").strip().lower()
+            if not email:
+                email = f"user_{clean_short_id}@volta.local"
+
+            plan = (body.get("plan") or "custom").strip()[:30]
             max_strips = 10
             try:
                 if "max_strips" in body and body["max_strips"] is not None:
@@ -1422,7 +1440,7 @@ class Handler(BaseHTTPRequestHandler):
                 "status": status
             }
             save_users(users)
-            log(f"user created: {name} ({new_token[:14]}...) [status={status}, max={max_strips}, exp={expires_at}]")
+            log(f"user created: {name} ({new_token[:14]}...) [email={email}, status={status}, max={max_strips}, exp={expires_at}]")
             return self._json({"ok": True, "token": new_token, "user": users[new_token]})
         if u.path == "/api/claim":
             # Link a strip MAC to a user token, or register pending claim by IP.
