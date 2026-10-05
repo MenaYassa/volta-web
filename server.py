@@ -112,6 +112,17 @@ def save_timers(timers):
     save_strips(data)
 
 
+def get_voltage_guards():
+    """Return dictionary of voltage guard configurations keyed by normalized uppercase MAC."""
+    return load_strips().get("voltage_guard", {})
+
+
+def save_voltage_guards(guards):
+    data = load_strips()
+    data["voltage_guard"] = guards
+    save_strips(data)
+
+
 def get_users():
     """Return dictionary of user accounts: {token: {name, strips, created_at}}."""
     data = load_strips()
@@ -506,6 +517,136 @@ def watcher_loop():
         except Exception as e:  # noqa: BLE001
             log(f"watcher error: {e}")
         time.sleep(30)
+
+
+def voltage_guard_loop():
+    """Real-time protection loop: monitors live strip voltages every 2-3s.
+    If voltage violates min_v or max_v:
+      - Snapshots outlets currently ON.
+      - Dispatches immediate emergency OFF to all outlets on that strip.
+      - Latches TRIPPED state.
+    Once voltage is stably within safe range continuously for safe_delay_min:
+      - Automatically restores ONLY the outlets that were originally ON.
+      - Clears TRIPPED state.
+    """
+    last_eval = {}  # mac -> {safe_start_ts}
+    while True:
+        try:
+            if CTL and CTL.wait_ready(0):
+                guards = get_voltage_guards()
+                if guards:
+                    snap = CTL.snapshot()
+                    devs = snap.get("devices", [])
+                    st = get_settings()
+                    topic = st.get("ntfy")
+                    names = load_strips().get("names", {})
+                    dirty = False
+
+                    for d in devs:
+                        mac = norm_mac(d.get("mac", "")).upper()
+                        g = guards.get(mac)
+                        if not g or not g.get("enabled"):
+                            continue
+
+                        v_now = d.get("voltage_v")
+                        if v_now is None or v_now <= 50.0:
+                            # Strip not reporting voltage yet or offline
+                            continue
+
+                        min_v = float(g.get("min_v", 195.0))
+                        max_v = float(g.get("max_v", 250.0))
+                        safe_delay_sec = int(g.get("safe_delay_min", 3) or 3) * 60
+
+                        nm = names.get(mac.lower(), {}).get("name") or d.get("name") or f"Strip {mac[-6:]}"
+                        outlets = d.get("outlets", [])
+                        is_tripped = bool(g.get("tripped"))
+
+                        # 1. FAULT DETECTION (Voltage outside safety window)
+                        if v_now < min_v or v_now > max_v:
+                            # Reset any recovery timer
+                            last_eval.pop(mac, None)
+
+                            if not is_tripped:
+                                # Snapshot which outlets are currently ON
+                                active_outlets = [o.get("n") for o in outlets if o.get("on") and o.get("n")]
+                                fault_type = "LOW VOLTAGE (BROWNOUT)" if v_now < min_v else "HIGH VOLTAGE (SURGE)"
+                                threshold = min_v if v_now < min_v else max_v
+                                
+                                log(f"[voltage-guard] 🚨 TRIP on {nm} ({mac}): {v_now}V ({fault_type}, threshold {threshold}V). Outlets ON: {active_outlets}")
+                                
+                                # Emergency turn OFF all outlets (1-4)
+                                ok, err = CTL.set_outlets(mac, [1, 2, 3, 4], False, source="voltage_guard")
+                                if not ok:
+                                    log(f"[voltage-guard] emergency cut failed: {err}")
+
+                                g["tripped"] = True
+                                g["fault_type"] = fault_type
+                                g["tripped_at"] = time.time()
+                                g["trip_voltage"] = v_now
+                                g["saved_outlets"] = active_outlets
+                                g["safe_since"] = None
+                                dirty = True
+
+                                if topic:
+                                    try:
+                                        ntfy_send(
+                                            topic,
+                                            f"🚨 Voltage Guard TRIPPED: {nm}",
+                                            f"{nm} measured {v_now}V (limit: {min_v}-{max_v}V). All outlets turned OFF for protection.",
+                                            "rotating_light,zap"
+                                        )
+                                    except Exception as e:
+                                        log(f"[voltage-guard] ntfy error: {e}")
+
+                        # 2. RECOVERY MONITORING (Voltage is back within safe window)
+                        elif is_tripped:
+                            # Voltage is within safe limits!
+                            now_ts = time.time()
+                            safe_start = last_eval.get(mac)
+                            if not safe_start:
+                                last_eval[mac] = now_ts
+                                g["safe_since"] = now_ts
+                                dirty = True
+                                log(f"[voltage-guard] {nm} ({mac}) voltage normalized ({v_now}V). Stabilizing for {g.get('safe_delay_min', 3)}m...")
+                            else:
+                                elapsed = now_ts - safe_start
+                                if elapsed >= safe_delay_sec:
+                                    # Stable duration fulfilled! Restore saved outlets
+                                    saved = g.get("saved_outlets") or []
+                                    log(f"[voltage-guard] ✅ RECOVERY: {nm} ({mac}) stable at {v_now}V for {elapsed:.0f}s. Restoring outlets: {saved}")
+
+                                    if saved:
+                                        ok, err = CTL.set_outlets(mac, saved, True, source="voltage_guard_restore")
+                                        if not ok:
+                                            log(f"[voltage-guard] restore error: {err}")
+
+                                    g["tripped"] = False
+                                    g["fault_type"] = None
+                                    g["tripped_at"] = None
+                                    g["trip_voltage"] = None
+                                    g["saved_outlets"] = []
+                                    g["safe_since"] = None
+                                    last_eval.pop(mac, None)
+                                    dirty = True
+
+                                    if topic:
+                                        try:
+                                            restored_str = ", ".join(f"Outlet {n}" for n in saved) if saved else "none"
+                                            ntfy_send(
+                                                topic,
+                                                f"✅ Voltage Guard RESTORED: {nm}",
+                                                f"{nm} voltage stable ({v_now}V) for {g.get('safe_delay_min', 3)} min. Restored: {restored_str}.",
+                                                "shield,zap"
+                                            )
+                                        except Exception as e:
+                                            log(f"[voltage-guard] ntfy error: {e}")
+
+                    if dirty:
+                        save_voltage_guards(guards)
+
+        except Exception as e:
+            log(f"[voltage-guard] loop exception: {e}")
+        time.sleep(2.5)
 
 
 def scheduler_loop():
@@ -1213,6 +1354,21 @@ class Handler(BaseHTTPRequestHandler):
                     for o in d.get("outlets", []):
                         if str(o.get("n")) in onames:
                             o["nick"] = onames[str(o.get("n"))]
+                    
+                    # Attach voltage guard status to live snapshot
+                    clean_m = norm_mac(d.get("mac", "")).upper()
+                    g_info = get_voltage_guards().get(clean_m, {})
+                    d["voltage_guard"] = {
+                        "enabled": bool(g_info.get("enabled")),
+                        "min_v": float(g_info.get("min_v", 195.0)),
+                        "max_v": float(g_info.get("max_v", 250.0)),
+                        "safe_delay_min": int(g_info.get("safe_delay_min", 3) or 3),
+                        "tripped": bool(g_info.get("tripped")),
+                        "fault_type": g_info.get("fault_type"),
+                        "trip_voltage": g_info.get("trip_voltage"),
+                        "saved_outlets": g_info.get("saved_outlets", []),
+                        "safe_since": g_info.get("safe_since")
+                    }
             except Exception:
                 pass
             self._json(snap)
@@ -1246,6 +1402,7 @@ class Handler(BaseHTTPRequestHandler):
                             "temp_c": o.get("temp_c", 25),
                             "locked": False
                         })
+                    guard_info = get_voltage_guards().get(clean_m.upper(), {})
                     formatted.append({
                         "mac": d.get("mac"),
                         "name": strip_name,
@@ -1258,6 +1415,17 @@ class Handler(BaseHTTPRequestHandler):
                         "last_seen": d.get("last_seen", time.time()),
                         "power_w": d.get("power_w", sum(o.get("power_w", 0.0) for o in outs)),
                         "total_power_w": sum(o.get("power_w", 0.0) for o in outs),
+                        "voltage_guard": {
+                            "enabled": bool(guard_info.get("enabled")),
+                            "min_v": float(guard_info.get("min_v", 195.0)),
+                            "max_v": float(guard_info.get("max_v", 250.0)),
+                            "safe_delay_min": int(guard_info.get("safe_delay_min", 3) or 3),
+                            "tripped": bool(guard_info.get("tripped")),
+                            "fault_type": guard_info.get("fault_type"),
+                            "trip_voltage": guard_info.get("trip_voltage"),
+                            "saved_outlets": guard_info.get("saved_outlets", []),
+                            "safe_since": guard_info.get("safe_since")
+                        },
                         "outlets": outs
                     })
                 return self._json({"ok": True, "strips": formatted, "devices": formatted})
@@ -1375,6 +1543,32 @@ class Handler(BaseHTTPRequestHandler):
                 allowed = set(ctx["strips"])
                 timers = [t for t in timers if norm_mac(t.get("mac", "")).upper() in allowed]
             self._json({"timers": timers})
+        elif u.path == "/api/voltage-guard":
+            ctx = self._auth_ctx()
+            if not ctx["authorized"]:
+                return self._json({"error": "token required"}, 401)
+            guards = get_voltage_guards()
+            mac_filter = q.get("mac", [""])[0]
+            if mac_filter:
+                clean_mac = norm_mac(mac_filter).upper()
+                if not self._can_access_mac(clean_mac):
+                    return self._json({"error": "forbidden (strip not owned)"}, 403)
+                g = guards.get(clean_mac, {
+                    "enabled": False,
+                    "min_v": 195.0,
+                    "max_v": 250.0,
+                    "safe_delay_min": 3,
+                    "tripped": False,
+                    "saved_outlets": []
+                })
+                return self._json({"ok": True, "guard": g, "mac": clean_mac})
+
+            # List guards caller is allowed to view
+            filtered_guards = {}
+            for m, g in guards.items():
+                if ctx["is_admin"] or m.upper() in set(ctx["strips"]):
+                    filtered_guards[m] = g
+            return self._json({"ok": True, "guards": filtered_guards})
         elif u.path == "/api/geo/search":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
@@ -1990,6 +2184,65 @@ class Handler(BaseHTTPRequestHandler):
             log(f'sched saved {sched["id"]} {sched["mac"]} outlet {sched["outlet"]} '
                 f'{"on" if sched["on"] else "off"} {sched["time"]} {sched["tz"]}')
             return self._json({"ok": True, "schedule": sched, "schedules": scheds})
+
+        if u.path == "/api/voltage-guard":
+            # Configure strip voltage guard settings
+            # Body: { mac, enabled, min_v, max_v, safe_delay_min }
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            mac = norm_mac(body.get("mac", "")).upper()
+            if not mac:
+                return self._json({"error": "mac is required"}, 400)
+            if not self._can_access_mac(mac):
+                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            
+            try:
+                min_v = float(body.get("min_v", 195.0))
+                max_v = float(body.get("max_v", 250.0))
+                safe_delay_min = max(1, min(60, int(body.get("safe_delay_min", 3) or 3)))
+            except (ValueError, TypeError):
+                return self._json({"error": "min_v, max_v and safe_delay_min must be valid numbers"}, 400)
+            
+            if min_v >= max_v:
+                return self._json({"error": "min_v must be strictly less than max_v"}, 400)
+            
+            guards = get_voltage_guards()
+            existing = guards.get(mac, {})
+            enabled = bool(body.get("enabled", False))
+            
+            existing["enabled"] = enabled
+            existing["min_v"] = min_v
+            existing["max_v"] = max_v
+            existing["safe_delay_min"] = safe_delay_min
+            if "tripped" not in existing:
+                existing["tripped"] = False
+                existing["saved_outlets"] = []
+            
+            guards[mac] = existing
+            save_voltage_guards(guards)
+            log(f"[voltage-guard] updated config for {mac}: enabled={enabled}, window={min_v}-{max_v}V, delay={safe_delay_min}m")
+            return self._json({"ok": True, "guard": existing, "mac": mac})
+
+        if u.path == "/api/voltage-guard/reset":
+            # Manually clear a tripped guard state and resume normal operation
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            mac = norm_mac(body.get("mac", "")).upper()
+            if not mac or not self._can_access_mac(mac):
+                return self._json({"error": "forbidden (strip not owned or missing mac)"}, 403)
+            
+            guards = get_voltage_guards()
+            if mac in guards:
+                guards[mac]["tripped"] = False
+                guards[mac]["fault_type"] = None
+                guards[mac]["tripped_at"] = None
+                guards[mac]["trip_voltage"] = None
+                guards[mac]["saved_outlets"] = []
+                guards[mac]["safe_since"] = None
+                save_voltage_guards(guards)
+                log(f"[voltage-guard] manual reset for {mac}")
+            return self._json({"ok": True, "mac": mac})
+
         if u.path == "/api/timers":
             # Create or update an outlet timer.
             # Body: {mac, outlet, on, mode:countdown|cyclic, on_sec, off_sec,
@@ -2798,6 +3051,8 @@ if __name__ == "__main__":
     _th.Thread(target=scheduler_loop, daemon=True).start()
     _th.Thread(target=timer_loop, daemon=True).start()
     _th.Thread(target=watcher_loop, daemon=True).start()
+    _th.Thread(target=voltage_guard_loop, daemon=True).start()
+    log("[voltage-guard] protection loop started (2.5s interval)")
     _th.Thread(target=analytics.collector_loop, args=(CTL,), daemon=True).start()
     log("[analytics] collector thread started (30s interval)")
     log(f"volta-local on :{PORT} — open http://<this-host>:{PORT}")

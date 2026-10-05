@@ -918,6 +918,66 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   </div>
 </div>
 
+<!-- Modal: Voltage Guard (Hardware Safety) -->
+<div id="modalVoltageGuard" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head">
+      <h3 id="mvgTitle">⚡ Voltage Guard Protection</h3>
+      <button class="ghost sm" id="mvgClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mvgTripBanner" style="display:none;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(239,68,68,0.15);border:1px solid var(--bad);color:var(--bad)">
+        <div style="font-weight:700;display:flex;align-items:center;gap:6px">
+          <span>🚨</span> <span id="mvgTripTitle">VOLTAGE GUARD TRIPPED</span>
+        </div>
+        <div id="mvgTripDesc" class="small" style="margin-top:4px;color:var(--fg)">All outlets safely shut OFF to prevent appliance damage.</div>
+        <div style="margin-top:8px">
+          <button class="sm" id="mvgResetBtn" style="background:var(--bad);color:#fff">⚠️ Clear Trip &amp; Reset Guard</button>
+        </div>
+      </div>
+
+      <div id="mvgRecoverBanner" style="display:none;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(234,179,8,0.15);border:1px solid #eab308;color:#fde047">
+        <div style="font-weight:700;display:flex;align-items:center;gap:6px">
+          <span>⏳</span> <span>Voltage Normalized · Stabilizing</span>
+        </div>
+        <div id="mvgRecoverDesc" class="small" style="margin-top:4px;color:var(--fg)">Monitoring grid stability before automatically restoring power to original outlets.</div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <b>Enable Voltage Guard</b>
+          <div class="small" style="color:var(--mut)">Auto-cut power when voltage leaves safety bounds</div>
+        </div>
+        <input type="checkbox" id="mvgEnabled" style="width:20px;height:20px;cursor:pointer">
+      </div>
+
+      <div class="field" style="margin-bottom:12px">
+        <span>Minimum Voltage (V) — Brownout Cutoff</span>
+        <input id="mvgMinV" type="number" min="150" max="230" step="1" value="195">
+        <small style="color:var(--mut)">If voltage drops below this value, outlets immediately turn OFF.</small>
+      </div>
+
+      <div class="field" style="margin-bottom:12px">
+        <span>Maximum Voltage (V) — Overvoltage / Surge Cutoff</span>
+        <input id="mvgMaxV" type="number" min="230" max="280" step="1" value="250">
+        <small style="color:var(--mut)">If voltage spikes above this value, outlets immediately turn OFF.</small>
+      </div>
+
+      <div class="field" style="margin-bottom:12px">
+        <span>Safe Recovery Delay (Minutes)</span>
+        <input id="mvgDelay" type="number" min="1" max="30" step="1" value="3">
+        <small style="color:var(--mut)">Voltage must remain continuously within safe limits for this duration before restoring previously active outlets.</small>
+      </div>
+
+      <div id="mvgStatus" class="small" style="padding:6px 0;color:var(--mut)"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="ghost sm" id="mvgCancel">Cancel</button>
+      <button class="sm" id="mvgSave">💾 Save Guard Settings</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Sign In / Google Auth -->
 <div id="modalAuth" class="modal-overlay">
   <div class="modal-box" style="max-width:400px;text-align:center">
@@ -1512,15 +1572,27 @@ async function live(){
         const tel=`${d.model||""}${d.fw?" fw "+d.fw:""} · ${d.power_w} W · ${d.energy_kwh} kWh${d.voltage?` · ${d.voltage} V · ${d.current_a} A`:""}${d.rssi?` · wifi ${d.rssi} dBm`:""}`;
         const seen=d.online?"live now":("last seen "+ago(d.last_seen_ago));
         const pend=d.pending?` <span class="tag warn">⏳ ${d.pending} queued</span>`:"";
+        const vg = d.voltage_guard || {};
+        let vgTag = "";
+        if (vg.tripped) {
+          vgTag = `<button class="tag bad vg-btn" style="cursor:pointer" title="Voltage Guard TRIPPED! Click to manage">🚨 GUARD TRIPPED (${vg.fault_type || "VOLTAGE"})</button>`;
+        } else if (vg.enabled) {
+          vgTag = `<button class="tag ok vg-btn" style="cursor:pointer" title="Voltage Guard Active (${vg.min_v}-${vg.max_v}V). Click to configure">⚡ Guard Armed</button>`;
+        } else {
+          vgTag = `<button class="tag vg-btn" style="cursor:pointer;opacity:0.7" title="Click to setup Voltage Guard protection">⚡ Guard Off</button>`;
+        }
         c.innerHTML=`<div class="strip-head"><b></b><button class="rename" title="rename strip">✏️</button>
           <span class="tag ${d.online?"ok":"bad"}">${d.online?"● online":"○ offline"}</span>
           <span class="tag">${seen}</span>${pend}
+          ${vgTag}
           <span class="tag mono"></span><span style="flex:1"></span>
           <button class="ghost sm allon">ALL ON</button><button class="ghost sm alloff">ALL OFF</button></div>
         <div class="small"></div><div class="meta"></div><div class="outs"></div><div class="msg small"></div>`;
         c.querySelector("b").textContent=d.name||d.mac;
         c.querySelector(".mono").textContent=d.mac;
         c.querySelector(".small").textContent=tel;
+        const vgBtn = c.querySelector(".vg-btn");
+        if (vgBtn) vgBtn.onclick = () => openVoltageGuardModal(d);
         const meta=c.querySelector(".meta");
         meta.innerHTML=`<span class="tag mono">IP ${d.ip||"?"}</span>`;
         c.querySelector(".rename").onclick=async()=>{const v=prompt("Name this strip",(d.name===d.mac?"":d.name)||"");if(v===null)return;
@@ -1556,6 +1628,125 @@ async function live(){
   _liveBusy=false;
 }
 on("btnLiveRefresh","click",live);
+
+/* ---- Voltage Guard Modal ---- */
+let _activeVgDev = null;
+
+async function openVoltageGuardModal(d) {
+  _activeVgDev = d;
+  const modal = $("modalVoltageGuard");
+  if (!modal) return;
+  const mac = (d.mac || "").toUpperCase();
+
+  // If guard config isn't populated on dev object, fetch directly from API
+  let vg = d.voltage_guard;
+  if (!vg || vg.enabled === undefined) {
+    try {
+      const res = await apit(`/api/voltage-guard?mac=${encodeURIComponent(mac)}`);
+      if (res.ok && res.guard) vg = res.guard;
+    } catch (e) {}
+  }
+  vg = vg || {};
+
+  if ($("mvgTitle")) $("mvgTitle").textContent = `⚡ Voltage Guard · ${d.name || d.mac}`;
+  if ($("mvgEnabled")) $("mvgEnabled").checked = Boolean(vg.enabled);
+  if ($("mvgMinV")) $("mvgMinV").value = vg.min_v !== undefined ? vg.min_v : 195;
+  if ($("mvgMaxV")) $("mvgMaxV").value = vg.max_v !== undefined ? vg.max_v : 250;
+  if ($("mvgDelay")) $("mvgDelay").value = vg.safe_delay_min !== undefined ? vg.safe_delay_min : 3;
+
+  const tripBanner = $("mvgTripBanner");
+  const recoverBanner = $("mvgRecoverBanner");
+  const tripTitle = $("mvgTripTitle");
+  const tripDesc = $("mvgTripDesc");
+  const statusEl = $("mvgStatus");
+
+  if (tripBanner) tripBanner.style.display = "none";
+  if (recoverBanner) recoverBanner.style.display = "none";
+
+  if (vg.tripped) {
+    if (tripBanner) tripBanner.style.display = "block";
+    if (tripTitle) tripTitle.textContent = `TRIPPED: ${vg.fault_type || "VOLTAGE FAULT"}`;
+    if (tripDesc) {
+      const vTrip = vg.trip_voltage ? ` (${vg.trip_voltage}V)` : "";
+      const savedStr = (vg.saved_outlets && vg.saved_outlets.length)
+        ? `Outlets ${vg.saved_outlets.join(", ")} were ON and will restore once stable.`
+        : `No outlets were ON when tripped.`;
+      tripDesc.textContent = `Power safely shut off due to voltage violation${vTrip}. ${savedStr}`;
+    }
+
+    if (vg.safe_since && recoverBanner) {
+      recoverBanner.style.display = "block";
+      const elapsed = Math.floor(Date.now() / 1000 - vg.safe_since);
+      const reqSec = (vg.safe_delay_min || 3) * 60;
+      const left = Math.max(0, reqSec - elapsed);
+      if ($("mvgRecoverDesc")) {
+        $("mvgRecoverDesc").textContent = `Voltage is back in range! Stabilizing: ${elapsed}s / ${reqSec}s elapsed (${left}s remaining until auto-restore).`;
+      }
+    }
+  }
+
+  const liveV = d.voltage_v ? `Current live voltage: <b>${d.voltage_v}V</b>.` : "";
+  if (statusEl) statusEl.innerHTML = `${liveV} Outlets will immediately shut down if voltage leaves the configured window.`;
+
+  modal.classList.add("open");
+}
+
+function closeVoltageGuardModal() {
+  const modal = $("modalVoltageGuard");
+  if (modal) modal.classList.remove("open");
+  _activeVgDev = null;
+}
+
+on("mvgClose", "click", closeVoltageGuardModal);
+on("mvgCancel", "click", closeVoltageGuardModal);
+
+on("mvgSave", "click", async () => {
+  if (!_activeVgDev) return;
+  const mac = _activeVgDev.mac;
+  const enabled = $("mvgEnabled") ? $("mvgEnabled").checked : false;
+  const min_v = parseFloat($("mvgMinV").value || 195);
+  const max_v = parseFloat($("mvgMaxV").value || 250);
+  const safe_delay_min = parseInt($("mvgDelay").value || 3, 10);
+
+  if (min_v >= max_v) {
+    alert("Minimum voltage must be lower than maximum voltage.");
+    return;
+  }
+
+  try {
+    const res = await apit("/api/voltage-guard", {
+      mac,
+      enabled,
+      min_v,
+      max_v,
+      safe_delay_min
+    });
+    if (res.ok) {
+      closeVoltageGuardModal();
+      await live();
+    } else {
+      alert("Error saving guard settings: " + (res.error || "Unknown"));
+    }
+  } catch (err) {
+    alert("Request failed: " + err.message);
+  }
+});
+
+on("mvgResetBtn", "click", async () => {
+  if (!_activeVgDev) return;
+  if (!confirm(`Reset Voltage Guard trip latch on ${_activeVgDev.name || _activeVgDev.mac}? This clears the fault state.`)) return;
+  try {
+    const res = await apit("/api/voltage-guard/reset", { mac: _activeVgDev.mac });
+    if (res.ok) {
+      closeVoltageGuardModal();
+      await live();
+    } else {
+      alert("Error resetting guard: " + (res.error || "Unknown"));
+    }
+  } catch (err) {
+    alert("Request failed: " + err.message);
+  }
+});
 /* ---- Edit User Modal (Admin only) ---- */
 let _activeEditingAccountToken = null;
 
@@ -2049,6 +2240,7 @@ async function renderManage(){
       <span class="tag mono"></span>
       ${d&&d.fw?`<span class="tag">fw ${d.fw}</span>`:""}
       ${ownerBadgeHtml}
+      <button class="ghost sm manage-vg-btn" style="border-radius:99px;font-weight:600;font-size:11px" title="Configure Voltage Guard">⚡ Voltage Guard</button>
       <span style="flex:1"></span>
       <button class="danger sm remove-strip" title="Remove strip from dashboard">🗑 Remove</button>
     </div>
@@ -2072,6 +2264,14 @@ async function renderManage(){
     if(assignBtn){
       assignBtn.onclick=()=>{
         openStripOwnerModal(cleanMac);
+      };
+    }
+
+    const vgBtn = card.querySelector(".manage-vg-btn");
+    if(vgBtn){
+      vgBtn.onclick=()=>{
+        const targetDev = d || { mac: cleanMac, name: title };
+        openVoltageGuardModal(targetDev);
       };
     }
 
