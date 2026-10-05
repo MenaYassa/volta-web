@@ -918,14 +918,26 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   </div>
 </div>
 
-<!-- Modal: Voltage Guard (Hardware Safety) -->
+<!-- Modal: Voltage & Temperature Guard (Hardware Safety) -->
 <div id="modalVoltageGuard" class="modal-overlay">
-  <div class="modal-box" style="max-width:440px">
+  <div class="modal-box" style="max-width:460px">
     <div class="modal-head">
-      <h3 id="mvgTitle">⚡ Voltage Guard Protection</h3>
+      <h3 id="mvgTitle">🛡️ Strip Safety Guard (Voltage &amp; Temp)</h3>
       <button class="ghost sm" id="mvgClose">✕</button>
     </div>
     <div class="modal-body">
+      <!-- Thermal Trip Banner -->
+      <div id="mvgTempTripBanner" style="display:none;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5">
+        <div style="font-weight:700;display:flex;align-items:center;gap:6px">
+          <span>🔥</span> <span id="mvgTempTripTitle">OVERHEAT GUARD TRIPPED</span>
+        </div>
+        <div id="mvgTempTripDesc" class="small" style="margin-top:4px;color:#fff">All outlets safely shut OFF to prevent fire hazard. Power will NOT turn back on automatically. Inspect strip and tap below to reset.</div>
+        <div style="margin-top:8px">
+          <button class="sm" id="mvgTempResetBtn" style="background:#ef4444;color:#fff;font-weight:700">⚠️ Clear Thermal Trip</button>
+        </div>
+      </div>
+
+      <!-- Voltage Trip Banner -->
       <div id="mvgTripBanner" style="display:none;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(239,68,68,0.15);border:1px solid var(--bad);color:var(--bad)">
         <div style="font-weight:700;display:flex;align-items:center;gap:6px">
           <span>🚨</span> <span id="mvgTripTitle">VOLTAGE GUARD TRIPPED</span>
@@ -936,6 +948,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
         </div>
       </div>
 
+      <!-- Voltage Recovery Banner -->
       <div id="mvgRecoverBanner" style="display:none;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(234,179,8,0.15);border:1px solid #eab308;color:#fde047">
         <div style="font-weight:700;display:flex;align-items:center;gap:6px">
           <span>⏳</span> <span>Voltage Normalized · Stabilizing</span>
@@ -943,35 +956,59 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
         <div id="mvgRecoverDesc" class="small" style="margin-top:4px;color:var(--fg)">Monitoring grid stability before automatically restoring power to original outlets.</div>
       </div>
 
-      <div class="field" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <b>Enable Voltage Guard</b>
-          <div class="small" style="color:var(--mut)">Auto-cut power when voltage leaves safety bounds</div>
+      <!-- SECTION 1: TEMPERATURE GUARD -->
+      <div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+        <div class="field" style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <b>🌡️ Temperature Guard</b>
+            <div class="small" style="color:var(--mut)">Emergency power cut if ANY outlet overheats</div>
+          </div>
+          <input type="checkbox" id="mvgTempEnabled" checked style="width:20px;height:20px;cursor:pointer">
         </div>
-        <input type="checkbox" id="mvgEnabled" style="width:20px;height:20px;cursor:pointer">
+        <div class="field" style="margin-bottom:4px">
+          <span>Max Temperature Threshold (°C)</span>
+          <input id="mvgMaxTemp" type="number" min="40" max="90" step="1" value="65">
+          <small style="color:var(--mut)">If any outlet reaches this temp, all outlets shut down immediately. <b>No auto turn back on</b> (manual reset required for fire safety).</small>
+        </div>
       </div>
 
-      <div class="field" style="margin-bottom:12px">
-        <span>Minimum Voltage (V) — Brownout Cutoff</span>
-        <input id="mvgMinV" type="number" min="150" max="230" step="1" value="195">
-        <small style="color:var(--mut)">If voltage drops below this value, outlets immediately turn OFF.</small>
+      <!-- SECTION 2: VOLTAGE GUARD -->
+      <div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+        <div class="field" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <b>⚡ Voltage Guard</b>
+            <div class="small" style="color:var(--mut)">Brownout &amp; surge cutoff with auto-recovery</div>
+          </div>
+          <input type="checkbox" id="mvgEnabled" checked style="width:20px;height:20px;cursor:pointer">
+        </div>
+
+        <div class="field" style="margin-bottom:8px">
+          <span>Minimum Voltage (V) — Brownout Cutoff</span>
+          <input id="mvgMinV" type="number" min="150" max="230" step="1" value="195">
+          <small style="color:var(--mut)">Outlets cut OFF when voltage drops below this number.</small>
+        </div>
+
+        <div class="field" style="margin-bottom:8px">
+          <span>Maximum Voltage (V) — Surge Cutoff</span>
+          <input id="mvgMaxV" type="number" min="230" max="280" step="1" value="250">
+          <small style="color:var(--mut)">Outlets cut OFF when voltage spikes above this number.</small>
+        </div>
+
+        <div class="field" style="margin-bottom:4px">
+          <span>Safe Recovery Delay (Minutes)</span>
+          <input id="mvgDelay" type="number" min="1" max="30" step="1" value="3">
+          <small style="color:var(--mut)">After voltage normalizes, wait this long before restoring previously active outlets.</small>
+        </div>
       </div>
 
-      <div class="field" style="margin-bottom:12px">
-        <span>Maximum Voltage (V) — Overvoltage / Surge Cutoff</span>
-        <input id="mvgMaxV" type="number" min="230" max="280" step="1" value="250">
-        <small style="color:var(--mut)">If voltage spikes above this value, outlets immediately turn OFF.</small>
-      </div>
-
-      <div class="field" style="margin-bottom:12px">
-        <span>Safe Recovery Delay (Minutes)</span>
-        <input id="mvgDelay" type="number" min="1" max="30" step="1" value="3">
-        <small style="color:var(--mut)">Voltage must remain continuously within safe limits for this duration before restoring previously active outlets.</small>
-      </div>
-
-      <div id="mvgStatus" class="small" style="padding:6px 0;color:var(--mut)"></div>
+      <div id="mvgStatus" class="small" style="padding:4px 0;color:var(--mut)"></div>
     </div>
     <div class="modal-foot">
+      <button class="ghost sm" id="mvgCancel">Cancel</button>
+      <button class="sm" id="mvgSave">💾 Save Guard Settings</button>
+    </div>
+  </div>
+</div>
       <button class="ghost sm" id="mvgCancel">Cancel</button>
       <button class="sm" id="mvgSave">💾 Save Guard Settings</button>
     </div>
@@ -1574,12 +1611,17 @@ async function live(){
         const pend=d.pending?` <span class="tag warn">⏳ ${d.pending} queued</span>`:"";
         const vg = d.voltage_guard || {};
         let vgTag = "";
-        if (vg.tripped) {
-          vgTag = `<button class="tag bad vg-btn" style="cursor:pointer" title="Voltage Guard TRIPPED! Click to manage">🚨 GUARD TRIPPED (${vg.fault_type || "VOLTAGE"})</button>`;
-        } else if (vg.enabled) {
-          vgTag = `<button class="tag ok vg-btn" style="cursor:pointer" title="Voltage Guard Active (${vg.min_v}-${vg.max_v}V). Click to configure">⚡ Guard Armed</button>`;
+        if (vg.temp_tripped) {
+          vgTag = `<button class="tag bad vg-btn" style="cursor:pointer;background:#ef4444;color:#fff" title="Overheat Guard TRIPPED! Click to inspect">🔥 OVERHEAT TRIPPED (${vg.trip_temp_c || 65}°C)</button>`;
+        } else if (vg.tripped) {
+          vgTag = `<button class="tag bad vg-btn" style="cursor:pointer" title="Voltage Guard TRIPPED! Click to manage">🚨 VOLTAGE TRIPPED (${vg.fault_type || "VOLTAGE"})</button>`;
+        } else if (vg.enabled || vg.temp_enabled) {
+          const parts = [];
+          if (vg.enabled) parts.push(`${vg.min_v}-${vg.max_v}V`);
+          if (vg.temp_enabled) parts.push(`≤${vg.max_temp_c}°C`);
+          vgTag = `<button class="tag ok vg-btn" style="cursor:pointer" title="Safety Guards Armed (${parts.join(", ")}). Click to configure">🛡️ Guard Armed</button>`;
         } else {
-          vgTag = `<button class="tag vg-btn" style="cursor:pointer;opacity:0.7" title="Click to setup Voltage Guard protection">⚡ Guard Off</button>`;
+          vgTag = `<button class="tag vg-btn" style="cursor:pointer;opacity:0.7" title="Click to setup Voltage & Temperature Guard protection">🛡️ Guard Off</button>`;
         }
         c.innerHTML=`<div class="strip-head"><b></b><button class="rename" title="rename strip">✏️</button>
           <span class="tag ${d.online?"ok":"bad"}">${d.online?"● online":"○ offline"}</span>
@@ -1629,7 +1671,7 @@ async function live(){
 }
 on("btnLiveRefresh","click",live);
 
-/* ---- Voltage Guard Modal ---- */
+/* ---- Voltage & Temperature Guard Modal ---- */
 let _activeVgDev = null;
 
 async function openVoltageGuardModal(d) {
@@ -1648,20 +1690,30 @@ async function openVoltageGuardModal(d) {
   }
   vg = vg || {};
 
-  if ($("mvgTitle")) $("mvgTitle").textContent = `⚡ Voltage Guard · ${d.name || d.mac}`;
-  if ($("mvgEnabled")) $("mvgEnabled").checked = Boolean(vg.enabled);
+  if ($("mvgTitle")) $("mvgTitle").textContent = `🛡️ Safety Guard · ${d.name || d.mac}`;
+  if ($("mvgEnabled")) $("mvgEnabled").checked = vg.enabled !== undefined ? Boolean(vg.enabled) : true;
   if ($("mvgMinV")) $("mvgMinV").value = vg.min_v !== undefined ? vg.min_v : 195;
   if ($("mvgMaxV")) $("mvgMaxV").value = vg.max_v !== undefined ? vg.max_v : 250;
   if ($("mvgDelay")) $("mvgDelay").value = vg.safe_delay_min !== undefined ? vg.safe_delay_min : 3;
 
+  if ($("mvgTempEnabled")) $("mvgTempEnabled").checked = vg.temp_enabled !== undefined ? Boolean(vg.temp_enabled) : true;
+  if ($("mvgMaxTemp")) $("mvgMaxTemp").value = vg.max_temp_c !== undefined ? vg.max_temp_c : 65;
+
+  const tempTripBanner = $("mvgTempTripBanner");
   const tripBanner = $("mvgTripBanner");
   const recoverBanner = $("mvgRecoverBanner");
   const tripTitle = $("mvgTripTitle");
   const tripDesc = $("mvgTripDesc");
   const statusEl = $("mvgStatus");
 
+  if (tempTripBanner) tempTripBanner.style.display = "none";
   if (tripBanner) tripBanner.style.display = "none";
   if (recoverBanner) recoverBanner.style.display = "none";
+
+  if (vg.temp_tripped) {
+    if (tempTripBanner) tempTripBanner.style.display = "block";
+    if ($("mvgTempTripTitle")) $("mvgTempTripTitle").textContent = `TRIPPED: ${vg.temp_fault_type || "OVERHEAT FAULT"}`;
+  }
 
   if (vg.tripped) {
     if (tripBanner) tripBanner.style.display = "block";
@@ -1685,8 +1737,10 @@ async function openVoltageGuardModal(d) {
     }
   }
 
-  const liveV = d.voltage_v ? `Current live voltage: <b>${d.voltage_v}V</b>.` : "";
-  if (statusEl) statusEl.innerHTML = `${liveV} Outlets will immediately shut down if voltage leaves the configured window.`;
+  const liveV = d.voltage_v ? `Live voltage: <b>${d.voltage_v}V</b>.` : "";
+  const maxLiveT = (d.outlets && d.outlets.length) ? Math.max(...d.outlets.map(o => o.temp_c || 0)) : null;
+  const liveT = maxLiveT !== null ? ` Max outlet temp: <b>${maxLiveT}°C</b>.` : "";
+  if (statusEl) statusEl.innerHTML = `${liveV}${liveT}`;
 
   modal.classList.add("open");
 }
@@ -1703,13 +1757,15 @@ on("mvgCancel", "click", closeVoltageGuardModal);
 on("mvgSave", "click", async () => {
   if (!_activeVgDev) return;
   const mac = _activeVgDev.mac;
-  const enabled = $("mvgEnabled") ? $("mvgEnabled").checked : false;
+  const enabled = $("mvgEnabled") ? $("mvgEnabled").checked : true;
   const min_v = parseFloat($("mvgMinV").value || 195);
   const max_v = parseFloat($("mvgMaxV").value || 250);
   const safe_delay_min = parseInt($("mvgDelay").value || 3, 10);
+  const temp_enabled = $("mvgTempEnabled") ? $("mvgTempEnabled").checked : true;
+  const max_temp_c = parseFloat($("mvgMaxTemp").value || 65);
 
   if (min_v >= max_v) {
-    alert("Minimum voltage must be lower than maximum voltage.");
+    alert("Minimum voltage must be strictly lower than maximum voltage.");
     return;
   }
 
@@ -1719,7 +1775,9 @@ on("mvgSave", "click", async () => {
       enabled,
       min_v,
       max_v,
-      safe_delay_min
+      safe_delay_min,
+      temp_enabled,
+      max_temp_c
     });
     if (res.ok) {
       closeVoltageGuardModal();
@@ -1732,9 +1790,9 @@ on("mvgSave", "click", async () => {
   }
 });
 
-on("mvgResetBtn", "click", async () => {
+async function resetGuard(typeLabel) {
   if (!_activeVgDev) return;
-  if (!confirm(`Reset Voltage Guard trip latch on ${_activeVgDev.name || _activeVgDev.mac}? This clears the fault state.`)) return;
+  if (!confirm(`Reset ${typeLabel} trip latch on ${_activeVgDev.name || _activeVgDev.mac}? This clears the fault state.`)) return;
   try {
     const res = await apit("/api/voltage-guard/reset", { mac: _activeVgDev.mac });
     if (res.ok) {
@@ -1746,7 +1804,10 @@ on("mvgResetBtn", "click", async () => {
   } catch (err) {
     alert("Request failed: " + err.message);
   }
-});
+}
+
+on("mvgResetBtn", "click", () => resetGuard("Voltage Guard"));
+on("mvgTempResetBtn", "click", () => resetGuard("Temperature Guard"));
 /* ---- Edit User Modal (Admin only) ---- */
 let _activeEditingAccountToken = null;
 
