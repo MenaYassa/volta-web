@@ -914,6 +914,248 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif u.path == "/oauth/authorize":
+            # Alexa OAuth Authorization bridge (Multi-user with Google Sign-In & Volta Token)
+            redirect_uri = q.get("redirect_uri", [""])[0]
+            state = q.get("state", [""])[0]
+            resp_type = q.get("response_type", ["code"])[0]
+            client_id = q.get("client_id", [""])[0]
+            
+            # If no redirect_uri provided, return simple error
+            if not redirect_uri:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"redirect_uri is required")
+                return
+
+            # Render polished OAuth login authorization page
+            # Users can Sign in with Google (GIS) OR paste their Volta user token
+            # On successful auth, JavaScript redirects back to Alexa's redirect_uri with the user's specific token!
+            google_client_id_js = json.dumps(GOOGLE_CLIENT_ID or "")
+            redirect_uri_js = json.dumps(redirect_uri)
+            state_js = json.dumps(state)
+            resp_type_js = json.dumps(resp_type)
+
+            html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Link Alexa to Volta</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }}
+    .card {{
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }}
+    .logo {{
+      width: 56px;
+      height: 56px;
+      background: #3b82f6;
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 24px rgba(59, 130, 246, 0.4);
+    }}
+    h1 {{ font-size: 20px; font-weight: 700; margin-bottom: 6px; }}
+    p.sub {{ font-size: 13px; color: #94a3b8; margin-bottom: 24px; line-height: 1.4; }}
+    .divider {{
+      display: flex;
+      align-items: center;
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 20px 0;
+    }}
+    .divider::before, .divider::after {{
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid #334155;
+    }}
+    .divider::before {{ margin-right: 12px; }}
+    .divider::after {{ margin-left: 12px; }}
+    .input-group {{
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      text-align: left;
+    }}
+    label {{ font-size: 12px; font-weight: 600; color: #cbd5e1; }}
+    input {{
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }}
+    input:focus {{ border-color: #3b82f6; }}
+    button.btn-token {{
+      padding: 12px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }}
+    button.btn-token:hover {{ background: #1d4ed8; }}
+    #status-msg {{
+      font-size: 13px;
+      margin-top: 16px;
+      padding: 10px;
+      border-radius: 8px;
+      display: none;
+    }}
+    .err {{ background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid #ef4444; }}
+    .succ {{ background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid #22c55e; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">⚡</div>
+    <h1>Link Alexa to Volta</h1>
+    <p class="sub">Sign in with your Volta account to link and control your assigned smart strips with Amazon Alexa.</p>
+
+    <div id="google-btn-container" style="display:flex; justify-content:center; margin-bottom: 8px;"></div>
+
+    <div class="divider">or use user token</div>
+
+    <form onsubmit="handleTokenSubmit(event)" class="input-group">
+      <label for="token-input">Volta User Token</label>
+      <input type="text" id="token-input" placeholder="volta_usr_... or master token" autocomplete="off" required>
+      <button type="submit" class="btn-token">Link with Token</button>
+    </form>
+
+    <div id="status-msg"></div>
+  </div>
+
+  <script>
+    const REDIRECT_URI = {redirect_uri_js};
+    const STATE = {state_js};
+    const RESP_TYPE = {resp_type_js};
+    const GOOGLE_CLIENT_ID = {google_client_id_js};
+
+    function showStatus(text, isError) {{
+      const el = document.getElementById("status-msg");
+      el.className = isError ? "err" : "succ";
+      el.textContent = text;
+      el.style.display = "block";
+    }}
+
+    function finishOAuthRedirect(token) {{
+      showStatus("Account verified! Redirecting to Alexa...", false);
+      let targetUrl = "";
+      if (RESP_TYPE === "token") {{
+        targetUrl = REDIRECT_URI + "#access_token=" + encodeURIComponent(token) + "&token_type=Bearer&state=" + encodeURIComponent(STATE);
+      }} else {{
+        const sep = REDIRECT_URI.indexOf("?") === -1 ? "?" : "&";
+        targetUrl = REDIRECT_URI + sep + "code=" + encodeURIComponent(token) + "&state=" + encodeURIComponent(STATE);
+      }}
+      setTimeout(() => {{
+        window.location.href = targetUrl;
+      }}, 600);
+    }}
+
+    async function handleCredentialResponse(response) {{
+      showStatus("Signing in with Google...", false);
+      try {{
+        const res = await fetch("/api/auth/google", {{
+          method: "POST",
+          headers: {{ "Content-Type": "application/json" }},
+          body: JSON.stringify({{ credential: response.credential }})
+        }});
+        const data = await res.json();
+        if (data.ok && data.token) {{
+          finishOAuthRedirect(data.token);
+        }} else {{
+          showStatus(data.error || "Google authentication failed", true);
+        }}
+      }} catch (err) {{
+        showStatus("Network error during Google sign in", true);
+      }}
+    }}
+
+    async function handleTokenSubmit(e) {{
+      e.preventDefault();
+      const tok = document.getElementById("token-input").value.trim();
+      if (!tok) return;
+      showStatus("Validating user token...", false);
+      try {{
+        const res = await fetch("/api/auth/whoami", {{
+          headers: {{ "X-Token": tok }}
+        }});
+        const data = await res.json();
+        if (data.authorized) {{
+          finishOAuthRedirect(tok);
+        }} else {{
+          showStatus(data.error || "Invalid user token", true);
+        }}
+      }} catch (err) {{
+        showStatus("Error verifying token", true);
+      }}
+    }}
+
+    window.onload = function() {{
+      if (GOOGLE_CLIENT_ID && window.google) {{
+        google.accounts.id.initialize({{
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleCredentialResponse
+        }});
+        google.accounts.id.renderButton(
+          document.getElementById("google-btn-container"),
+          {{ theme: "filled_blue", size: "large", shape: "pill", width: 280, text: "signin_with" }}
+        );
+      }}
+    }};
+  </script>
+</body>
+</html>"""
+            html_bytes = html.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(html_bytes)))
+            self.end_headers()
+            self.wfile.write(html_bytes)
+            return
+
+        elif u.path in ("/oauth/token", "/auth/token"):
+            # Alexa Auth Code exchange endpoint
+            # Return token response expected by Alexa
+            auth_token = q.get("code", [TOKEN])[0]
+            return self._json({
+                "access_token": auth_token,
+                "token_type": "bearer",
+                "expires_in": 315360000,
+                "refresh_token": auth_token
+            })
         elif u.path == "/api/auth/google/config":
             # Public endpoint for client to get Google Client ID
             return self._json({"ok": True, "client_id": GOOGLE_CLIENT_ID})
@@ -1269,6 +1511,29 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802
         u = urllib.parse.urlparse(self.path)
+        if u.path in ("/oauth/token", "/auth/token"):
+            # Alexa Auth Code Grant Token Exchange (POST)
+            # Alexa sends form-urlencoded body (grant_type=authorization_code&code=...)
+            # We extract the 'code' (which holds the user's specific token) and return it as the access_token
+            ctype = self.headers.get("Content-Type", "")
+            raw_len = int(self.headers.get("Content-Length", 0))
+            raw_bytes = self.rfile.read(raw_len) if raw_len > 0 else b""
+            code_val = ""
+            if "application/x-www-form-urlencoded" in ctype:
+                parsed_form = urllib.parse.parse_qs(raw_bytes.decode("utf-8", "ignore"))
+                code_val = parsed_form.get("code", [""])[0]
+            elif "application/json" in ctype and raw_bytes:
+                try:
+                    code_val = json.loads(raw_bytes.decode("utf-8")).get("code", "")
+                except Exception:
+                    pass
+            user_access_token = code_val or TOKEN
+            return self._json({
+                "access_token": user_access_token,
+                "token_type": "bearer",
+                "expires_in": 315360000,
+                "refresh_token": user_access_token
+            })
         body = self._body()
         if u.path == "/api/discover":
             if not self._is_admin():
