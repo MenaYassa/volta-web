@@ -28,6 +28,7 @@ PORT = int(os.environ.get("VOLTA_WEB_PORT", os.environ.get("VOLTRA_WEB_PORT", "8
 DEVICE_PORT = int(os.environ.get("VOLTA_DEVICE_PORT", os.environ.get("VOLTRA_DEVICE_PORT", "10086")))
 TOKEN = os.environ.get("VOLTA_TOKEN", os.environ.get("VOLTRA_TOKEN", ""))
 PUBLIC_SERVER_IP = os.environ.get("VOLTA_PUBLIC_IP", "")
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 STRIPS_FILE = "strips.json"
 LOG = []  # in-memory ring
 CTL = None  # controller.Controller, started in __main__
@@ -156,6 +157,8 @@ def resolve_auth_context(token_str):
                     "is_admin": False,
                     "token": u_tok,
                     "user_name": info.get("name", "User"),
+                    "email": info.get("email", ""),
+                    "picture": info.get("picture", ""),
                     "strips": [],
                     "subscription_expired": True,
                     "status": status,
@@ -168,6 +171,8 @@ def resolve_auth_context(token_str):
                 "is_admin": False,
                 "token": u_tok,
                 "user_name": info.get("name", "User"),
+                "email": info.get("email", ""),
+                "picture": info.get("picture", ""),
                 "strips": user_strips,
                 "max_strips": info.get("max_strips", 10),
                 "expires_at": expires_at,
@@ -851,8 +856,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Security-Policy",
-                             "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-                             "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
+                             "default-src 'self'; "
+                             "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com; "
+                             "style-src 'self' 'unsafe-inline' https://accounts.google.com; "
+                             "img-src 'self' data: https://*.googleusercontent.com https://accounts.google.com; "
+                             "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com; "
+                             "frame-src https://accounts.google.com; "
                              "font-src 'self'; manifest-src 'self'; frame-ancestors 'self';")
             self.send_header("X-Frame-Options", "SAMEORIGIN")
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -886,6 +895,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif u.path == "/api/auth/google/config":
+            # Public endpoint for client to get Google Client ID
+            return self._json({"ok": True, "client_id": GOOGLE_CLIENT_ID})
         elif u.path == "/api/auth/whoami":
             ctx = self._auth_ctx()
             if not ctx["authorized"]:
@@ -900,6 +912,8 @@ class Handler(BaseHTTPRequestHandler):
                 "authorized": True,
                 "is_admin": ctx["is_admin"],
                 "name": ctx["user_name"],
+                "email": ctx.get("email", ""),
+                "picture": ctx.get("picture", ""),
                 "strips": ctx["strips"],
                 "max_strips": ctx.get("max_strips"),
                 "expires_at": ctx.get("expires_at"),
@@ -1171,6 +1185,96 @@ class Handler(BaseHTTPRequestHandler):
                     tag += f" banner={f['banner_text'][:60]!r}"
                 log(f"  hit {f['ip']}{tag}")
             return self._json({"found": found, "scanned": len(targets)})
+        if u.path == "/api/auth/google":
+            # Authenticate via Google ID Token (GIS / Android)
+            credential = (body.get("credential") or body.get("id_token") or "").strip()
+            if not credential:
+                return self._json({"error": "id_token or credential required"}, 400)
+            
+            import urllib.parse as _up
+            import urllib.request as _ur
+            try:
+                verify_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" + _up.quote(credential)
+                req = _ur.Request(verify_url, headers={"User-Agent": "VoltaController/1.0"})
+                with _ur.urlopen(req, timeout=10) as resp:
+                    tok_info = json.loads(resp.read().decode("utf-8"))
+            except Exception as e:
+                log(f"[google-auth] token verification failed: {e}")
+                return self._json({"error": f"Invalid Google token: {str(e)}"}, 401)
+            
+            # Check audience if GOOGLE_CLIENT_ID is set
+            aud = tok_info.get("aud")
+            if GOOGLE_CLIENT_ID and aud != GOOGLE_CLIENT_ID:
+                log(f"[google-auth] aud mismatch: got {aud}, expected {GOOGLE_CLIENT_ID}")
+                return self._json({"error": "Token audience does not match GOOGLE_CLIENT_ID"}, 401)
+            
+            email = (tok_info.get("email") or "").strip().lower()
+            name = (tok_info.get("name") or email.split("@")[0] or "Google User").strip()[:40]
+            picture = tok_info.get("picture", "")
+            google_id = tok_info.get("sub", "")
+            
+            if not email:
+                return self._json({"error": "Google token missing email"}, 400)
+            
+            users = get_users()
+            user_token = None
+            user_obj = None
+            
+            # 1. Search for existing user by email or google_id
+            for u_tok, u_data in users.items():
+                if u_data.get("email", "").lower() == email or (google_id and u_data.get("google_id") == google_id):
+                    user_token = u_tok
+                    user_obj = u_data
+                    break
+            
+            if user_obj:
+                # Update existing user profile metadata
+                user_obj["name"] = name or user_obj.get("name")
+                user_obj["email"] = email
+                user_obj["picture"] = picture
+                if google_id:
+                    user_obj["google_id"] = google_id
+                save_users(users)
+                log(f"[google-auth] existing user logged in: {name} ({email}) -> {user_token[:14]}...")
+            else:
+                # 2. Check if this is the designated admin email, or existing Mina account
+                # For first-time normal signups: Default Free User License: 1 Lifetime Strip License!
+                user_token = f"volta_usr_{secrets.token_hex(8)}"
+                user_obj = {
+                    "name": name,
+                    "email": email,
+                    "picture": picture,
+                    "google_id": google_id,
+                    "strips": [],
+                    "max_strips": 1,           # Free 1-strip license!
+                    "created_at": int(time.time()),
+                    "expires_at": None,        # Lifetime free license!
+                    "status": "active",
+                    "plan": "free_tier"
+                }
+                users[user_token] = user_obj
+                save_users(users)
+                log(f"[google-auth] NEW user auto-provisioned: {name} ({email}) with 1 Lifetime Strip Free License! Token={user_token[:14]}...")
+            
+            # Check if this user is marked as admin (e.g., if token matches or admin flag set)
+            is_adm = (user_token == TOKEN) or bool(user_obj.get("is_admin"))
+            
+            return self._json({
+                "ok": True,
+                "token": user_token,
+                "user": {
+                    "name": user_obj.get("name"),
+                    "email": user_obj.get("email"),
+                    "picture": user_obj.get("picture"),
+                    "is_admin": is_adm,
+                    "strips": user_obj.get("strips", []),
+                    "max_strips": user_obj.get("max_strips", 1),
+                    "expires_at": user_obj.get("expires_at"),
+                    "status": user_obj.get("status", "active"),
+                    "plan": user_obj.get("plan", "free_tier")
+                }
+            })
+
         if u.path == "/api/strips":
             if not self._is_admin():
                 return self._json({"error": "admin access required"}, 403)
@@ -1225,6 +1329,10 @@ class Handler(BaseHTTPRequestHandler):
                 user_obj = users[req_token]
                 if "name" in body:
                     user_obj["name"] = (body.get("name") or "").strip()[:40] or user_obj["name"]
+                if "email" in body:
+                    user_obj["email"] = (body.get("email") or "").strip().lower()
+                if "plan" in body:
+                    user_obj["plan"] = (body.get("plan") or "").strip()[:30]
                 if "strips" in body:
                     user_obj["strips"] = [norm_mac(m).upper() for m in body.get("strips", []) if m]
                 if "max_strips" in body:
@@ -1247,6 +1355,8 @@ class Handler(BaseHTTPRequestHandler):
             
             # Creating a new user
             name = (body.get("name") or "").strip()[:40] or "User"
+            email = (body.get("email") or "").strip().lower()
+            plan = (body.get("plan") or "custom").strip()[:30]
             new_token = req_token if req_token else f"volta_usr_{secrets.token_hex(8)}"
             max_strips = 10
             try:
@@ -1264,6 +1374,8 @@ class Handler(BaseHTTPRequestHandler):
 
             users[new_token] = {
                 "name": name,
+                "email": email,
+                "plan": plan,
                 "strips": [norm_mac(m).upper() for m in body.get("strips", []) if m],
                 "max_strips": max_strips,
                 "created_at": created_time,

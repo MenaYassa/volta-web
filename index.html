@@ -124,6 +124,12 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <h1>⚡ Volta</h1>
 <span id="srvState">connecting…</span>
 <span style="flex:1"></span>
+<div id="userHeaderProfile" style="display:none;align-items:center;gap:8px;margin-right:8px">
+  <img id="userAvatar" src="" style="width:26px;height:26px;border-radius:50%;display:none;border:1px solid rgba(255,255,255,.3)">
+  <span id="userNameBadge" class="small" style="color:#fff;font-weight:600"></span>
+  <button id="btnLogout" class="ghost sm" style="padding:2px 8px;font-size:11px;color:#fff;border-color:rgba(255,255,255,.3)">Sign out</button>
+</div>
+<button id="btnLoginHeader" class="sm" style="display:none;padding:3px 10px;font-size:12px">Sign in</button>
 <button class="tbtn" id="btnTheme" title="toggle light/dark">🌙</button>
 <span class="small" style="color:#cbd5e1" id="liveCount"></span>
 </div>
@@ -134,6 +140,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <button class="tab" data-tab="sched">Schedules</button>
 <button class="tab" data-tab="setup">Setup</button>
 <button class="tab" data-tab="tools">Advanced</button>
+<button class="tab" id="tabUsers" data-tab="users" style="display:none">👥 Users &amp; Licenses</button>
 <button class="tab" data-tab="settings">Settings</button>
 </nav>
 </header>
@@ -721,64 +728,6 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <div class="row" style="margin-top:8px"><button id="btnCostSettings">💾 Save cost settings</button></div>
 <div id="costMsg" class="msgline"></div>
 </div>
-<div class="card" id="userMgmtCard" style="display:none;border-color:var(--blue)">
-<h3>👥 User Management <span class="tag" style="background:var(--blue);color:#fff">Admin</span></h3>
-<p class="desc">Create user tokens for other people. Each user only sees and controls the strips they provision or claim.</p>
-<div class="grid cols2">
-  <div class="field"><span>User name / label</span><input id="uNewName" placeholder="e.g. Ahmed, Living Room"></div>
-  <div class="field"><span>Optional custom token</span><input id="uNewTok" class="mono" placeholder="leave empty to auto-generate"></div>
-</div>
-<div class="grid cols3" style="margin-top:6px">
-  <div class="field">
-    <span>Subscription Duration</span>
-    <select id="uNewDuration">
-      <option value="1_months">1 Month</option>
-      <option value="3_months">3 Months</option>
-      <option value="6_months" selected>6 Months</option>
-      <option value="1_years">1 Year</option>
-      <option value="2_years">2 Years</option>
-      <option value="0_unlimited">Lifetime / Unlimited</option>
-    </select>
-  </div>
-  <div class="field">
-    <span>Allowed Strips Limit</span>
-    <input id="uNewMaxStrips" type="number" min="1" max="1000" value="10" placeholder="e.g. 10">
-  </div>
-  <div class="field">
-    <span>&nbsp;</span>
-    <button id="btnCreateUser">+ Create User</button>
-  </div>
-</div>
-<div id="uMsg" class="msgline"></div>
-
-<details class="adv" style="margin-top:12px">
-<summary>🔄 Transfer strip between users</summary>
-<div style="padding-top:8px">
-  <div class="grid cols3">
-    <div class="field"><span>Strip MAC</span><input id="trMac" class="mono" placeholder="e.g. 88D0398B73EF"></div>
-    <div class="field"><span>Assign to User</span><select id="trUserSel"></select></div>
-    <div class="field"><span>&nbsp;</span><button id="btnTransferStrip">Transfer Strip</button></div>
-  </div>
-  <div id="trMsg" class="msgline"></div>
-</div>
-</details>
-
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0 8px">
-  <input id="userSearch" type="search" placeholder="🔍 Search users by name or token..." style="flex:1;min-width:180px">
-  <span class="small" id="userCountBadge"></span>
-</div>
-
-<div id="usersTableBox" style="margin-top:8px;overflow-x:auto"></div>
-
-<div id="usersPagination" class="pagination" style="display:none">
-  <span class="small" id="usersPageInfo">Showing 1–10 of 100 users</span>
-  <div class="row" style="gap:6px">
-    <button id="usersPrevPage" class="ghost sm">← Prev</button>
-    <span id="usersCurrentPage" class="tag">1 / 1</span>
-    <button id="usersNextPage" class="ghost sm">Next →</button>
-  </div>
-</div>
-</div>
 
 <div class="card" id="srvInfoCard" style="display:none">
 <h3>Server</h3>
@@ -790,6 +739,77 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <pre id="log">—</pre>
 </div>
 <footer>Volta · MTTL-W01 (TONLY) · local-first, no cloud</footer>
+</section>
+
+<!-- ============ USERS & LICENSES (ADMIN ONLY) ============ -->
+<section class="tabpane" id="pane-users">
+<div class="card" style="border-color:var(--blue)">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <div>
+      <h3 style="margin:0">👥 User Accounts &amp; Subscription Licenses</h3>
+      <p class="desc" style="margin:4px 0 0">Manage user quotas, lifetime free tiers, and extend subscription durations.</p>
+    </div>
+    <span class="tag" style="background:var(--blue);color:#fff;font-weight:600">Admin Control</span>
+  </div>
+
+  <details class="adv" style="margin-top:14px" id="createUserDetails">
+    <summary style="font-weight:600;font-size:13px">➕ Create / Onboard New User Account</summary>
+    <div style="padding-top:10px">
+      <div class="grid cols2">
+        <div class="field"><span>User Name / Label</span><input id="uNewName" placeholder="e.g. Ahmed, Living Room"></div>
+        <div class="field"><span>Gmail / Email (Optional)</span><input id="uNewEmail" type="email" placeholder="e.g. user@gmail.com"></div>
+      </div>
+      <div class="grid cols3" style="margin-top:8px">
+        <div class="field">
+          <span>License / Plan Duration</span>
+          <select id="uNewDuration">
+            <option value="0_unlimited" selected>Lifetime / Unlimited (Free Tier)</option>
+            <option value="1_months">1 Month</option>
+            <option value="3_months">3 Months</option>
+            <option value="6_months">6 Months</option>
+            <option value="1_years">1 Year</option>
+            <option value="2_years">2 Years</option>
+          </select>
+        </div>
+        <div class="field">
+          <span>Allowed Strips Quota</span>
+          <input id="uNewMaxStrips" type="number" min="1" max="1000" value="1" placeholder="e.g. 1 for Free, 5 for Pro">
+        </div>
+        <div class="field">
+          <span>Optional Custom Token</span>
+          <input id="uNewTok" class="mono" placeholder="auto-generated if blank">
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="btnCreateUser" class="sm">+ Create Account</button>
+        <span id="uMsg" class="msgline"></span>
+      </div>
+    </div>
+  </details>
+
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0 8px">
+    <input id="userSearch" type="search" placeholder="🔍 Search by name, email, or token..." style="flex:1;min-width:200px">
+    <select id="userFilterPlan" style="width:auto">
+      <option value="all">All Plans</option>
+      <option value="free">Free Tier (1 strip)</option>
+      <option value="paid">Multi-Strip / Pro</option>
+      <option value="expiring">Expiring &lt; 30d</option>
+      <option value="expired">Expired / Canceled</option>
+    </select>
+    <span class="small" id="userCountBadge"></span>
+  </div>
+
+  <div id="usersTableBox" style="margin-top:8px;overflow-x:auto"></div>
+
+  <div id="usersPagination" class="pagination" style="display:none">
+    <span class="small" id="usersPageInfo">Showing 1–10 of 100 users</span>
+    <div class="row" style="gap:6px">
+      <button id="usersPrevPage" class="ghost sm">← Prev</button>
+      <span id="usersCurrentPage" class="tag">1 / 1</span>
+      <button id="usersNextPage" class="ghost sm">Next →</button>
+    </div>
+  </div>
+</div>
 </section>
 
 </div>
@@ -858,6 +878,14 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
         <input id="meuName" maxlength="40">
       </div>
       <div class="field" style="margin-bottom:10px">
+        <span>Google / Account Email</span>
+        <input id="meuEmail" type="email" placeholder="e.g. user@gmail.com">
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <span>Plan Tier Label</span>
+        <input id="meuPlan" placeholder="e.g. free_tier, pro, family">
+      </div>
+      <div class="field" style="margin-bottom:10px">
         <span>Account / Subscription Status</span>
         <select id="meuStatus">
           <option value="active">Active</option>
@@ -866,8 +894,8 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
         </select>
       </div>
       <div class="field" style="margin-bottom:10px">
-        <span>Allowed Strips Limit</span>
-        <input id="meuMaxStrips" type="number" min="1" max="1000" placeholder="e.g. 10">
+        <span>Allowed Strips Quota</span>
+        <input id="meuMaxStrips" type="number" min="1" max="1000" placeholder="e.g. 1, 5, 10">
       </div>
       <div class="field" style="margin-bottom:10px">
         <span>Extend / Set Subscription Period</span>
@@ -890,6 +918,36 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   </div>
 </div>
 
+<!-- Modal: Sign In / Google Auth -->
+<div id="modalAuth" class="modal-overlay">
+  <div class="modal-box" style="max-width:400px;text-align:center">
+    <div class="modal-head" style="justify-content:center;position:relative">
+      <h3 style="margin:0">Sign in to ⚡ Volta</h3>
+      <button class="ghost sm" id="authClose" style="position:absolute;right:14px">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px 14px">
+      <p class="desc" style="margin-top:0">Sign in with your Google account to access your power strips, schedules, and analytics.</p>
+      
+      <!-- Google Sign In Button Container -->
+      <div id="g_id_signin_box" style="display:flex;justify-content:center;margin:18px 0 10px;min-height:44px"></div>
+
+      <div style="margin:16px 0;display:flex;align-items:center;gap:10px">
+        <span style="flex:1;height:1px;background:var(--line)"></span>
+        <span class="small" style="color:var(--mut)">or sign in with token</span>
+        <span style="flex:1;height:1px;background:var(--line)"></span>
+      </div>
+
+      <div class="field" style="text-align:left">
+        <span>API / Admin Token</span>
+        <input id="modalTokInput" type="password" placeholder="paste volta_token or user token">
+      </div>
+      <button id="btnModalTokLogin" class="sm" style="width:100%;margin-top:10px">Sign in with Token</button>
+      <div id="modalAuthMsg" class="msgline"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 function esc(s){if(s==null)return "";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 const $=id=>document.getElementById(id);
@@ -902,13 +960,119 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   if(t.dataset.tab==="analytics"){loadAnalytics();startAnalyticsTicker();}else stopAnalyticsTicker();
   if(t.dataset.tab==="strips")renderManage();
   if(t.dataset.tab==="sched")loadSched();
+  if(t.dataset.tab==="users" && _currentUserIsAdmin)loadUsers();
   if(t.dataset.tab==="settings")checkSrv();
 });
 const api=async(p,b,signal)=>{const r=await fetch(p,{method:b?"POST":"GET",headers:{"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined,signal});const j=await r.json();if(!r.ok)throw new Error(j.error||("HTTP "+r.status));return j;};
 const tok=()=>($("token")&&$("token").value||"").trim();
 if($("token"))$("token").value=localStorage.getItem("volta_token")||localStorage.getItem("voltra_token")||"";
 on("token","change",()=>{try{localStorage.setItem("volta_token",$("token").value.trim());}catch{}if($("tokMsg"))$("tokMsg").textContent=$("token").value.trim()?"✓ remembered on this device":"";live();checkSrv();});
-on("btnForget","click",()=>{if($("token"))$("token").value="";try{localStorage.removeItem("volta_token");localStorage.removeItem("voltra_token");}catch{}if($("tokMsg"))$("tokMsg").textContent="forgotten";live();});
+function logoutUser(){
+  if($("token"))$("token").value="";
+  try{
+    localStorage.removeItem("volta_token");
+    localStorage.removeItem("voltra_token");
+  }catch{}
+  if($("tokMsg"))$("tokMsg").textContent="signed out";
+  _currentUserIsAdmin = false;
+  if($("tabUsers"))$("tabUsers").style.display="none";
+  if($("userHeaderProfile"))$("userHeaderProfile").style.display="none";
+  if($("btnLoginHeader"))$("btnLoginHeader").style.display="inline-block";
+  // Switch to Control tab
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".tabpane").forEach(x=>x.classList.remove("on"));
+  const defTab = document.querySelector('.tab[data-tab="control"]');
+  if(defTab) defTab.classList.add("on");
+  const defPane = $("pane-control");
+  if(defPane) defPane.classList.add("on");
+  live();
+  checkSrv();
+}
+
+on("btnLogout","click",logoutUser);
+on("btnForget","click",logoutUser);
+on("btnLoginHeader","click",()=>openAuthModal());
+
+// Modal Auth / Google Sign In Logic
+function openAuthModal(){
+  const modal = $("modalAuth");
+  if(!modal) return;
+  modal.classList.add("open");
+  initGoogleAuth();
+}
+
+function closeAuthModal(){
+  const modal = $("modalAuth");
+  if(modal) modal.classList.remove("open");
+}
+
+on("authClose","click",closeAuthModal);
+
+async function handleGoogleCredentialResponse(response){
+  const msg = $("modalAuthMsg");
+  if(msg) msg.textContent = "Verifying with Google…";
+  try{
+    const res = await api("/api/auth/google", {credential: response.credential});
+    if(res && res.ok && res.token){
+      if($("token")) $("token").value = res.token;
+      try{localStorage.setItem("volta_token", res.token);}catch{}
+      if(msg) msg.textContent = "✓ Success! Welcome, " + (res.user.name||"User");
+      setTimeout(()=>{
+        closeAuthModal();
+        checkSrv();
+        live();
+      }, 600);
+    }else{
+      if(msg) msg.textContent = "✕ " + (res.error || "Google login failed");
+    }
+  }catch(e){
+    if(msg) msg.textContent = "✕ " + e.message;
+  }
+}
+
+let _googleAuthInited = false;
+async function initGoogleAuth(){
+  if(_googleAuthInited) return;
+  try{
+    const cfg = await api("/api/auth/google/config");
+    if(cfg && cfg.client_id && window.google && window.google.accounts && window.google.accounts.id){
+      window.google.accounts.id.initialize({
+        client_id: cfg.client_id,
+        callback: handleGoogleCredentialResponse,
+        auto_select: false
+      });
+      const box = $("g_id_signin_box");
+      if(box){
+        box.innerHTML = "";
+        window.google.accounts.id.renderButton(box, {
+          theme: "outline",
+          size: "large",
+          shape: "pill",
+          text: "signin_with",
+          logo_alignment: "left",
+          width: 250
+        });
+      }
+      _googleAuthInited = true;
+    }
+  }catch(e){
+    console.error("google auth init error:", e);
+  }
+}
+
+on("btnModalTokLogin","click",()=>{
+  const val = ($("modalTokInput")&&$("modalTokInput").value||"").trim();
+  const msg = $("modalAuthMsg");
+  if(!val){if(msg)msg.textContent="✕ Enter a token";return;}
+  if($("token")) $("token").value = val;
+  try{localStorage.setItem("volta_token", val);}catch{}
+  if(msg) msg.textContent = "✓ Token saved!";
+  setTimeout(()=>{
+    closeAuthModal();
+    checkSrv();
+    live();
+  }, 400);
+});
 const apit=async(p,b,opt)=>{const h={"Content-Type":"application/json"};if(tok())h["X-Token"]=tok();
   let method = "GET";
   let sig = undefined;
@@ -961,12 +1125,20 @@ async function checkSrv(){
         const who=await apit("/api/auth/whoami");
         if(who.authorized){
           _currentUserIsAdmin = Boolean(who.is_admin);
+          if($("tabUsers"))$("tabUsers").style.display = who.is_admin ? "block" : "none";
+          if(who.is_admin && $("pane-users").classList.contains("on"))loadUsers();
+          
           if($("srvState"))$("srvState").textContent=`${who.name} (${who.is_admin?"Admin":"User"})`;
-          const mgmt=$("userMgmtCard");
-          if(mgmt){
-            mgmt.style.display=who.is_admin?"block":"none";
-            if(who.is_admin)loadUsers();
+          if($("userHeaderProfile"))$("userHeaderProfile").style.display = "flex";
+          if($("userNameBadge"))$("userNameBadge").textContent = who.name;
+          if($("btnLoginHeader"))$("btnLoginHeader").style.display = "none";
+          if(who.picture && $("userAvatar")){
+            $("userAvatar").src = who.picture;
+            $("userAvatar").style.display = "inline-block";
+          }else if($("userAvatar")){
+            $("userAvatar").style.display = "none";
           }
+
           if($("srvInfoCard"))$("srvInfoCard").style.display = who.is_admin ? "block" : "none";
           if($("gatewayLogCard"))$("gatewayLogCard").style.display = who.is_admin ? "block" : "none";
           if($("fltManageUnassigned"))$("fltManageUnassigned").style.display = who.is_admin ? "" : "none";
@@ -1023,14 +1195,18 @@ async function checkSrv(){
           }
         }
       }catch(e){
-        if($("userMgmtCard"))$("userMgmtCard").style.display="none";
+        if($("tabUsers"))$("tabUsers").style.display="none";
         if($("srvInfoCard"))$("srvInfoCard").style.display="none";
         if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
+        if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
+        if($("btnLoginHeader"))$("btnLoginHeader").style.display = "inline-block";
       }
     }else{
-      if($("userMgmtCard"))$("userMgmtCard").style.display="none";
+      if($("tabUsers"))$("tabUsers").style.display="none";
       if($("srvInfoCard"))$("srvInfoCard").style.display="none";
       if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
+      if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
+      if($("btnLoginHeader"))$("btnLoginHeader").style.display = "inline-block";
     }
   }catch{
     if($("srvDot"))$("srvDot").className="dot bad";
@@ -1070,12 +1246,33 @@ function renderUsersTable(){
     return;
   }
   
-  // Filter by search query
+  // Filter by search query & plan filter
+  const planFlt = ($("userFilterPlan") ? $("userFilterPlan").value : "all") || "all";
   let filtered = keys.filter(t=>{
     const u=_cachedUsers[t]||{};
     const q=_userSearchQuery.toLowerCase().trim();
-    if(!q)return true;
-    return (u.name||"").toLowerCase().includes(q) || t.toLowerCase().includes(q);
+    if(q){
+      const match = (u.name||"").toLowerCase().includes(q) || 
+                    (u.email||"").toLowerCase().includes(q) || 
+                    t.toLowerCase().includes(q);
+      if(!match) return false;
+    }
+    const maxStrips = u.max_strips || 10;
+    const now = Math.floor(Date.now() / 1000);
+    const isExpired = u.expires_at && now > u.expires_at;
+    const isCanceled = u.status === "canceled";
+    const daysLeft = u.expires_at ? Math.ceil((u.expires_at - now) / 86400) : 9999;
+
+    if(planFlt === "free"){
+      return maxStrips === 1;
+    }else if(planFlt === "paid"){
+      return maxStrips > 1;
+    }else if(planFlt === "expiring"){
+      return u.expires_at && daysLeft > 0 && daysLeft <= 30;
+    }else if(planFlt === "expired"){
+      return isExpired || isCanceled;
+    }
+    return true;
   });
   
   // Sort users alphabetically by name
@@ -1125,8 +1322,26 @@ function renderUsersTable(){
 
     const createdStr=u.created_at?new Date(u.created_at*1000).toLocaleDateString():"—";
     const maskedTok = t.length > 20 ? t.slice(0, 14) + "…" + t.slice(-4) : t;
+    const avatarImg = u.picture 
+      ? `<img src="${esc(u.picture)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--line)">` 
+      : `<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#60a5fa);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">${esc((u.name||"U")[0].toUpperCase())}</div>`;
+    
+    const emailStr = u.email ? `<span class="small" style="display:block;color:var(--mut);font-size:11px">${esc(u.email)}</span>` : "";
+    const planPill = maxStrips === 1 
+      ? `<span class="tag" style="background:#e0f2fe;color:#0369a1;font-size:10px;margin-top:2px;display:inline-block">Free (1 Strip)</span>`
+      : `<span class="tag" style="background:#fef3c7;color:#92400e;font-size:10px;margin-top:2px;display:inline-block">Pro (${maxStrips} Strips)</span>`;
+
     h+=`<tr>
-      <td><b>${esc(u.name||"User")}</b></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${avatarImg}
+          <div>
+            <b>${esc(u.name||"User")}</b>
+            ${emailStr}
+            ${planPill}
+          </div>
+        </div>
+      </td>
       <td><code class="mono" style="font-size:11px" title="${esc(t)}">${esc(maskedTok)}</code> <button class="ghost sm copy-tok-btn" data-tok="${esc(t)}" style="padding:2px 6px;font-size:11px" title="Copy full token">📋</button></td>
       <td>${subBadge}</td>
       <td>${stripBadge}</td>
@@ -1208,6 +1423,11 @@ on("userSearch","input",e=>{
   renderUsersTable();
 });
 
+on("userFilterPlan","change",()=>{
+  _userPage = 1;
+  renderUsersTable();
+});
+
 on("usersPrevPage","click",()=>{
   if(_userPage > 1){_userPage--;renderUsersTable();}
 });
@@ -1236,9 +1456,10 @@ on("btnTransferStrip","click",async()=>{
 });
 on("btnCreateUser","click",async()=>{
   const name=($("uNewName")&&$("uNewName").value||"").trim();
+  const email=($("uNewEmail")&&$("uNewEmail").value||"").trim().toLowerCase();
   const ctok=($("uNewTok")&&$("uNewTok").value||"").trim();
-  const durVal=($("uNewDuration")&&$("uNewDuration").value||"6_months");
-  const maxStrips=parseInt($("uNewMaxStrips")&&$("uNewMaxStrips").value||"10",10)||10;
+  const durVal=($("uNewDuration")&&$("uNewDuration").value||"0_unlimited");
+  const maxStrips=parseInt($("uNewMaxStrips")&&$("uNewMaxStrips").value||"1",10)||1;
 
   if(!name){$("uMsg").textContent="✕ enter a user name.";return;}
   $("uMsg").textContent="creating user…";
@@ -1248,6 +1469,7 @@ on("btnCreateUser","click",async()=>{
 
   const payload = {
     name,
+    email,
     token: ctok,
     max_strips: maxStrips,
     sub_value: subCount,
@@ -1259,7 +1481,7 @@ on("btnCreateUser","click",async()=>{
     const r=await apit("/api/users", payload);
     if(r.ok){
       $("uMsg").textContent=`✓ User created! Token: ${r.token}`;
-      $("uNewName").value="";$("uNewTok").value="";
+      $("uNewName").value="";if($("uNewEmail"))$("uNewEmail").value="";$("uNewTok").value="";
       loadUsers();
     }else{
       $("uMsg").textContent="✕ "+(r.error||"failed to create user");
@@ -1346,6 +1568,8 @@ function openEditUserModal(token){
 
   if($("meuTitle"))$("meuTitle").textContent = `Edit User · ${u.name||"User"}`;
   if($("meuName"))$("meuName").value = u.name || "";
+  if($("meuEmail"))$("meuEmail").value = u.email || "";
+  if($("meuPlan"))$("meuPlan").value = u.plan || (u.max_strips === 1 ? "free_tier" : "pro");
   if($("meuStatus"))$("meuStatus").value = u.status || "active";
   if($("meuMaxStrips"))$("meuMaxStrips").value = u.max_strips || 10;
   if($("meuDuration"))$("meuDuration").value = "keep";
@@ -1376,6 +1600,8 @@ on("meuCancel","click",closeEditUserModal);
 on("meuSave","click",async()=>{
   if(!_activeEditingAccountToken)return;
   const name = ($("meuName")&&$("meuName").value||"").trim();
+  const email = ($("meuEmail")&&$("meuEmail").value||"").trim().toLowerCase();
+  const plan = ($("meuPlan")&&$("meuPlan").value||"").trim();
   const status = ($("meuStatus")&&$("meuStatus").value||"active");
   const maxStrips = parseInt($("meuMaxStrips")&&$("meuMaxStrips").value||"10",10)||10;
   const durVal = ($("meuDuration")&&$("meuDuration").value||"keep");
@@ -1383,6 +1609,8 @@ on("meuSave","click",async()=>{
   const payload = {
     token: _activeEditingAccountToken,
     name,
+    email,
+    plan,
     status,
     max_strips: maxStrips
   };
@@ -2836,7 +3064,7 @@ on("aBtn30d","click",()=>aSetRange($("aBtn30d"),"30d"));
 on("aBtn6m","click",()=>aSetRange($("aBtn6m"),"6m"));
 on("aBtn1y","click",()=>aSetRange($("aBtn1y"),"1y"));
 on("aBtnRefresh","click",loadCharts);
-async function init(){try{const n=await api("/api/nets");if($("nets"))$("nets").value=(n.nets[0]||"192.168.1.0/24");}catch{}await checkSrv();await reload();await live();await renderManage();await loadSettings();setInterval(log,4000);setInterval(()=>{if(prefs.auto&&$("pane-control").classList.contains("on"))live();},5000);setInterval(checkSrv,15000);}
+async function init(){try{const n=await api("/api/nets");if($("nets"))$("nets").value=(n.nets[0]||"192.168.1.0/24");}catch{}await checkSrv();await reload();await live();await renderManage();await loadSettings();initGoogleAuth();setInterval(log,4000);setInterval(()=>{if(prefs.auto&&$("pane-control").classList.contains("on"))live();},5000);setInterval(checkSrv,15000);}
 init();
 </script>
 </body>
