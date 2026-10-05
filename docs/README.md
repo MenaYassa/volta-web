@@ -12,3 +12,4 @@ Welcome to the **Volta** technical and operational documentation. Volta is a loc
 - [Analytics & Telemetry (`docs/analytics.md`)](./analytics.md): SQLite timeseries schema, power/voltage/temperature logging, leaderboard computation, and downsampling.
 - [Hardware & Protocols Reference (`docs/hardware-reference.md`)](./hardware-reference.md): Circuit boards, RTL8711AF MCU, I2C relay codes, USB rail details, and ESP-01 hardware mod notes.
 - [Hardware Mod Guide (ESP-01) (`docs/hardware-mod/README.md`)](./hardware-mod/README.md): Circuit wiring, firmware sketch, and pinout instructions for bypassing a dead MCU with an ESP-01.
+- [Future Improvements Roadmap (`docs/future-plans-auth-licensing.md`)](./future-plans-auth-licensing.md): Google Sign-In, free 1-strip lifetime license, dedicated Admin Users console, and native Alexa Smart Home Skill integration.
