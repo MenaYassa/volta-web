@@ -1479,6 +1479,16 @@ class Handler(BaseHTTPRequestHandler):
                             },
                             {
                                 "type": "AlexaInterface",
+                                "interface": "Alexa.TemperatureSensor",
+                                "version": "3",
+                                "properties": {
+                                    "supported": [{"name": "temperature"}],
+                                    "proactivelyReported": False,
+                                    "retrievable": True
+                                }
+                            },
+                            {
+                                "type": "AlexaInterface",
                                 "interface": "Alexa.EndpointHealth",
                                 "version": "3",
                                 "properties": {
@@ -1515,10 +1525,16 @@ class Handler(BaseHTTPRequestHandler):
             
             target_out = next((o for o in dev.get("outlets", []) if o.get("n") == outlet_num), None)
             is_on = bool(target_out and target_out.get("on"))
+            temp_c = float(target_out.get("temp_c", 25.0)) if target_out else 25.0
+            power_w = float(target_out.get("power_w", 0.0)) if target_out else 0.0
+            voltage_v = float(dev.get("voltage_v") or 220.0)
             return self._json({
                 "ok": True,
                 "connected": bool(dev.get("online")),
-                "powerState": "ON" if is_on else "OFF"
+                "powerState": "ON" if is_on else "OFF",
+                "temp_c": temp_c,
+                "power_w": power_w,
+                "voltage_v": voltage_v
             })
 
         elif u.path == "/api/log":

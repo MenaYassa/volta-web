@@ -162,29 +162,39 @@ def handle_report_state(request, token):
         state_info = http_request(q_path, method="GET", token=token)
         power_state = state_info.get("powerState", "OFF")
         connected = state_info.get("connected", True)
+        temp_c = float(state_info.get("temp_c", 25.0))
     except Exception as e:
         print(f"Report state error: {e}")
         return build_error_response(request, "ENDPOINT_UNREACHABLE", str(e))
 
     now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    properties = [
+        {
+            "namespace": "Alexa.PowerController",
+            "name": "powerState",
+            "value": power_state,
+            "timeOfSample": now_iso,
+            "uncertaintyInMilliseconds": 200,
+        },
+        {
+            "namespace": "Alexa.TemperatureSensor",
+            "name": "temperature",
+            "value": {"value": temp_c, "scale": "CELSIUS"},
+            "timeOfSample": now_iso,
+            "uncertaintyInMilliseconds": 1000,
+        },
+        {
+            "namespace": "Alexa.EndpointHealth",
+            "name": "connectivity",
+            "value": {"value": "OK" if connected else "UNREACHABLE"},
+            "timeOfSample": now_iso,
+            "uncertaintyInMilliseconds": 200,
+        },
+    ]
+
     return {
         "context": {
-            "properties": [
-                {
-                    "namespace": "Alexa.PowerController",
-                    "name": "powerState",
-                    "value": power_state,
-                    "timeOfSample": now_iso,
-                    "uncertaintyInMilliseconds": 200,
-                },
-                {
-                    "namespace": "Alexa.EndpointHealth",
-                    "name": "connectivity",
-                    "value": {"value": "OK" if connected else "UNREACHABLE"},
-                    "timeOfSample": now_iso,
-                    "uncertaintyInMilliseconds": 200,
-                },
-            ]
+            "properties": properties
         },
         "event": {
             "header": {
