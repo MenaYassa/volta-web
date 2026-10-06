@@ -1803,23 +1803,37 @@ on("btnCreateUser","click",async()=>{
 });
 /* ---- Control ---- */
 let _last=null,_liveBusy=false;
-function getLockedOutlets(){
-  try{return JSON.parse(localStorage.getItem("volta_locked_outlets")||"{}");}catch{return {};}
-}
-function setLockedOutlets(map){
-  try{localStorage.setItem("volta_locked_outlets", JSON.stringify(map));}catch{}
-}
+// In-memory cache of server-synced locked outlets: { "MAC_OUTLET": true }
+let _serverLockedOutlets = {};
+
 function isOutletLocked(mac, outletNum){
-  const map = getLockedOutlets();
-  return Boolean(map[`${(mac||"").toUpperCase()}_${outletNum}`]);
+  const cleanM = (mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase();
+  return Boolean(_serverLockedOutlets[`${cleanM}_${outletNum}`]);
 }
-function toggleOutletLock(mac, outletNum){
-  const map = getLockedOutlets();
-  const key = `${(mac||"").toUpperCase()}_${outletNum}`;
-  if(map[key]) delete map[key];
-  else map[key] = true;
-  setLockedOutlets(map);
-  return Boolean(map[key]);
+
+async function setOutletLockState(mac, outletNum, targetLocked){
+  const cleanM = (mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase();
+  const key = `${cleanM}_${outletNum}`;
+  if(targetLocked) _serverLockedOutlets[key] = true;
+  else delete _serverLockedOutlets[key];
+
+  try {
+    const res = await apit("/api/outlet/lock", { mac: cleanM, outlet: outletNum, locked: targetLocked });
+    if(res && res.ok && Array.isArray(res.locked_outlets)){
+      // Keep in-memory cache strictly in sync with server truth
+      for(let i=1; i<=4; i++){
+        const k = `${cleanM}_${i}`;
+        if(res.locked_outlets.includes(i)) _serverLockedOutlets[k] = true;
+        else delete _serverLockedOutlets[k];
+      }
+    }
+  } catch(e) {
+    console.error("Failed to sync outlet lock with server:", e);
+    // Revert optimistic update on failure
+    if(targetLocked) delete _serverLockedOutlets[key];
+    else _serverLockedOutlets[key] = true;
+    throw e;
+  }
 }
 function fmtTime(){const d=new Date();return d.toLocaleTimeString();}
 async function live(){
@@ -1832,6 +1846,17 @@ async function live(){
     const s=await apit("/api/live");_last=s;
     const devs=s.devices||[];
     const online=devs.filter(d=>d.online);
+
+    // Sync in-memory locked outlets directly from live server snapshot
+    for(const d of devs){
+      const cleanM = (d.mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase();
+      const lockedList = Array.isArray(d.locked_outlets) ? d.locked_outlets : [];
+      for(let i=1; i<=4; i++){
+        const k = `${cleanM}_${i}`;
+        if(lockedList.includes(i)) _serverLockedOutlets[k] = true;
+        else delete _serverLockedOutlets[k];
+      }
+    }
     if($("liveCount"))$("liveCount").textContent=devs.length?`${online.length}/${devs.length} online`:"";
     if($("ovOnline"))$("ovOnline").textContent=devs.length?`${online.length}/${devs.length}`:"0";
     const onCount=devs.reduce((a,d)=>a+d.outlets.filter(o=>o.on).length,0);
@@ -2046,20 +2071,28 @@ async function live(){
           const lockBtn = card.querySelector(".lock-btn");
           const sw = card.querySelector(".sw");
 
-          lockBtn.onclick = (e) => {
+          lockBtn.onclick = async (e) => {
             e.stopPropagation();
-            const nowLocked = toggleOutletLock(d.mac, o.n);
-            lockBtn.className = "lock-btn" + (nowLocked ? " locked" : "");
-            lockBtn.textContent = nowLocked ? "🔒" : "🔓";
-            lockBtn.title = nowLocked ? "Outlet locked (protected from accidental toggles). Click to unlock." : "Lock outlet against accidental toggles";
-            card.classList.toggle("is-locked", nowLocked);
-            sw.disabled = nowLocked;
-            if (nowLocked) {
-              msg.textContent = `Outlet ${o.n} locked 🔒 (accidental toggle protection active)`;
-            } else {
-              msg.textContent = `Outlet ${o.n} unlocked 🔓`;
+            const willBeLocked = !isOutletLocked(d.mac, o.n);
+            lockBtn.disabled = true;
+            try {
+              await setOutletLockState(d.mac, o.n, willBeLocked);
+              lockBtn.className = "lock-btn" + (willBeLocked ? " locked" : "");
+              lockBtn.textContent = willBeLocked ? "🔒" : "🔓";
+              lockBtn.title = willBeLocked ? "Outlet locked (protected from accidental toggles). Click to unlock." : "Lock outlet against accidental toggles";
+              card.classList.toggle("is-locked", willBeLocked);
+              sw.disabled = willBeLocked;
+              if (willBeLocked) {
+                msg.textContent = `Outlet ${o.n} locked 🔒 (persisted on server)`;
+              } else {
+                msg.textContent = `Outlet ${o.n} unlocked 🔓`;
+              }
+              setTimeout(() => { if (msg.textContent.includes("locked") || msg.textContent.includes("unlocked")) msg.textContent = ""; }, 3000);
+            } catch(err) {
+              alert("Failed to update lock state: " + (err.message || "Network error"));
+            } finally {
+              lockBtn.disabled = false;
             }
-            setTimeout(() => { if (msg.textContent.includes("locked")) msg.textContent = ""; }, 3000);
           };
 
           sw.onclick = async () => {

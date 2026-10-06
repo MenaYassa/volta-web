@@ -119,6 +119,17 @@ def save_timers(timers):
     save_strips(data)
 
 
+def get_locked_outlets():
+    """Return dictionary of locked outlets: { 'MAC': [1, 2, ...] } with uppercase normalized MAC."""
+    return load_strips().get("locked_outlets", {})
+
+
+def save_locked_outlets(locked):
+    data = load_strips()
+    data["locked_outlets"] = locked
+    save_strips(data)
+
+
 def get_voltage_guards():
     """Return dictionary of voltage/temp guard configurations keyed by normalized uppercase MAC."""
     return load_strips().get("voltage_guard", {})
@@ -1424,8 +1435,13 @@ class Handler(BaseHTTPRequestHandler):
                         if str(o.get("n")) in onames:
                             o["nick"] = onames[str(o.get("n"))]
                     
-                    # Attach voltage & temperature guard status to live snapshot
+                    # Attach server-side persisted outlet locks and guard status
                     clean_m = norm_mac(d.get("mac", "")).upper()
+                    strip_locked = get_locked_outlets().get(clean_m, [])
+                    d["locked_outlets"] = strip_locked
+                    for o in d.get("outlets", []):
+                        o["locked"] = bool(o.get("n") in strip_locked)
+
                     g_info = get_voltage_guards().get(clean_m, get_default_guard_config())
                     d["voltage_guard"] = {
                         "enabled": bool(g_info.get("enabled", True)),
@@ -1465,6 +1481,7 @@ class Handler(BaseHTTPRequestHandler):
                     strip_name = nm.get("name") or d.get("name") or f"MTTL {clean_m[-6:]}"
                     onames = nm.get("outlets", {})
                     outs = []
+                    strip_locked = get_locked_outlets().get(clean_m.upper(), [])
                     for o in d.get("outlets", []):
                         onum = str(o.get("n"))
                         outs.append({
@@ -1474,7 +1491,7 @@ class Handler(BaseHTTPRequestHandler):
                             "power_w": o.get("power_w", 0.0),
                             "energy_kwh": o.get("energy_kwh", 0.0),
                             "temp_c": o.get("temp_c", 25),
-                            "locked": False
+                            "locked": bool(o.get("n") in strip_locked)
                         })
                     guard_info = get_voltage_guards().get(clean_m.upper(), get_default_guard_config())
                     formatted.append({
@@ -2247,6 +2264,49 @@ class Handler(BaseHTTPRequestHandler):
             save_strips(data)
             log(f"rename {mac}: {entry}")
             return self._json({"ok": True})
+        if u.path in ("/api/lock", "/api/outlet/lock"):
+            # Toggle or set lock status for a specific outlet on a claimed strip.
+            # Survives cookie clearing and syncs across all devices/users sharing the claimed strip.
+            # Body: { mac, outlet: 1-4, locked?: bool }
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            mac = norm_mac(body.get("mac", "")).upper()
+            if not mac:
+                return self._json({"error": "mac required"}, 400)
+            if not self._can_access_mac(mac):
+                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            try:
+                outlet = int(body.get("outlet", 0))
+            except (TypeError, ValueError):
+                return self._json({"error": "outlet must be 1-4"}, 400)
+            if outlet not in (1, 2, 3, 4):
+                return self._json({"error": "outlet must be 1-4"}, 400)
+
+            all_locked = get_locked_outlets()
+            current_list = list(all_locked.get(mac, []))
+
+            explicit_locked = body.get("locked")
+            if explicit_locked is not None:
+                make_locked = bool(explicit_locked)
+            else:
+                make_locked = outlet not in current_list
+
+            if make_locked:
+                if outlet not in current_list:
+                    current_list.append(outlet)
+                    current_list.sort()
+            else:
+                if outlet in current_list:
+                    current_list.remove(outlet)
+
+            if current_list:
+                all_locked[mac] = current_list
+            else:
+                all_locked.pop(mac, None)
+
+            save_locked_outlets(all_locked)
+            log(f"[outlet-lock] strip {mac} outlet {outlet} locked={make_locked} (all={current_list})")
+            return self._json({"ok": True, "mac": mac, "outlet": outlet, "locked": make_locked, "locked_outlets": current_list})
         if u.path in ("/api/onoff", "/api/switch"):
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
@@ -2282,6 +2342,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "no valid channels in list"}, 400)
             else:
                 channels = [1, 2, 3, 4] if outlet == 0 else [outlet]
+
+            # Reject manual toggle if an explicit single outlet is locked
+            if outlet in (1, 2, 3, 4) and not body.get("force"):
+                clean_mac = norm_mac(mac).upper()
+                strip_locked = get_locked_outlets().get(clean_mac, [])
+                if outlet in strip_locked:
+                    return self._json({"error": f"outlet {outlet} is locked against switching"}, 409)
+
             ok, err = CTL.set_outlets(mac, channels, on, source="ui")
             log(f"onoff {mac} outlet {outlet} {on}: {'OK' if ok else err}")
             if not ok:
