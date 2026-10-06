@@ -129,6 +129,28 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .guard-note{font-size:11px;color:var(--mut);margin-top:8px;line-height:1.4}
 .trip-alert{border-radius:12px;padding:14px;margin-bottom:14px;display:none}
 .pagination{display:flex;justify-content:space-between;align-items:center;margin:12px 0 6px;flex-wrap:wrap;gap:8px}
+/* Modern Analytics styles */
+.analytics-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#0f172a 100%);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:22px;color:#fff;box-shadow:0 10px 25px -5px rgba(0,0,0,.15);position:relative;overflow:hidden}
+.analytics-hero::after{content:"";position:absolute;top:-50%;right:-20%;width:300px;height:300px;background:radial-gradient(circle,rgba(59,130,246,.15) 0%,transparent 70%);border-radius:50%;pointer-events:none}
+.analytics-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+@media(max-width:680px){.analytics-kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi-box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;text-align:center;backdrop-filter:blur(4px);transition:transform .15s}
+.kpi-box:hover{transform:translateY(-1px);background:rgba(255,255,255,.08)}
+.kpi-box span{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8}
+.kpi-box b{display:block;font-size:18px;color:#fff;margin-top:3px;font-weight:700}
+.chart-box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:16px 0;box-shadow:0 2px 6px rgba(0,0,0,.02)}
+.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.chart-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
+.pills-bar{display:flex;gap:4px;flex-wrap:wrap;background:rgba(0,0,0,.03);padding:4px;border-radius:10px;border:1px solid var(--line)}
+.pills-bar button{background:none;border:none;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--mut);cursor:pointer;min-height:0;transition:all .15s}
+.pills-bar button:hover{color:var(--ink)}
+.pills-bar button.on{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+:root[data-theme="dark"] .pills-bar{background:rgba(255,255,255,.03)}
+:root[data-theme="dark"] .pills-bar button.on{background:#1e293b;color:#60a5fa}
+.stat-item{background:rgba(0,0,0,.02);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.stat-item span{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;font-weight:600}
+.stat-item b{display:block;font-size:16px;color:var(--ink);margin-top:2px}
+:root[data-theme="dark"] .stat-item{background:rgba(255,255,255,.02)}
 /* dark mode: auto + manual override */
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none} :root:not([data-theme="light"]) input,:root:not([data-theme="light"]) select{background:#0f1830;color:#e2e8f0;border-color:#24314f} :root:not([data-theme="light"]) button.ghost,:root:not([data-theme="light"]) button.danger{background:#0f1830;color:#e2e8f0} :root:not([data-theme="light"]) .ov .stat,:root:not([data-theme="light"]) .strip,:root:not([data-theme="light"]) details.adv{background:#131c31} :root:not([data-theme="light"]) .tag{background:#0f1830;color:#94a3b8} :root:not([data-theme="light"]) .sw{background:#334155} :root:not([data-theme="light"]) .s-stat,:root:not([data-theme="light"]) .outlet-card{background:rgba(255,255,255,.03)} :root:not([data-theme="light"]) .outlet-card.on{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.35)}}
 :root[data-theme="dark"]{--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none}
@@ -206,90 +228,121 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 <!-- ============ ANALYTICS ============ -->
 <section class="tabpane" id="pane-analytics">
-<div class="card" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 60%,#3b82f6 100%);border:none;color:#fff">
-  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-    <div style="font-size:40px;filter:drop-shadow(0 0 12px rgba(255,255,255,.6))">⚡</div>
+
+<!-- Analytics Hero Card -->
+<div class="analytics-hero">
+  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+    <div style="font-size:36px;width:56px;height:56px;border-radius:14px;background:rgba(59,130,246,.2);display:flex;align-items:center;justify-content:center;border:1px solid rgba(59,130,246,.3)">⚡</div>
     <div style="flex:1;min-width:180px">
-      <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.85">Active demand · all strips</div>
-      <div style="font-size:44px;font-weight:800;line-height:1.1" id="aHeroPower">— <span style="font-size:20px;font-weight:600">W</span></div>
-      <div style="font-size:13px;opacity:.9" id="aHeroSub">measuring…</div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;font-weight:600">Active Total Load</div>
+      <div style="font-size:38px;font-weight:800;line-height:1.1;letter-spacing:-0.5px" id="aHeroPower">— <span style="font-size:18px;font-weight:600;color:#94a3b8">W</span></div>
+      <div style="font-size:12px;color:#cbd5e1;margin-top:3px" id="aHeroSub">Measuring live telemetry…</div>
     </div>
-    <div style="text-align:right;font-size:13px;line-height:1.7">
-      <div>🔌 Grid: <b id="aHeroVolt">—</b></div>
-      <div>🌡️ Chip: <b id="aHeroTemp">—</b></div>
-      <div style="opacity:.75" id="aHeroUpdated"></div>
+    <div style="text-align:right;font-size:13px;line-height:1.8;background:rgba(255,255,255,.05);padding:8px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08)">
+      <div>🔌 Grid Voltage: <b id="aHeroVolt" style="color:#60a5fa">—</b></div>
+      <div>🌡️ Chip Temp: <b id="aHeroTemp" style="color:#f87171">—</b></div>
+      <div style="font-size:11px;color:#94a3b8" id="aHeroUpdated"></div>
     </div>
   </div>
-  <div class="ov" style="margin-top:14px;--stat-ink:#fff">
-  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aAvgPower">—</b><span>avg load</span></div>
-  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aPeakPower">—</b><span>peak demand</span></div>
-  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aEnergyKwh">—</b><span>energy</span></div>
-  <div class="stat" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)"><b id="aCost">—</b><span>est. cost</span></div>
+
+  <div class="analytics-kpis">
+    <div class="kpi-box"><b id="aAvgPower">—</b><span>Avg Load</span></div>
+    <div class="kpi-box"><b id="aPeakPower">—</b><span>Peak Demand</span></div>
+    <div class="kpi-box"><b id="aEnergyKwh">—</b><span>Energy</span></div>
+    <div class="kpi-box"><b id="aCost">—</b><span>Est. Cost</span></div>
   </div>
-  <div style="font-size:11px;opacity:.75;margin-top:6px" id="aHeroRange">period: last 24 hours</div>
+  <div style="font-size:11px;color:#94a3b8;margin-top:10px;text-align:right" id="aHeroRange">Period: Last 24 hours</div>
 </div>
 
-<div class="card">
-<h3>Historical charts</h3>
-<p class="desc">Select a strip and outlet to see power consumption, voltage, and temperature over time.</p>
-<div class="grid cols2" style="margin-bottom:12px">
-<div class="field">
-<span>Strip</span>
-<select id="aStrip"><option value="">Loading…</option></select>
-</div>
-<div class="field">
-<span>Outlet</span>
-<select id="aOutlet">
-<option value="1">Outlet 1</option>
-<option value="2">Outlet 2</option>
-<option value="3">Outlet 3</option>
-<option value="4">Outlet 4</option>
-</select>
-</div>
-</div>
-<div class="row" style="margin-bottom:12px;gap:8px;flex-wrap:wrap">
-<button id="aBtn1h" class="ghost sm">Last hour</button>
-<button id="aBtn6h" class="ghost sm">Last 6 hours</button>
-<button id="aBtn24h" class="ghost sm on">Last 24 hours</button>
-<button id="aBtn7d" class="ghost sm">Last 7 days</button>
-<button id="aBtn30d" class="ghost sm">Last 30 days</button>
-<button id="aBtn6m" class="ghost sm">Last 6 months</button>
-<button id="aBtn1y" class="ghost sm">Last year</button>
-<button id="aBtnRefresh" class="ghost sm">↻ Refresh</button>
-<span class="small" id="aChartMsg"></span>
-</div>
-<div style="position:relative;height:300px;margin:16px 0">
-<canvas id="chartPower"></canvas>
-</div>
-<div style="position:relative;height:200px;margin:16px 0">
-<canvas id="chartVoltage"></canvas>
-</div>
-<div style="position:relative;height:200px;margin:16px 0">
-<canvas id="chartTemp"></canvas>
-</div>
+<!-- Historical Telemetry & Charts -->
+<div class="chart-box">
+  <div class="chart-head">
+    <div>
+      <div class="chart-title">📈 Historical Telemetry</div>
+      <div class="small" style="color:var(--mut);margin-top:2px">Interactive power, voltage, and thermal curves over time.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button id="aBtnRefresh" class="ghost sm" style="font-size:12px;padding:4px 10px">↻ Refresh</button>
+      <span class="small" id="aChartMsg" style="color:var(--blue)"></span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 16px">
+    <div class="field" style="margin:0">
+      <span style="font-size:12px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.3px">Select Strip</span>
+      <select id="aStrip" style="font-weight:600"><option value="">Loading…</option></select>
+    </div>
+    <div class="field" style="margin:0">
+      <span style="font-size:12px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.3px">Select Outlet</span>
+      <select id="aOutlet" style="font-weight:600">
+        <option value="1">Outlet 1</option>
+        <option value="2">Outlet 2</option>
+        <option value="3">Outlet 3</option>
+        <option value="4">Outlet 4</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="pills-bar" style="margin-bottom:18px">
+    <button id="aBtn1h">1 Hour</button>
+    <button id="aBtn6h">6 Hours</button>
+    <button id="aBtn24h" class="on">24 Hours</button>
+    <button id="aBtn7d">7 Days</button>
+    <button id="aBtn30d">30 Days</button>
+    <button id="aBtn6m">6 Months</button>
+    <button id="aBtn1y">1 Year</button>
+  </div>
+
+  <div style="margin:16px 0">
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--ink)">⚡ Active Power (W)</div>
+    <div style="position:relative;height:240px">
+      <canvas id="chartPower"></canvas>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
+    <div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--ink)">🔌 Grid Voltage (V)</div>
+      <div style="position:relative;height:180px">
+        <canvas id="chartVoltage"></canvas>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--ink)">🌡️ Temperature (°C)</div>
+      <div style="position:relative;height:180px">
+        <canvas id="chartTemp"></canvas>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="card">
-<h3>Statistics & insights</h3>
-<div id="aStats" style="margin:12px 0">
-<p class="small">Select a strip and time range to see detailed statistics.</p>
-</div>
+<!-- Detailed Stats Grid -->
+<div class="card" style="border-radius:16px;padding:16px">
+  <div class="chart-title">📊 Key Consumption Insights</div>
+  <div id="aStats" style="margin-top:12px">
+    <p class="small">Select a strip and time range to see detailed statistics.</p>
+  </div>
 </div>
 
-<details class="adv">
-<summary style="cursor:pointer;font-weight:600;font-size:15px;padding:4px 0">⚡ Top energy consumers (<span id="lbRangeLabel">last 24 hours</span>)</summary>
-<p class="desc" style="margin-top:8px">Which outlets are using the most energy. Sorted by total kWh consumed.</p>
-<div class="row" style="margin:10px 0 4px;gap:8px;flex-wrap:wrap">
-  <button id="lbBtn1h" class="ghost sm">1h</button>
-  <button id="lbBtn6h" class="ghost sm">6h</button>
-  <button id="lbBtn24h" class="ghost sm on">24h</button>
-  <button id="lbBtn7d" class="ghost sm">7d</button>
-  <button id="lbBtn30d" class="ghost sm">30d</button>
-  <button id="lbBtn6m" class="ghost sm">6mo</button>
-  <button id="lbBtn1y" class="ghost sm">1y</button>
+<!-- Leaderboard Card -->
+<div class="card" style="border-radius:16px;padding:16px;margin-top:16px">
+  <div class="chart-head" style="margin-bottom:8px">
+    <div>
+      <div class="chart-title">🏆 Top Energy Consumers</div>
+      <div class="small" style="color:var(--mut);margin-top:2px">Outlets ranked by total power consumed in selected period (<span id="lbRangeLabel">last 24 hours</span>).</div>
+    </div>
+    <div class="pills-bar">
+      <button id="lbBtn1h">1h</button>
+      <button id="lbBtn6h">6h</button>
+      <button id="lbBtn24h" class="on">24h</button>
+      <button id="lbBtn7d">7d</button>
+      <button id="lbBtn30d">30d</button>
+      <button id="lbBtn6m">6mo</button>
+      <button id="lbBtn1y">1y</button>
+    </div>
+  </div>
+  <div id="leaderboard" style="margin-top:12px"><p class="small">Loading…</p></div>
 </div>
-<div id="leaderboard" style="margin:12px 0"><p class="small">Loading…</p></div>
-</details>
 </section>
 
 <!-- ============ STRIPS (names) ============ -->
@@ -3362,17 +3415,17 @@ function statsHtml(s,cost_kwh,currency,titleNote){
   const tmin=(s.min_temp_c!=null)?s.min_temp_c+"°C":"—";
   const tmax=(s.max_temp_c!=null)?s.max_temp_c+"°C":"—";
   return `
-      <div class="grid cols4" style="gap:10px">
-        <div class="stat"><b>${kwh} kWh</b><span>&nbsp;energy consumed</span></div>
-        <div class="stat"><b>${cost} ${esc(currency)}</b><span>&nbsp;estimated cost</span></div>
-        <div class="stat"><b>${(s.avg_power_w||0).toFixed(1)}W</b><span>&nbsp;average power</span></div>
-        <div class="stat"><b>${(s.peak_power_w||0).toFixed(1)}W</b><span>&nbsp;peak power</span></div>
-        <div class="stat"><b>${vmax}</b><span>&nbsp;highest voltage ⚡</span></div>
-        <div class="stat"><b>${vmin}</b><span>&nbsp;lowest voltage ⚡</span></div>
-        <div class="stat"><b>${vavg}</b><span>&nbsp;average voltage</span></div>
-        <div class="stat"><b>${tmax} / ${tmin}</b><span>&nbsp;max / min temp</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+        <div class="stat-item"><span>Energy Consumed</span><b>${kwh} kWh</b></div>
+        <div class="stat-item"><span>Estimated Cost</span><b>${cost} ${esc(currency)}</b></div>
+        <div class="stat-item"><span>Average Power</span><b>${(s.avg_power_w||0).toFixed(1)}W</b></div>
+        <div class="stat-item"><span>Peak Demand</span><b>${(s.peak_power_w||0).toFixed(1)}W</b></div>
+        <div class="stat-item"><span>Highest Voltage</span><b style="color:#16a34a">${vmax}</b></div>
+        <div class="stat-item"><span>Lowest Voltage</span><b style="color:#d97706">${vmin}</b></div>
+        <div class="stat-item"><span>Average Grid</span><b>${vavg}</b></div>
+        <div class="stat-item"><span>Temp Range</span><b>${tmin} – ${tmax}</b></div>
       </div>
-      <p class="small" style="margin-top:12px">${s.samples||0} samples · Range: ${esc(aRange)}${titleNote?" · "+esc(titleNote):""} · Temp avg: ${(s.avg_temp_c||0).toFixed(1)}°C</p>`;
+      <p class="small" style="margin-top:12px;color:var(--mut)">${s.samples||0} samples recorded · Scope: ${titleNote?esc(titleNote):"Active Selection"} · Range: ${esc(aRange)} · Avg Temp: ${(s.avg_temp_c||0).toFixed(1)}°C</p>`;
 }
 function pivot(rows,keyField,valField){
   const tsSet=[...new Set(rows.map(r=>r.ts))].sort((a,b)=>a-b);
