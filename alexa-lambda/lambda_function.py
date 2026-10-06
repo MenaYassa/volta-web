@@ -163,6 +163,8 @@ def handle_report_state(request, token):
         power_state = state_info.get("powerState", "OFF")
         connected = state_info.get("connected", True)
         temp_c = float(state_info.get("temp_c", 25.0))
+        voltage_v = float(state_info.get("voltage_v", 220.0))
+        power_w = float(state_info.get("power_w", 0.0))
     except Exception as e:
         print(f"Report state error: {e}")
         return build_error_response(request, "ENDPOINT_UNREACHABLE", str(e))
@@ -180,6 +182,22 @@ def handle_report_state(request, token):
             "namespace": "Alexa.TemperatureSensor",
             "name": "temperature",
             "value": {"value": temp_c, "scale": "CELSIUS"},
+            "timeOfSample": now_iso,
+            "uncertaintyInMilliseconds": 1000,
+        },
+        {
+            "namespace": "Alexa.RangeController",
+            "instance": "Voltage",
+            "name": "rangeValue",
+            "value": voltage_v,
+            "timeOfSample": now_iso,
+            "uncertaintyInMilliseconds": 1000,
+        },
+        {
+            "namespace": "Alexa.RangeController",
+            "instance": "Power",
+            "name": "rangeValue",
+            "value": power_w,
             "timeOfSample": now_iso,
             "uncertaintyInMilliseconds": 1000,
         },

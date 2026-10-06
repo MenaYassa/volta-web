@@ -1568,6 +1568,59 @@ class Handler(BaseHTTPRequestHandler):
                             },
                             {
                                 "type": "AlexaInterface",
+                                "interface": "Alexa.RangeController",
+                                "instance": "Voltage",
+                                "version": "3",
+                                "properties": {
+                                    "supported": [{"name": "rangeValue"}],
+                                    "proactivelyReported": False,
+                                    "retrievable": True,
+                                    "nonControllable": True
+                                },
+                                "capabilityResources": {
+                                    "friendlyNames": [
+                                        {"@type": "text", "value": {"text": "Voltage", "locale": "en-US"}},
+                                        {"@type": "text", "value": {"text": "Volts", "locale": "en-US"}}
+                                    ]
+                                },
+                                "configuration": {
+                                    "supportedRange": {
+                                        "minimumValue": 0,
+                                        "maximumValue": 350,
+                                        "precision": 1
+                                    },
+                                    "unitOfMeasure": "Alexa.Unit.Volt"
+                                }
+                            },
+                            {
+                                "type": "AlexaInterface",
+                                "interface": "Alexa.RangeController",
+                                "instance": "Power",
+                                "version": "3",
+                                "properties": {
+                                    "supported": [{"name": "rangeValue"}],
+                                    "proactivelyReported": False,
+                                    "retrievable": True,
+                                    "nonControllable": True
+                                },
+                                "capabilityResources": {
+                                    "friendlyNames": [
+                                        {"@type": "text", "value": {"text": "Power", "locale": "en-US"}},
+                                        {"@type": "text", "value": {"text": "Wattage", "locale": "en-US"}},
+                                        {"@type": "text", "value": {"text": "Watts", "locale": "en-US"}}
+                                    ]
+                                },
+                                "configuration": {
+                                    "supportedRange": {
+                                        "minimumValue": 0,
+                                        "maximumValue": 4000,
+                                        "precision": 1
+                                    },
+                                    "unitOfMeasure": "Alexa.Unit.Watt"
+                                }
+                            },
+                            {
+                                "type": "AlexaInterface",
                                 "interface": "Alexa.EndpointHealth",
                                 "version": "3",
                                 "properties": {
