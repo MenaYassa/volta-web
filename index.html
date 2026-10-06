@@ -62,18 +62,29 @@ button.sm{padding:6px 10px;font-size:13px;min-height:0}
 .ov .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .ov .stat b{display:block;font-size:20px}
 .ov .stat span{font-size:12px;color:var(--mut)}
-.strip{border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0;background:#fff}
-.strip.off{opacity:.75}
-.strip-head{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px}
-.strip-head b{font-size:17px}
-.rename{background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer;padding:4px 6px;min-height:0}
-.meta{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
-.outlet{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
-.outlet .nm{flex:1;min-width:0}.outlet .nm b{display:block;font-size:15px}.outlet .nm small{color:var(--mut)}
-.outlet.busy{opacity:.55}
-.sw{width:58px;height:32px;border-radius:99px;border:none;background:#cbd5e1;position:relative;min-height:0;padding:0;flex:none;transition:background .15s}
-.sw::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:99px;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.sw.on{background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.25)}.sw.on::after{left:30px}
+.strip{border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:16px 0;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.03);transition:border-color .2s}
+.strip.off{opacity:.8}
+.strip-head{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.strip-head .title-grp{display:flex;align-items:center;gap:6px}
+.strip-head b{font-size:18px;font-weight:700}
+.strip-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-bottom:14px}
+.s-stat{background:rgba(0,0,0,.025);border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:center}
+.s-stat span{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:var(--mut)}
+.s-stat b{display:block;font-size:15px;color:var(--ink);margin-top:2px}
+.outs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.outlet-card{background:rgba(0,0,0,.02);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:all .15s}
+.outlet-card.on{background:rgba(22,163,74,.05);border-color:rgba(22,163,74,.3)}
+.outlet-card.busy{opacity:.55}
+.outlet-info{flex:1;min-width:0}
+.outlet-info .title-row{display:flex;align-items:center;gap:6px}
+.outlet-info b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.outlet-specs{font-size:12px;color:var(--mut);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.outlet-specs span.val{color:var(--ink);font-weight:600}
+.rename{background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer;padding:2px 4px;min-height:0;opacity:.7}
+.rename:hover{opacity:1}
+.sw{width:52px;height:30px;border-radius:99px;border:none;background:#cbd5e1;position:relative;min-height:0;padding:0;flex:none;cursor:pointer;transition:background .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:99px;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw.on{background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.2)}.sw.on::after{left:25px}
 .sw:disabled{opacity:.45}
 .on-txt{color:var(--green);font-weight:700}
 .tbtn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:99px;min-height:0;padding:6px 12px;font-size:14px;font-weight:600}
@@ -106,13 +117,15 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .modal-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;background:rgba(0,0,0,.02)}
 .pagination{display:flex;justify-content:space-between;align-items:center;margin:12px 0 6px;flex-wrap:wrap;gap:8px}
 /* dark mode: auto + manual override */
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none} :root:not([data-theme="light"]) input,:root:not([data-theme="light"]) select{background:#0f1830;color:#e2e8f0;border-color:#24314f} :root:not([data-theme="light"]) button.ghost,:root:not([data-theme="light"]) button.danger{background:#0f1830;color:#e2e8f0} :root:not([data-theme="light"]) .ov .stat,:root:not([data-theme="light"]) .strip,:root:not([data-theme="light"]) details.adv{background:#131c31} :root:not([data-theme="light"]) .tag{background:#0f1830;color:#94a3b8} :root:not([data-theme="light"]) .sw{background:#334155}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none} :root:not([data-theme="light"]) input,:root:not([data-theme="light"]) select{background:#0f1830;color:#e2e8f0;border-color:#24314f} :root:not([data-theme="light"]) button.ghost,:root:not([data-theme="light"]) button.danger{background:#0f1830;color:#e2e8f0} :root:not([data-theme="light"]) .ov .stat,:root:not([data-theme="light"]) .strip,:root:not([data-theme="light"]) details.adv{background:#131c31} :root:not([data-theme="light"]) .tag{background:#0f1830;color:#94a3b8} :root:not([data-theme="light"]) .sw{background:#334155} :root:not([data-theme="light"]) .s-stat,:root:not([data-theme="light"]) .outlet-card{background:rgba(255,255,255,.03)} :root:not([data-theme="light"]) .outlet-card.on{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.35)}}
 :root[data-theme="dark"]{--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none}
 :root[data-theme="dark"] input,:root[data-theme="dark"] select{background:#0f1830;color:#e2e8f0;border-color:#24314f}
 :root[data-theme="dark"] button.ghost,:root[data-theme="dark"] button.danger{background:#0f1830;color:#e2e8f0}
 :root[data-theme="dark"] .ov .stat,:root[data-theme="dark"] .strip,:root[data-theme="dark"] details.adv{background:#131c31}
 :root[data-theme="dark"] .tag{background:#0f1830;color:#94a3b8}
 :root[data-theme="dark"] .sw{background:#334155}
+:root[data-theme="dark"] .s-stat,:root[data-theme="dark"] .outlet-card{background:rgba(255,255,255,.03)}
+:root[data-theme="dark"] .outlet-card.on{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.35)}
 </style>
 </head>
 <body>
@@ -1601,7 +1614,6 @@ async function live(){
       el.innerHTML=devs.length?"":"<div class='card'><h3>No strips yet</h3><p class='desc'>Provision one strip and it dials in here by itself. Go to <b>Setup → Provision a strip</b>.</p></div>";
       for(const d of devs){
         const c=document.createElement("div");c.className="card strip"+(d.online?"":" off");
-        const tel=`${d.model||""}${d.fw?" fw "+d.fw:""} · ${d.power_w} W · ${d.energy_kwh} kWh${d.voltage?` · ${d.voltage} V · ${d.current_a} A`:""}${d.rssi?` · wifi ${d.rssi} dBm`:""}`;
         const seen=d.online?"live now":("last seen "+ago(d.last_seen_ago));
         const pend=d.pending?` <span class="tag warn">⏳ ${d.pending} queued</span>`:"";
         const vg = d.voltage_guard || {};
@@ -1618,45 +1630,141 @@ async function live(){
         } else {
           vgTag = `<button class="tag vg-btn" style="cursor:pointer;opacity:0.7" title="Click to setup Voltage & Temperature Guard protection">🛡️ Guard Off</button>`;
         }
-        c.innerHTML=`<div class="strip-head"><b></b><button class="rename" title="rename strip">✏️</button>
-          <span class="tag ${d.online?"ok":"bad"}">${d.online?"● online":"○ offline"}</span>
-          <span class="tag">${seen}</span>${pend}
-          ${vgTag}
-          <span class="tag mono"></span><span style="flex:1"></span>
-          <button class="ghost sm allon">ALL ON</button><button class="ghost sm alloff">ALL OFF</button></div>
-        <div class="small"></div><div class="meta"></div><div class="outs"></div><div class="msg small"></div>`;
-        c.querySelector("b").textContent=d.name||d.mac;
-        c.querySelector(".mono").textContent=d.mac;
-        c.querySelector(".small").textContent=tel;
+
+        // Aggregate outlet power and max outlet temperature
+        const activeOutlets = (d.outlets || []).filter(o => o.on).length;
+        const totalOutlets = (d.outlets || []).length;
+        const maxTemp = (d.outlets && d.outlets.length) ? Math.max(...d.outlets.map(o => o.temp_c || 0)) : null;
+
+        const vDisplay = d.voltage_v ? `${d.voltage_v} V` : (d.voltage ? `${d.voltage} V` : "—");
+        const pDisplay = (d.power_w !== undefined && d.power_w !== null) ? `${d.power_w} W` : "—";
+        const eDisplay = (d.energy_kwh !== undefined && d.energy_kwh !== null) ? `${d.energy_kwh} kWh` : "—";
+        const tDisplay = (maxTemp !== null && maxTemp > 0) ? `${maxTemp}°C` : "—";
+
+        c.innerHTML = `
+          <div class="strip-head">
+            <div class="title-grp">
+              <span class="dot ${d.online?"on":""}" style="width:9px;height:9px"></span>
+              <b></b>
+              <button class="rename" title="Rename strip">✏️</button>
+            </div>
+            <span class="tag ${d.online?"ok":"bad"}">${d.online?"● Online":"○ Offline"}</span>
+            <span class="tag">${seen}</span>
+            ${pend}
+            ${vgTag}
+            <span class="tag mono">${d.mac}</span>
+            <span style="flex:1"></span>
+            <div style="display:flex;gap:6px">
+              <button class="ghost sm allon">ALL ON</button>
+              <button class="ghost sm alloff">ALL OFF</button>
+            </div>
+          </div>
+
+          <div class="strip-metrics">
+            <div class="s-stat"><span>Active Power</span><b>${pDisplay}</b></div>
+            <div class="s-stat"><span>Grid Voltage</span><b>${vDisplay}</b></div>
+            <div class="s-stat"><span>Max Temp</span><b>${tDisplay}</b></div>
+            <div class="s-stat"><span>Energy</span><b>${eDisplay}</b></div>
+            <div class="s-stat"><span>Active Outlets</span><b>${activeOutlets} / ${totalOutlets}</b></div>
+          </div>
+
+          <div class="outs-grid"></div>
+          <div class="msg small" style="margin-top:8px"></div>
+        `;
+
+        c.querySelector("b").textContent = d.name || d.mac;
         const vgBtn = c.querySelector(".vg-btn");
         if (vgBtn) vgBtn.onclick = () => openVoltageGuardModal(d);
-        const meta=c.querySelector(".meta");
-        meta.innerHTML=`<span class="tag mono">IP ${d.ip||"?"}</span>`;
-        c.querySelector(".rename").onclick=async()=>{const v=prompt("Name this strip",(d.name===d.mac?"":d.name)||"");if(v===null)return;
-          try{await apit("/api/rename",{mac:d.mac,name:v});await live();}catch(e){showErr(msg,d.ip,e);}};
-        const outs=c.querySelector(".outs"),msg=c.querySelector(".msg");
-        const setAll=async(on)=>{if(prefs.confirmAll&&!confirm(`${on?"Turn ON":"Turn OFF"} all 4 outlets on ${d.name||d.mac}?`))return;
-          msg.textContent=(on?"all → on":"all → off")+"…";
-          try{const r=await apit("/api/onoff",{mac:d.mac,outlet:0,on});
-            msg.textContent=r.queued?"⏳ strip offline — queued, applies on reconnect":"✓ confirmed";await live();}
-          catch(e){msg.textContent="";showErr(msg,d.ip,e);}};
-        c.querySelector(".allon").onclick=()=>setAll(true);
-        c.querySelector(".alloff").onclick=()=>setAll(false);
-        for(const o of d.outlets){
-          const row=document.createElement("div");row.className="outlet";
-          row.innerHTML=`<button class="sw ${o.on?"on":""}" aria-label="outlet ${o.n}"></button><div class="nm"><b></b><small></small></div><button class="rename" title="rename outlet">✏️</button>`;
-          row.querySelector("b").textContent=o.nick||("Outlet "+o.n);
-          const sm=row.querySelector("small");
-          sm.innerHTML=`<span class="${o.on?"on-txt":""}">${o.on?"ON":"OFF"}</span> · ${o.power_w} W · ${o.energy_kwh} kWh · ${o.temp_c}°C`;
-          row.querySelector(".rename").onclick=async()=>{const v=prompt(`Name outlet ${o.n} on ${d.name||d.mac} (empty = reset)`,o.nick||"");if(v===null)return;
-            try{await apit("/api/rename",{mac:d.mac,outlet:o.n,outlet_name:v});await live();}catch(e){showErr(msg,d.ip,e);}};
-          const sw=row.querySelector(".sw");
-          sw.onclick=async()=>{row.classList.add("busy");sw.disabled=true;msg.textContent=`outlet ${o.n} → ${!o.on?"on":"off"}…`;
-            try{const r=await apit("/api/onoff",{mac:d.mac,outlet:o.n,on:!o.on});
-              msg.textContent=r.queued?"⏳ strip offline — queued, applies on reconnect":(r.ok?"✓ confirmed":"⚠ "+(r.error||"failed"));await live();}
-            catch(e){msg.textContent="";showErr(msg,d.ip,e);await live();}};
-          outs.appendChild(row);
+
+        c.querySelector(".rename").onclick = async () => {
+          const v = prompt("Name this strip", (d.name === d.mac ? "" : d.name) || "");
+          if (v === null) return;
+          try {
+            await apit("/api/rename", { mac: d.mac, name: v });
+            await live();
+          } catch(e) {
+            showErr(msg, d.ip, e);
+          }
+        };
+
+        const outsGrid = c.querySelector(".outs-grid");
+        const msg = c.querySelector(".msg");
+
+        const setAll = async (on) => {
+          if (prefs.confirmAll && !confirm(`${on ? "Turn ON" : "Turn OFF"} all outlets on ${d.name || d.mac}?`)) return;
+          msg.textContent = (on ? "Turning all ON" : "Turning all OFF") + "…";
+          try {
+            const r = await apit("/api/onoff", { mac: d.mac, outlet: 0, on });
+            msg.textContent = r.queued ? "⏳ Strip offline — queued" : "✓ Confirmed";
+            await live();
+          } catch(e) {
+            msg.textContent = "";
+            showErr(msg, d.ip, e);
+          }
+        };
+
+        c.querySelector(".allon").onclick = () => setAll(true);
+        c.querySelector(".alloff").onclick = () => setAll(false);
+
+        for (const o of (d.outlets || [])) {
+          const card = document.createElement("div");
+          card.className = "outlet-card" + (o.on ? " on" : "");
+
+          const pStr = (o.power_w !== undefined && o.power_w !== null) ? `${o.power_w} W` : "0 W";
+          const eStr = (o.energy_kwh !== undefined && o.energy_kwh !== null) ? `${o.energy_kwh} kWh` : "0 kWh";
+          const tStr = (o.temp_c !== undefined && o.temp_c !== null) ? `${o.temp_c}°C` : "";
+
+          card.innerHTML = `
+            <button class="sw ${o.on ? "on" : ""}" aria-label="Outlet ${o.n}"></button>
+            <div class="outlet-info">
+              <div class="title-row">
+                <b></b>
+                <button class="rename" title="Rename outlet">✏️</button>
+              </div>
+              <div class="outlet-specs">
+                <span class="${o.on ? "on-txt" : ""}" style="font-weight:700;font-size:11px">${o.on ? "ON" : "OFF"}</span>
+                <span>•</span>
+                <span class="val">${pStr}</span>
+                <span>•</span>
+                <span>${eStr}</span>
+                ${tStr ? `<span>•</span><span>${tStr}</span>` : ""}
+              </div>
+            </div>
+          `;
+
+          card.querySelector("b").textContent = o.nick || `Outlet ${o.n}`;
+
+          card.querySelector(".rename").onclick = async (e) => {
+            e.stopPropagation();
+            const v = prompt(`Name outlet ${o.n} on ${d.name || d.mac}`, o.nick || "");
+            if (v === null) return;
+            try {
+              await apit("/api/rename", { mac: d.mac, outlet: o.n, outlet_name: v });
+              await live();
+            } catch(err) {
+              showErr(msg, d.ip, err);
+            }
+          };
+
+          const sw = card.querySelector(".sw");
+          sw.onclick = async () => {
+            card.classList.add("busy");
+            sw.disabled = true;
+            msg.textContent = `Outlet ${o.n} → ${!o.on ? "ON" : "OFF"}…`;
+            try {
+              const r = await apit("/api/onoff", { mac: d.mac, outlet: o.n, on: !o.on });
+              msg.textContent = r.queued ? "⏳ Queued" : (r.ok ? "✓ Confirmed" : "⚠ Failed");
+              await live();
+            } catch(err) {
+              msg.textContent = "";
+              showErr(msg, d.ip, err);
+              await live();
+            }
+          };
+
+          outsGrid.appendChild(card);
         }
+
         el.appendChild(c);
       }
     }
