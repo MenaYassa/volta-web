@@ -1821,10 +1821,26 @@ async function live(){
         const msg = c.querySelector(".msg");
 
         const setAll = async (on) => {
-          if (prefs.confirmAll && !confirm(`${on ? "Turn ON" : "Turn OFF"} all outlets on ${d.name || d.mac}?`)) return;
-          msg.textContent = (on ? "Turning all ON" : "Turning all OFF") + "…";
+          // Exclude outlets that are locked against accidental switching
+          const allOutlets = (d.outlets || []).map(o => o.n);
+          const unlockedChannels = allOutlets.filter(n => !isOutletLocked(d.mac, n));
+          const lockedChannels = allOutlets.filter(n => isOutletLocked(d.mac, n));
+
+          if (!unlockedChannels.length) {
+            alert(`All outlets on ${d.name || d.mac} are locked 🔒. Unlock at least one outlet to use ALL ${on ? "ON" : "OFF"}.`);
+            return;
+          }
+
+          let confirmMsg = `${on ? "Turn ON" : "Turn OFF"} ${unlockedChannels.length} unlocked outlet(s) on ${d.name || d.mac}?`;
+          if (lockedChannels.length > 0) {
+            confirmMsg += `\n(Note: Outlet(s) ${lockedChannels.join(", ")} will remain unchanged because they are locked 🔒).`;
+          }
+
+          if (prefs.confirmAll && !confirm(confirmMsg)) return;
+
+          msg.textContent = (on ? "Turning unlocked ON" : "Turning unlocked OFF") + "…";
           try {
-            const r = await apit("/api/onoff", { mac: d.mac, outlet: 0, on });
+            const r = await apit("/api/onoff", { mac: d.mac, channels: unlockedChannels, on });
             msg.textContent = r.queued ? "⏳ Strip offline — queued" : "✓ Confirmed";
             await live();
           } catch(e) {

@@ -2276,7 +2276,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"error": f"ESP unreachable: {e}"}, 502)
             if not CTL:
                 return self._json({"error": "controller not running"}, 503)
-            channels = [1, 2, 3, 4] if outlet == 0 else [outlet]
+            if "channels" in body and isinstance(body["channels"], list):
+                channels = [int(c) for c in body["channels"] if int(c) in (1, 2, 3, 4)]
+                if not channels:
+                    return self._json({"error": "no valid channels in list"}, 400)
+            else:
+                channels = [1, 2, 3, 4] if outlet == 0 else [outlet]
             ok, err = CTL.set_outlets(mac, channels, on, source="ui")
             log(f"onoff {mac} outlet {outlet} {on}: {'OK' if ok else err}")
             if not ok:
