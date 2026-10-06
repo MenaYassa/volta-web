@@ -25,6 +25,9 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;b
 .hero h1{margin:0;font-size:21px}
 .dot{width:10px;height:10px;border-radius:99px;background:#64748b;flex:none}
 .dot.ok{background:#22c55e}.dot.bad{background:#ef4444}
+.dot.warn{background:#eab308}
+.dot.light-green{background:#4ade80}
+.dot.shiny-green{background:#22c55e;box-shadow:0 0 8px #22c55e, 0 0 14px rgba(34,197,94,.6)}
 #srvState{font-size:12px;color:#cbd5e1}
 .tabs{display:flex;gap:4px;overflow-x:auto}
 .tab{border:none;background:none;color:#cbd5e1;font-size:15px;font-weight:600;padding:12px 16px;cursor:pointer;border-bottom:3px solid transparent;min-height:0;white-space:nowrap}
@@ -78,7 +81,7 @@ button.sm{padding:6px 10px;font-size:13px;min-height:0}
 .outlet-card.on{background:rgba(22,163,74,.05);border-color:rgba(22,163,74,.3)}
 .outlet-card.busy{opacity:.55}
 .outlet-info{flex:1;min-width:0}
-.outlet-info .title-row{display:flex;align-items:center;gap:6px}
+.outlet-info .title-row{display:flex;align-items:center;gap:6px;width:100%}
 .outlet-info b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .outlet-specs{font-size:12px;color:var(--mut);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .outlet-specs span.val{color:var(--ink);font-weight:600}
@@ -88,7 +91,7 @@ button.sm{padding:6px 10px;font-size:13px;min-height:0}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:99px;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .sw.on{background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.2)}.sw.on::after{left:25px}
 .sw:disabled{opacity:.45}
-.lock-btn{background:none;border:none;cursor:pointer;padding:4px;font-size:14px;line-height:1;min-height:0;opacity:.4;border-radius:6px;transition:all .15s}
+.lock-btn{background:none;border:none;cursor:pointer;padding:4px;font-size:14px;line-height:1;min-height:0;opacity:.4;border-radius:6px;margin-left:auto;transition:all .15s}
 .lock-btn:hover{opacity:.8;background:rgba(0,0,0,.05)}
 .lock-btn.locked{opacity:1;filter:drop-shadow(0 0 2px rgba(234,179,8,.5))}
 .outlet-card.is-locked{border-color:rgba(234,179,8,.3)}
@@ -1765,6 +1768,35 @@ async function live(){
         const totalOutlets = (d.outlets || []).length;
         const maxTemp = (d.outlets && d.outlets.length) ? Math.max(...d.outlets.map(o => o.temp_c || 0)) : null;
 
+        // Dot beside strip name:
+        // - Red if strip is offline
+        // - Muted if online but 0 outlets on
+        // - Light green if 1 to 3 outlets on
+        // - Shiny green glow if all 4 outlets on
+        let stripDotClass = "dot";
+        if (!d.online) {
+          stripDotClass = "dot bad";
+        } else if (activeOutlets === totalOutlets && totalOutlets > 0) {
+          stripDotClass = "dot shiny-green";
+        } else if (activeOutlets > 0) {
+          stripDotClass = "dot light-green";
+        } else {
+          stripDotClass = "dot";
+        }
+
+        // ALL ON & ALL OFF button coloring:
+        // - allon: green background when all outlets are ON
+        // - alloff: red background when all outlets are OFF
+        const allAreOn = d.online && totalOutlets > 0 && activeOutlets === totalOutlets;
+        const allAreOff = totalOutlets > 0 && activeOutlets === 0;
+
+        const allOnStyle = allAreOn
+          ? "background:#22c55e;color:#fff;border-color:#22c55e;font-weight:700"
+          : "";
+        const allOffStyle = allAreOff
+          ? "background:#ef4444;color:#fff;border-color:#ef4444;font-weight:700"
+          : "";
+
         const vDisplay = d.voltage_v ? `${d.voltage_v} V` : (d.voltage ? `${d.voltage} V` : "—");
         const pDisplay = (d.power_w !== undefined && d.power_w !== null) ? `${d.power_w} W` : "—";
         const eDisplay = (d.energy_kwh !== undefined && d.energy_kwh !== null) ? `${d.energy_kwh} kWh` : "—";
@@ -1773,19 +1805,18 @@ async function live(){
         c.innerHTML = `
           <div class="strip-head">
             <div class="title-grp">
-              <span class="dot ${d.online?"on":""}" style="width:9px;height:9px"></span>
+              <span class="${stripDotClass}" style="width:10px;height:10px" title="${!d.online?'Offline':(activeOutlets===totalOutlets?'All outlets ON':'Outlets active: '+activeOutlets+'/'+totalOutlets)}"></span>
               <b></b>
               <button class="rename" title="Rename strip">✏️</button>
             </div>
-            <span class="tag ${d.online?"ok":"bad"}">${d.online?"● Online":"○ Offline"}</span>
-            <span class="tag">${seen}</span>
-            ${pend}
-            ${vgTag}
+            <span class="tag ${d.online?"ok":"bad"}"><span class="dot ${d.online?"ok":"bad"}" style="width:7px;height:7px;display:inline-block;margin-right:5px;vertical-align:middle"></span>${d.online?"Online":"Offline"}</span>
             <span class="tag mono">${d.mac}</span>
+            ${vgTag}
+            ${pend}
             <span style="flex:1"></span>
             <div style="display:flex;gap:6px;align-items:center">
-              <button class="ghost sm allon">ALL ON</button>
-              <button class="ghost sm alloff">ALL OFF</button>
+              <button class="ghost sm allon" style="${allOnStyle}">ALL ON</button>
+              <button class="ghost sm alloff" style="${allOffStyle}">ALL OFF</button>
               <button class="ghost sm strip-del" title="Remove strip" style="color:var(--red);padding:2px 8px;font-size:12px;opacity:.7">🗑</button>
             </div>
           </div>
