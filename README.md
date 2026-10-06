@@ -87,6 +87,7 @@ Detailed engineering guides and specifications are organized in the [`docs/`](./
 - **[Hardware Reference & Modding (`docs/hardware-reference.md`)](./docs/hardware-reference.md)**: Teardown, RTL8711AF SoC, I2C relay codes, and USB rail details.
 - **[Hardware Mod Guide (ESP-01) (`docs/hardware-mod/README.md`)](./docs/hardware-mod/README.md)**: Circuit wiring, firmware sketch, and pinout instructions for replacing a dead MCU with an ESP-01.
 - **[Alexa Smart Home Skill Guide (`docs/alexa-integration-guide.md`)](./docs/alexa-integration-guide.md)**: Full AWS Lambda skill handler, device discovery, and voice control setup.
+- **[Mobile App Developer Handoff (`docs/app-developer-handoff.md`)](./docs/app-developer-handoff.md)**: Complete guide for Google Sign-In, Safety Guards (Voltage & Temp), Quotas, Geocoding, and Alexa linking.
 - **[Future Improvements Roadmap (`docs/future-plans-auth-licensing.md`)](./docs/future-plans-auth-licensing.md)**: Google Sign-In, 1-strip free lifetime tier, Admin Users & Licensing console, and Alexa Smart Home Skill integration.
 
 ---
