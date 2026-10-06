@@ -151,6 +151,18 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .stat-item span{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;font-weight:600}
 .stat-item b{display:block;font-size:16px;color:var(--ink);margin-top:2px}
 :root[data-theme="dark"] .stat-item{background:rgba(255,255,255,.02)}
+
+/* Modern Schedule & Timer Rules Styles */
+.rule-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:10px 0;box-shadow:0 1px 4px rgba(0,0,0,.02);transition:all .2s;display:flex;flex-direction:column;gap:8px}
+.rule-card.paused{opacity:.65;border-style:dashed}
+.rule-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.rule-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.rule-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.rule-foot{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--line);margin-top:2px;font-size:12px;color:var(--mut)}
+.action-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.action-toggle button{border-radius:12px;padding:12px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all .15s}
+.sched-hero{background:linear-gradient(135deg,#064e3b 0%,#0f766e 60%,#047857 100%);border-radius:16px;padding:18px 20px;color:#fff;margin-bottom:14px;box-shadow:0 4px 12px rgba(6,78,59,.15)}
+.timer-hero{background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 60%,#2563eb 100%);border-radius:16px;padding:18px 20px;color:#fff;margin-bottom:14px;box-shadow:0 4px 12px rgba(30,58,138,.15)}
 /* dark mode: auto + manual override */
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none} :root:not([data-theme="light"]) input,:root:not([data-theme="light"]) select{background:#0f1830;color:#e2e8f0;border-color:#24314f} :root:not([data-theme="light"]) button.ghost,:root:not([data-theme="light"]) button.danger{background:#0f1830;color:#e2e8f0} :root:not([data-theme="light"]) .ov .stat,:root:not([data-theme="light"]) .strip,:root:not([data-theme="light"]) details.adv{background:#131c31} :root:not([data-theme="light"]) .tag{background:#0f1830;color:#94a3b8} :root:not([data-theme="light"]) .sw{background:#334155} :root:not([data-theme="light"]) .s-stat,:root:not([data-theme="light"]) .outlet-card{background:rgba(255,255,255,.03)} :root:not([data-theme="light"]) .outlet-card.on{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.35)}}
 :root[data-theme="dark"]{--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none}
@@ -190,7 +202,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <nav class="tabs">
 <button class="tab on" data-tab="control">Control</button>
 <button class="tab" data-tab="analytics">Analytics</button>
-<button class="tab" data-tab="strips">Strips</button>
+<button class="tab" id="tabStrips" data-tab="strips" style="display:none">Strips</button>
 <button class="tab" data-tab="sched">Schedules</button>
 <button class="tab" data-tab="setup">Setup</button>
 <button class="tab" data-tab="tools">Advanced</button>
@@ -1168,6 +1180,7 @@ function logoutUser(){
   if($("tokMsg"))$("tokMsg").textContent="signed out";
   _currentUserIsAdmin = false;
   if($("tabUsers"))$("tabUsers").style.display="none";
+  if($("tabStrips"))$("tabStrips").style.display="none";
   if($("userHeaderProfile"))$("userHeaderProfile").style.display="none";
   if($("btnLoginHeader"))$("btnLoginHeader").style.display="inline-block";
   // Switch to Control tab
@@ -1318,7 +1331,9 @@ async function checkSrv(){
         if(who.authorized){
           _currentUserIsAdmin = Boolean(who.is_admin);
           if($("tabUsers"))$("tabUsers").style.display = who.is_admin ? "block" : "none";
+          if($("tabStrips"))$("tabStrips").style.display = who.is_admin ? "block" : "none";
           if(who.is_admin && $("pane-users").classList.contains("on"))loadUsers();
+          if(who.is_admin && $("pane-strips").classList.contains("on"))renderManage();
           
           if($("srvState"))$("srvState").textContent=`${who.name} (${who.is_admin?"Admin":"User"})`;
           if($("userHeaderProfile"))$("userHeaderProfile").style.display = "flex";
@@ -1388,6 +1403,7 @@ async function checkSrv(){
         }
       }catch(e){
         if($("tabUsers"))$("tabUsers").style.display="none";
+        if($("tabStrips"))$("tabStrips").style.display="none";
         if($("srvInfoCard"))$("srvInfoCard").style.display="none";
         if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
         if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
@@ -1395,6 +1411,7 @@ async function checkSrv(){
       }
     }else{
       if($("tabUsers"))$("tabUsers").style.display="none";
+      if($("tabStrips"))$("tabStrips").style.display="none";
       if($("srvInfoCard"))$("srvInfoCard").style.display="none";
       if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
       if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
@@ -1741,9 +1758,10 @@ async function live(){
             ${vgTag}
             <span class="tag mono">${d.mac}</span>
             <span style="flex:1"></span>
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:6px;align-items:center">
               <button class="ghost sm allon">ALL ON</button>
               <button class="ghost sm alloff">ALL OFF</button>
+              <button class="ghost sm strip-del" title="Remove strip" style="color:var(--red);padding:2px 8px;font-size:12px;opacity:.7">🗑</button>
             </div>
           </div>
 
@@ -1792,6 +1810,26 @@ async function live(){
 
         c.querySelector(".allon").onclick = () => setAll(true);
         c.querySelector(".alloff").onclick = () => setAll(false);
+
+        const delBtn = c.querySelector(".strip-del");
+        if (delBtn) {
+          delBtn.onclick = async () => {
+            const stripName = d.name || d.mac;
+            if (!confirm(`Are you sure you want to remove ${stripName} (${d.mac})?`)) return;
+            try {
+              const r = await apit(`/api/strip?mac=${encodeURIComponent(d.mac)}`, null, "DELETE");
+              if (r.ok) {
+                _last = null;
+                await live();
+                if (typeof renderManage === "function") await renderManage();
+              } else {
+                alert(r.error || "Failed to remove strip");
+              }
+            } catch(e) {
+              alert(e.message || "Failed to remove strip");
+            }
+          };
+        }
 
         for (const o of (d.outlets || [])) {
           const card = document.createElement("div");
@@ -2655,11 +2693,12 @@ function outletPills(boxId,sel,onSel){
   const mk=(n,txt)=>{
     const b=document.createElement("button");
     const active=sel()===n;
-    b.style.cssText=`border-radius:99px;padding:8px 14px;text-align:center;min-width:74px;`+
+    b.type="button";
+    b.style.cssText=`border-radius:10px;padding:6px 14px;text-align:center;min-width:64px;cursor:pointer;transition:all .15s;`+
       (active
-        ?`background:#2563eb;color:#fff;border:2px solid #2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.25);font-weight:700`
-        :`background:transparent;color:var(--ink);border:2px solid var(--line)`);
-    b.innerHTML=`<b>${n===0?"All (Master)":"#"+n}</b>${n!==0&&oNames[String(n)]?`<br><span class="small" style="color:${active?"rgba(255,255,255,.85)":"var(--mut)"}">${esc(oNames[String(n)])}</span>`:""}`;
+        ?`background:var(--blue);color:#fff;border:1px solid var(--blue);box-shadow:0 2px 5px rgba(37,99,235,.25);font-weight:700`
+        :`background:rgba(0,0,0,.025);color:var(--ink);border:1px solid var(--line);font-weight:600`);
+    b.innerHTML=`<span>${n===0?"All Outlets":"#"+n}</span>${n!==0&&oNames[String(n)]?`<span class="small" style="display:block;font-size:10px;opacity:${active?".9":".7"}">${esc(oNames[String(n)])}</span>`:""}`;
     b.onclick=()=>{onSel(n);outletPills(boxId,sel,onSel);boxId==="scOutletPills"?scPreviewUpd():tmPreviewUpd();};
     box.appendChild(b);
   };
