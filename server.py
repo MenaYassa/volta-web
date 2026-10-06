@@ -184,6 +184,17 @@ def save_users(users_dict):
     save_strips(data)
 
 
+def get_strip_orders():
+    """Return dictionary of custom strip display orders: { 'user_key': ['MAC1', 'MAC2', ...] }."""
+    return load_strips().get("strip_orders", {})
+
+
+def save_strip_orders(orders_dict):
+    data = load_strips()
+    data["strip_orders"] = orders_dict
+    save_strips(data)
+
+
 def resolve_auth_context(token_str):
     """Determine role and permitted MACs for a given token string.
     Returns:
@@ -1420,6 +1431,16 @@ class Handler(BaseHTTPRequestHandler):
             
             snap = {"devices": devices, "server_ip": local_nets()}
             try:
+                # Custom user strip ordering
+                user_key = ctx["token"] if not ctx["is_admin"] else "ADMIN"
+                saved_orders = get_strip_orders()
+                user_order = saved_orders.get(user_key, [])
+                if user_order:
+                    # Sort devices according to user's saved list, placing unranked at the end
+                    order_rank = {m.upper(): idx for idx, m in enumerate(user_order)}
+                    devices.sort(key=lambda d: order_rank.get(norm_mac(d.get("mac", "")).upper(), 9999))
+                snap["strip_order"] = user_order
+
                 all_names = load_strips().get("names", {})
                 if ctx["is_admin"]:
                     snap["names"] = all_names
@@ -2307,6 +2328,22 @@ class Handler(BaseHTTPRequestHandler):
             save_locked_outlets(all_locked)
             log(f"[outlet-lock] strip {mac} outlet {outlet} locked={make_locked} (all={current_list})")
             return self._json({"ok": True, "mac": mac, "outlet": outlet, "locked": make_locked, "locked_outlets": current_list})
+        if u.path in ("/api/order", "/api/strip/order"):
+            # Reorder strip cards for current user
+            # Body: { "order": ["MAC1", "MAC2", ...] }
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            ctx = self._auth_ctx()
+            raw_order = body.get("order")
+            if not isinstance(raw_order, list):
+                return self._json({"error": "order must be a list of MACs"}, 400)
+            cleaned_order = [norm_mac(m).upper() for m in raw_order if norm_mac(m)]
+            user_key = ctx["token"] if not ctx["is_admin"] else "ADMIN"
+            all_orders = get_strip_orders()
+            all_orders[user_key] = cleaned_order
+            save_strip_orders(all_orders)
+            log(f"[strip-order] saved custom order for {ctx['user_name']}: {cleaned_order}")
+            return self._json({"ok": True, "order": cleaned_order})
         if u.path in ("/api/onoff", "/api/switch"):
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)

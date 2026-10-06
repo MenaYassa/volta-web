@@ -65,8 +65,13 @@ button.sm{padding:6px 10px;font-size:13px;min-height:0}
 .ov .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .ov .stat b{display:block;font-size:20px}
 .ov .stat span{font-size:12px;color:var(--mut)}
-.strip{border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:16px 0;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.03);transition:border-color .2s}
+.strip{border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:16px 0;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.03);transition:border-color .2s,box-shadow .2s,transform .15s}
 .strip.off{opacity:.8}
+.strip.dragging{opacity:.4;border:2px dashed var(--blue);transform:scale(.98)}
+.strip.drag-over{border-top:3px solid var(--blue)}
+.strip-drag-handle{cursor:grab;user-select:none;display:inline-flex;align-items:center;justify-content:center;padding:4px 6px;color:var(--mut);border-radius:6px;font-size:16px;line-height:1;transition:all .15s}
+.strip-drag-handle:active{cursor:grabbing;color:var(--ink);background:rgba(0,0,0,.06)}
+:root[data-theme="dark"] .strip-drag-handle:active{background:rgba(255,255,255,.1)}
 .strip-head{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .strip-head .title-grp{display:flex;align-items:center;gap:6px}
 .strip-head b{font-size:18px;font-weight:700}
@@ -1802,7 +1807,7 @@ on("btnCreateUser","click",async()=>{
   }catch(e){showErr($("uMsg"),"",e);}
 });
 /* ---- Control ---- */
-let _last=null,_liveBusy=false;
+let _last=null,_liveBusy=false,_isDraggingStrip=false;
 // In-memory cache of server-synced locked outlets: { "MAC_OUTLET": true }
 let _serverLockedOutlets = {};
 
@@ -1836,12 +1841,25 @@ async function setOutletLockState(mac, outletNum, targetLocked){
   }
 }
 function fmtTime(){const d=new Date();return d.toLocaleTimeString();}
+async function saveStripCardOrder(){
+  const el=$("live");
+  if(!el) return;
+  const cards = Array.from(el.querySelectorAll(".strip[data-mac]"));
+  const order = cards.map(c => c.getAttribute("data-mac")).filter(Boolean);
+  if(!order.length) return;
+  try {
+    await apit("/api/strip/order", { order });
+  } catch(e) {
+    console.error("Failed to save strip order:", e);
+  }
+}
+
 async function live(){
   if(!tok()){
     updateAuthGateState(false);
     return;
   }
-  if(_liveBusy)return;_liveBusy=true;
+  if(_liveBusy || _isDraggingStrip)return;_liveBusy=true;
   try{
     const s=await apit("/api/live");_last=s;
     const devs=s.devices||[];
@@ -1869,6 +1887,7 @@ async function live(){
       el.innerHTML=devs.length?"":"<div class='card'><h3>No strips yet</h3><p class='desc'>Provision one strip and it dials in here by itself. Go to <b>Setup → Provision a strip</b>.</p></div>";
       for(const d of devs){
         const c=document.createElement("div");c.className="card strip"+(d.online?"":" off");
+        c.setAttribute("data-mac", (d.mac||"").toUpperCase());
         const seen=d.online?"live now":("last seen "+ago(d.last_seen_ago));
         const pend=d.pending?` <span class="tag warn">⏳ ${d.pending} queued</span>`:"";
         const vg = d.voltage_guard || {};
@@ -1927,6 +1946,7 @@ async function live(){
 
         c.innerHTML = `
           <div class="strip-head">
+            <span class="strip-drag-handle" title="Drag to reorder strip cards">⠿</span>
             <div class="title-grp">
               <span class="${stripDotClass}" style="width:10px;height:10px" title="${!d.online?'Offline':(activeOutlets===totalOutlets?'All outlets ON':'Outlets active: '+activeOutlets+'/'+totalOutlets)}"></span>
               <b></b>
@@ -2115,6 +2135,77 @@ async function live(){
           };
 
           outsGrid.appendChild(card);
+        }
+
+        // Enable Drag & Drop reordering for strip card
+        c.draggable = true;
+        c.addEventListener("dragstart", (e) => {
+          _isDraggingStrip = true;
+          c.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", d.mac);
+        });
+
+        c.addEventListener("dragend", () => {
+          _isDraggingStrip = false;
+          c.classList.remove("dragging");
+          el.querySelectorAll(".strip").forEach(s => s.classList.remove("drag-over"));
+        });
+
+        c.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          const draggingCard = el.querySelector(".strip.dragging");
+          if (!draggingCard || draggingCard === c) return;
+          const rect = c.getBoundingClientRect();
+          const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+          el.insertBefore(draggingCard, next && c.nextSibling ? c.nextSibling : c);
+        });
+
+        c.addEventListener("drop", async (e) => {
+          e.preventDefault();
+          _isDraggingStrip = false;
+          el.querySelectorAll(".strip").forEach(s => s.classList.remove("drag-over", "dragging"));
+          await saveStripCardOrder();
+        });
+
+        // Touch drag handling for mobile devices
+        const handle = c.querySelector(".strip-drag-handle");
+        if (handle) {
+          let touchStartY = 0;
+          let touchStartElem = null;
+          handle.addEventListener("touchstart", (e) => {
+            touchStartElem = c;
+            _isDraggingStrip = true;
+            touchStartY = e.touches[0].clientY;
+            c.classList.add("dragging");
+          }, { passive: true });
+
+          handle.addEventListener("touchmove", (e) => {
+            if (!touchStartElem) return;
+            const currentY = e.touches[0].clientY;
+            const target = document.elementFromPoint(e.touches[0].clientX, currentY);
+            const targetCard = target ? target.closest(".strip") : null;
+            if (targetCard && targetCard !== c && targetCard.parentNode === el) {
+              const rect = targetCard.getBoundingClientRect();
+              const next = (currentY - rect.top) / (rect.bottom - rect.top) > 0.5;
+              el.insertBefore(c, next && targetCard.nextSibling ? targetCard.nextSibling : targetCard);
+            }
+          }, { passive: true });
+
+          handle.addEventListener("touchend", async () => {
+            if (!touchStartElem) return;
+            touchStartElem = null;
+            _isDraggingStrip = false;
+            c.classList.remove("dragging");
+            await saveStripCardOrder();
+          });
+
+          handle.addEventListener("touchcancel", () => {
+            touchStartElem = null;
+            _isDraggingStrip = false;
+            c.classList.remove("dragging");
+          });
         }
 
         el.appendChild(c);
