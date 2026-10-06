@@ -1009,11 +1009,6 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     </div>
   </div>
 </div>
-      <button class="ghost sm" id="mvgCancel">Cancel</button>
-      <button class="sm" id="mvgSave">💾 Save Guard Settings</button>
-    </div>
-  </div>
-</div>
 
 <!-- Modal: Sign In / Google Auth -->
 <div id="modalAuth" class="modal-overlay">
@@ -1753,6 +1748,17 @@ function closeVoltageGuardModal() {
 
 on("mvgClose", "click", closeVoltageGuardModal);
 on("mvgCancel", "click", closeVoltageGuardModal);
+
+// Close any modal overlay when user clicks outside the modal box
+document.querySelectorAll(".modal-overlay").forEach(overlay => {
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+      overlay.classList.remove("open");
+      if (overlay.id === "modalVoltageGuard") _activeVgDev = null;
+      if (overlay.id === "modalEditUser") _activeEditingAccountToken = null;
+    }
+  });
+});
 
 on("mvgSave", "click", async () => {
   if (!_activeVgDev) return;
