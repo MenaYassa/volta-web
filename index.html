@@ -191,6 +191,18 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   :root:not([data-theme="light"]) .guard-card{background:rgba(255,255,255,.03);border-color:var(--line)}
   :root:not([data-theme="light"]) .guard-input-grp{background:rgba(255,255,255,.02);border-color:var(--line)}
 }
+/* Signed-out Auth Gate Screen */
+.auth-gate-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:36px 24px;max-width:440px;margin:30px auto;text-align:center;box-shadow:0 12px 30px rgba(0,0,0,.08);position:relative;overflow:hidden}
+.auth-gate-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#3b82f6,#60a5fa,#22c55e)}
+.auth-gate-icon{width:64px;height:64px;border-radius:18px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);display:inline-flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:16px}
+.auth-gate-title{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-0.4px;margin-bottom:8px}
+.auth-gate-sub{font-size:14px;color:var(--mut);line-height:1.5;max-width:340px;margin:0 auto 22px}
+.auth-gate-features{background:rgba(0,0,0,.025);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:22px;text-align:left;font-size:12px;color:var(--ink);display:flex;flex-direction:column;gap:8px}
+:root[data-theme="dark"] .auth-gate-features{background:rgba(255,255,255,.02)}
+.auth-gate-features div{display:flex;align-items:center;gap:8px}
+.auth-gate-divider{margin:18px 0;display:flex;align-items:center;gap:10px}
+.auth-gate-divider span:first-child,.auth-gate-divider span:last-child{flex:1;height:1px;background:var(--line)}
+.auth-gate-divider span:nth-child(2){font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--mut)}
 </style>
 </head>
 <body>
@@ -211,7 +223,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <button class="tbtn" id="btnTheme" title="toggle light/dark">🌙</button>
 <span class="small" style="color:#cbd5e1" id="liveCount"></span>
 </div>
-<nav class="tabs">
+<nav class="tabs" id="mainTabsNav">
 <button class="tab on" data-tab="control">Control</button>
 <button class="tab" data-tab="analytics">Analytics</button>
 <button class="tab" id="tabStrips" data-tab="strips" style="display:none">Strips</button>
@@ -234,6 +246,39 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     <span class="tag warn" id="subNoticeBadge">30 days left</span>
   </div>
 </div>
+
+<!-- ============ SIGNED-OUT AUTH GATE ============ -->
+<div id="authGateView" style="display:none">
+  <div class="auth-gate-card">
+    <div class="auth-gate-icon">⚡</div>
+    <div class="auth-gate-title">Welcome to Volta</div>
+    <div class="auth-gate-sub">Sign in with your Google account or access token to view and control your smart power strips.</div>
+
+    <div class="auth-gate-features">
+      <div><span>🛡️</span> Dual Hardware Protection (Voltage &amp; Temperature Guard)</div>
+      <div><span>📊</span> Real-time telemetry, wattage tracking &amp; solar schedules</div>
+      <div><span>🗣️</span> Alexa Smart Home &amp; multi-tenant device isolation</div>
+    </div>
+
+    <!-- Google Sign-In button container for landing gate -->
+    <div id="g_id_signin_gate_box" style="display:flex;justify-content:center;margin:10px 0;min-height:44px"></div>
+
+    <div class="auth-gate-divider">
+      <span></span>
+      <span>or access with token</span>
+      <span></span>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input id="gateTokInput" type="password" placeholder="Paste Volta token or Admin key" style="flex:1;text-align:center">
+      <button id="btnGateTokLogin" class="sm" style="padding:8px 16px">Enter</button>
+    </div>
+    <div id="gateAuthMsg" class="msgline"></div>
+  </div>
+</div>
+
+<!-- Container for authenticated tab panes -->
+<div id="appPanesView">
 
 <!-- ============ CONTROL ============ -->
 <section class="tabpane on" id="pane-control">
@@ -921,7 +966,8 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </div>
 </section>
 
-</div>
+</div><!-- /appPanesView -->
+</div><!-- /wrap -->
 
 <!-- Modal: Assign strips to a specific user -->
 <div id="modalUserStrips" class="modal-overlay">
@@ -1183,6 +1229,18 @@ const api=async(p,b,signal)=>{const r=await fetch(p,{method:b?"POST":"GET",heade
 const tok=()=>($("token")&&$("token").value||"").trim();
 if($("token"))$("token").value=localStorage.getItem("volta_token")||localStorage.getItem("voltra_token")||"";
 on("token","change",()=>{try{localStorage.setItem("volta_token",$("token").value.trim());}catch{}if($("tokMsg"))$("tokMsg").textContent=$("token").value.trim()?"✓ remembered on this device":"";live();checkSrv();});
+function updateAuthGateState(signedIn){
+  const gate = $("authGateView");
+  const panes = $("appPanesView");
+  const tabsNav = $("mainTabsNav");
+  const liveCount = $("liveCount");
+  if(gate) gate.style.display = signedIn ? "none" : "block";
+  if(panes) panes.style.display = signedIn ? "block" : "none";
+  if(tabsNav) tabsNav.style.display = signedIn ? "flex" : "none";
+  if(!signedIn && liveCount) liveCount.textContent = "";
+  if(!signedIn) initGoogleAuth();
+}
+
 function logoutUser(){
   if($("token"))$("token").value="";
   try{
@@ -1195,6 +1253,7 @@ function logoutUser(){
   if($("tabStrips"))$("tabStrips").style.display="none";
   if($("userHeaderProfile"))$("userHeaderProfile").style.display="none";
   if($("btnLoginHeader"))$("btnLoginHeader").style.display="inline-block";
+  updateAuthGateState(false);
   // Switch to Control tab
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
   document.querySelectorAll(".tabpane").forEach(x=>x.classList.remove("on"));
@@ -1202,7 +1261,6 @@ function logoutUser(){
   if(defTab) defTab.classList.add("on");
   const defPane = $("pane-control");
   if(defPane) defPane.classList.add("on");
-  live();
   checkSrv();
 }
 
@@ -1227,13 +1285,16 @@ on("authClose","click",closeAuthModal);
 
 async function handleGoogleCredentialResponse(response){
   const msg = $("modalAuthMsg");
+  const gateMsg = $("gateAuthMsg");
   if(msg) msg.textContent = "Verifying with Google…";
+  if(gateMsg) gateMsg.textContent = "Verifying with Google…";
   try{
     const res = await api("/api/auth/google", {credential: response.credential});
     if(res && res.ok && res.token){
       if($("token")) $("token").value = res.token;
       try{localStorage.setItem("volta_token", res.token);}catch{}
       if(msg) msg.textContent = "✓ Success! Welcome, " + (res.user.name||"User");
+      if(gateMsg) gateMsg.textContent = "✓ Success! Welcome, " + (res.user.name||"User");
       setTimeout(()=>{
         closeAuthModal();
         checkSrv();
@@ -1241,23 +1302,27 @@ async function handleGoogleCredentialResponse(response){
       }, 600);
     }else{
       if(msg) msg.textContent = "✕ " + (res.error || "Google login failed");
+      if(gateMsg) gateMsg.textContent = "✕ " + (res.error || "Google login failed");
     }
   }catch(e){
     if(msg) msg.textContent = "✕ " + e.message;
+    if(gateMsg) gateMsg.textContent = "✕ " + e.message;
   }
 }
 
 let _googleAuthInited = false;
 async function initGoogleAuth(){
-  if(_googleAuthInited) return;
   try{
     const cfg = await api("/api/auth/google/config");
     if(cfg && cfg.client_id && window.google && window.google.accounts && window.google.accounts.id){
-      window.google.accounts.id.initialize({
-        client_id: cfg.client_id,
-        callback: handleGoogleCredentialResponse,
-        auto_select: false
-      });
+      if(!_googleAuthInited){
+        window.google.accounts.id.initialize({
+          client_id: cfg.client_id,
+          callback: handleGoogleCredentialResponse,
+          auto_select: false
+        });
+        _googleAuthInited = true;
+      }
       const box = $("g_id_signin_box");
       if(box){
         box.innerHTML = "";
@@ -1270,12 +1335,36 @@ async function initGoogleAuth(){
           width: 250
         });
       }
-      _googleAuthInited = true;
+      const gateBox = $("g_id_signin_gate_box");
+      if(gateBox){
+        gateBox.innerHTML = "";
+        window.google.accounts.id.renderButton(gateBox, {
+          theme: "outline",
+          size: "large",
+          shape: "pill",
+          text: "signin_with",
+          logo_alignment: "left",
+          width: 250
+        });
+      }
     }
   }catch(e){
     console.error("google auth init error:", e);
   }
 }
+
+on("btnGateTokLogin","click",()=>{
+  const val = ($("gateTokInput")&&$("gateTokInput").value||"").trim();
+  const msg = $("gateAuthMsg");
+  if(!val){if(msg)msg.textContent="✕ Enter a token";return;}
+  if($("token")) $("token").value = val;
+  try{localStorage.setItem("volta_token", val);}catch{}
+  if(msg) msg.textContent = "✓ Token saved! Entering…";
+  setTimeout(()=>{
+    checkSrv();
+    live();
+  }, 400);
+});
 
 on("btnModalTokLogin","click",()=>{
   const val = ($("modalTokInput")&&$("modalTokInput").value||"").trim();
@@ -1342,6 +1431,7 @@ async function checkSrv(){
         const who=await apit("/api/auth/whoami");
         if(who.authorized){
           _currentUserIsAdmin = Boolean(who.is_admin);
+          updateAuthGateState(true);
           if($("tabUsers"))$("tabUsers").style.display = who.is_admin ? "block" : "none";
           if($("tabStrips"))$("tabStrips").style.display = who.is_admin ? "block" : "none";
           if(who.is_admin && $("pane-users").classList.contains("on"))loadUsers();
@@ -1420,6 +1510,7 @@ async function checkSrv(){
         if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
         if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
         if($("btnLoginHeader"))$("btnLoginHeader").style.display = "inline-block";
+        updateAuthGateState(false);
       }
     }else{
       if($("tabUsers"))$("tabUsers").style.display="none";
@@ -1428,6 +1519,7 @@ async function checkSrv(){
       if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
       if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
       if($("btnLoginHeader"))$("btnLoginHeader").style.display = "inline-block";
+      updateAuthGateState(false);
     }
   }catch{
     if($("srvDot"))$("srvDot").className="dot bad";
@@ -1731,6 +1823,10 @@ function toggleOutletLock(mac, outletNum){
 }
 function fmtTime(){const d=new Date();return d.toLocaleTimeString();}
 async function live(){
+  if(!tok()){
+    updateAuthGateState(false);
+    return;
+  }
   if(_liveBusy)return;_liveBusy=true;
   try{
     const s=await apit("/api/live");_last=s;
@@ -3693,7 +3789,21 @@ on("aBtn30d","click",()=>aSetRange($("aBtn30d"),"30d"));
 on("aBtn6m","click",()=>aSetRange($("aBtn6m"),"6m"));
 on("aBtn1y","click",()=>aSetRange($("aBtn1y"),"1y"));
 on("aBtnRefresh","click",loadCharts);
-async function init(){try{const n=await api("/api/nets");if($("nets"))$("nets").value=(n.nets[0]||"192.168.1.0/24");}catch{}await checkSrv();await reload();await live();await renderManage();await loadSettings();initGoogleAuth();setInterval(log,4000);setInterval(()=>{if(prefs.auto&&$("pane-control").classList.contains("on"))live();},5000);setInterval(checkSrv,15000);}
+async function init(){
+  updateAuthGateState(Boolean(tok()));
+  try{const n=await api("/api/nets");if($("nets"))$("nets").value=(n.nets[0]||"192.168.1.0/24");}catch{}
+  await checkSrv();
+  if(tok()){
+    await reload();
+    await live();
+    await renderManage();
+    await loadSettings();
+  }
+  initGoogleAuth();
+  setInterval(log,4000);
+  setInterval(()=>{if(tok()&&prefs.auto&&$("pane-control").classList.contains("on"))live();},5000);
+  setInterval(checkSrv,15000);
+}
 init();
 </script>
 </body>
