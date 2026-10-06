@@ -157,6 +157,8 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .pills-bar button.on{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 :root[data-theme="dark"] .pills-bar{background:rgba(255,255,255,.03)}
 :root[data-theme="dark"] .pills-bar button.on{background:#1e293b;color:#60a5fa}
+.chart-subgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+@media(max-width:680px){.chart-subgrid{grid-template-columns:1fr}}
 .stat-item{background:rgba(0,0,0,.02);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
 .stat-item span{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;font-weight:600}
 .stat-item b{display:block;font-size:16px;color:var(--ink);margin-top:2px}
@@ -322,16 +324,16 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
+  <div class="chart-subgrid">
     <div>
       <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--ink)">🔌 Grid Voltage (V)</div>
-      <div style="position:relative;height:180px">
+      <div style="position:relative;height:180px;width:100%">
         <canvas id="chartVoltage"></canvas>
       </div>
     </div>
     <div>
       <div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--ink)">🌡️ Temperature (°C)</div>
-      <div style="position:relative;height:180px">
+      <div style="position:relative;height:180px;width:100%">
         <canvas id="chartTemp"></canvas>
       </div>
     </div>
