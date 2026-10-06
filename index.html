@@ -71,7 +71,8 @@ button.sm{padding:6px 10px;font-size:13px;min-height:0}
 .s-stat{background:rgba(0,0,0,.025);border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:center}
 .s-stat span{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:var(--mut)}
 .s-stat b{display:block;font-size:15px;color:var(--ink);margin-top:2px}
-.outs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.outs-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media(max-width:680px){.outs-grid{grid-template-columns:1fr}}
 .outlet-card{background:rgba(0,0,0,.02);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:all .15s}
 .outlet-card.on{background:rgba(22,163,74,.05);border-color:rgba(22,163,74,.3)}
 .outlet-card.busy{opacity:.55}
@@ -115,6 +116,18 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .modal-head h3{margin:0;font-size:16px}
 .modal-body{padding:14px 18px;overflow-y:auto;flex:1}
 .modal-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;background:rgba(0,0,0,.02)}
+/* Minimalist modern guard modal styles */
+.guard-card{background:rgba(0,0,0,.02);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;transition:border-color .2s}
+.guard-card.armed{border-color:rgba(22,163,74,.3)}
+.guard-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.guard-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.guard-sub{font-size:12px;color:var(--mut);margin-top:2px}
+.guard-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.guard-input-grp{background:rgba(0,0,0,.025);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.guard-input-grp label{display:block;font-size:11px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+.guard-input-grp input{margin:0;font-size:14px;font-weight:600;padding:6px 8px;border-radius:6px;width:100%}
+.guard-note{font-size:11px;color:var(--mut);margin-top:8px;line-height:1.4}
+.trip-alert{border-radius:12px;padding:14px;margin-bottom:14px;display:none}
 .pagination{display:flex;justify-content:space-between;align-items:center;margin:12px 0 6px;flex-wrap:wrap;gap:8px}
 /* dark mode: auto + manual override */
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none} :root:not([data-theme="light"]) input,:root:not([data-theme="light"]) select{background:#0f1830;color:#e2e8f0;border-color:#24314f} :root:not([data-theme="light"]) button.ghost,:root:not([data-theme="light"]) button.danger{background:#0f1830;color:#e2e8f0} :root:not([data-theme="light"]) .ov .stat,:root:not([data-theme="light"]) .strip,:root:not([data-theme="light"]) details.adv{background:#131c31} :root:not([data-theme="light"]) .tag{background:#0f1830;color:#94a3b8} :root:not([data-theme="light"]) .sw{background:#334155} :root:not([data-theme="light"]) .s-stat,:root:not([data-theme="light"]) .outlet-card{background:rgba(255,255,255,.03)} :root:not([data-theme="light"]) .outlet-card.on{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.35)}}
@@ -126,6 +139,12 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 :root[data-theme="dark"] .sw{background:#334155}
 :root[data-theme="dark"] .s-stat,:root[data-theme="dark"] .outlet-card{background:rgba(255,255,255,.03)}
 :root[data-theme="dark"] .outlet-card.on{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.35)}
+:root[data-theme="dark"] .guard-card{background:rgba(255,255,255,.03);border-color:var(--line)}
+:root[data-theme="dark"] .guard-input-grp{background:rgba(255,255,255,.02);border-color:var(--line)}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .guard-card{background:rgba(255,255,255,.03);border-color:var(--line)}
+  :root:not([data-theme="light"]) .guard-input-grp{background:rgba(255,255,255,.02);border-color:var(--line)}
+}
 </style>
 </head>
 <body>
@@ -933,92 +952,107 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 <!-- Modal: Voltage & Temperature Guard (Hardware Safety) -->
 <div id="modalVoltageGuard" class="modal-overlay">
-  <div class="modal-box" style="max-width:460px">
+  <div class="modal-box" style="max-width:500px">
     <div class="modal-head">
-      <h3 id="mvgTitle">🛡️ Strip Safety Guard (Voltage &amp; Temp)</h3>
-      <button class="ghost sm" id="mvgClose">✕</button>
+      <div>
+        <h3 id="mvgTitle" style="font-size:16px;font-weight:700">🛡️ Safety Guard Settings</h3>
+        <div id="mvgStatus" style="font-size:12px;color:var(--mut);margin-top:2px"></div>
+      </div>
+      <button class="ghost sm" id="mvgClose" style="border-radius:50%;width:32px;height:32px;padding:0;min-height:0;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="padding:16px">
       <!-- Thermal Trip Banner -->
-      <div id="mvgTempTripBanner" style="display:none;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5">
-        <div style="font-weight:700;display:flex;align-items:center;gap:6px">
+      <div id="mvgTempTripBanner" class="trip-alert" style="background:rgba(239,68,68,0.12);border:1px solid #ef4444;color:#fca5a5">
+        <div style="font-weight:700;display:flex;align-items:center;gap:6px;color:#f87171">
           <span>🔥</span> <span id="mvgTempTripTitle">OVERHEAT GUARD TRIPPED</span>
         </div>
-        <div id="mvgTempTripDesc" class="small" style="margin-top:4px;color:#fff">All outlets safely shut OFF to prevent fire hazard. Power will NOT turn back on automatically. Inspect strip and tap below to reset.</div>
-        <div style="margin-top:8px">
-          <button class="sm" id="mvgTempResetBtn" style="background:#ef4444;color:#fff;font-weight:700">⚠️ Clear Thermal Trip</button>
+        <div id="mvgTempTripDesc" class="small" style="margin-top:4px;color:var(--ink)">All outlets shut OFF to prevent fire hazard. Manual reset required.</div>
+        <div style="margin-top:10px">
+          <button class="sm" id="mvgTempResetBtn" style="background:#ef4444;color:#fff;font-weight:700;border:none">⚠️ Reset Thermal Trip</button>
         </div>
       </div>
 
       <!-- Voltage Trip Banner -->
-      <div id="mvgTripBanner" style="display:none;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(239,68,68,0.15);border:1px solid var(--bad);color:var(--bad)">
-        <div style="font-weight:700;display:flex;align-items:center;gap:6px">
+      <div id="mvgTripBanner" class="trip-alert" style="background:rgba(239,68,68,0.12);border:1px solid #ef4444;color:#fca5a5">
+        <div style="font-weight:700;display:flex;align-items:center;gap:6px;color:#f87171">
           <span>🚨</span> <span id="mvgTripTitle">VOLTAGE GUARD TRIPPED</span>
         </div>
-        <div id="mvgTripDesc" class="small" style="margin-top:4px;color:var(--fg)">All outlets safely shut OFF to prevent appliance damage.</div>
-        <div style="margin-top:8px">
-          <button class="sm" id="mvgResetBtn" style="background:var(--bad);color:#fff">⚠️ Clear Trip &amp; Reset Guard</button>
+        <div id="mvgTripDesc" class="small" style="margin-top:4px;color:var(--ink)">All outlets safely shut OFF to prevent appliance damage.</div>
+        <div style="margin-top:10px">
+          <button class="sm" id="mvgResetBtn" style="background:#ef4444;color:#fff;font-weight:700;border:none">⚠️ Clear Voltage Trip</button>
         </div>
       </div>
 
       <!-- Voltage Recovery Banner -->
-      <div id="mvgRecoverBanner" style="display:none;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(234,179,8,0.15);border:1px solid #eab308;color:#fde047">
-        <div style="font-weight:700;display:flex;align-items:center;gap:6px">
+      <div id="mvgRecoverBanner" class="trip-alert" style="background:rgba(234,179,8,0.12);border:1px solid #eab308;color:#fde047">
+        <div style="font-weight:700;display:flex;align-items:center;gap:6px;color:#fbbf24">
           <span>⏳</span> <span>Voltage Normalized · Stabilizing</span>
         </div>
-        <div id="mvgRecoverDesc" class="small" style="margin-top:4px;color:var(--fg)">Monitoring grid stability before automatically restoring power to original outlets.</div>
+        <div id="mvgRecoverDesc" class="small" style="margin-top:4px;color:var(--ink)">Monitoring grid stability before auto-restoring power.</div>
       </div>
 
       <!-- SECTION 1: TEMPERATURE GUARD -->
-      <div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:12px 14px;margin-bottom:14px">
-        <div class="field" style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+      <div class="guard-card" id="mvgTempCard">
+        <div class="guard-row">
           <div>
-            <b>🌡️ Temperature Guard</b>
-            <div class="small" style="color:var(--mut)">Emergency power cut if ANY outlet overheats</div>
+            <div class="guard-title"><span>🌡️</span> Overheat Fire Protection</div>
+            <div class="guard-sub">Emergency thermal cutoff across all outlets</div>
           </div>
-          <input type="checkbox" id="mvgTempEnabled" checked style="width:20px;height:20px;cursor:pointer">
+          <button class="sw on" id="mvgTempEnabledSw" type="button" aria-label="Toggle Temperature Guard"></button>
+          <input type="checkbox" id="mvgTempEnabled" checked style="display:none">
         </div>
-        <div class="field" style="margin-bottom:4px">
-          <span>Max Temperature Threshold (°C)</span>
-          <input id="mvgMaxTemp" type="number" min="40" max="90" step="1" value="65">
-          <small style="color:var(--mut)">If any outlet reaches this temp, all outlets shut down immediately. <b>No auto turn back on</b> (manual reset required for fire safety).</small>
+        
+        <div class="guard-input-grp" style="margin-top:8px">
+          <label>Max Temperature Threshold (°C)</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input id="mvgMaxTemp" type="number" min="40" max="85" step="1" value="65" style="flex:1">
+            <span style="font-size:13px;font-weight:700;color:var(--mut)">°C</span>
+          </div>
         </div>
+        <div class="guard-note">Shuts down immediately if exceeded. Power will <b>never</b> auto-restore for fire safety.</div>
       </div>
 
       <!-- SECTION 2: VOLTAGE GUARD -->
-      <div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:12px 14px;margin-bottom:12px">
-        <div class="field" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <div class="guard-card" id="mvgVoltCard">
+        <div class="guard-row">
           <div>
-            <b>⚡ Voltage Guard</b>
-            <div class="small" style="color:var(--mut)">Brownout &amp; surge cutoff with auto-recovery</div>
+            <div class="guard-title"><span>⚡</span> Voltage Sag &amp; Surge Guard</div>
+            <div class="guard-sub">Continuous grid monitoring &amp; safe recovery</div>
           </div>
-          <input type="checkbox" id="mvgEnabled" checked style="width:20px;height:20px;cursor:pointer">
+          <button class="sw on" id="mvgEnabledSw" type="button" aria-label="Toggle Voltage Guard"></button>
+          <input type="checkbox" id="mvgEnabled" checked style="display:none">
         </div>
 
-        <div class="field" style="margin-bottom:8px">
-          <span>Minimum Voltage (V) — Brownout Cutoff</span>
-          <input id="mvgMinV" type="number" min="150" max="230" step="1" value="195">
-          <small style="color:var(--mut)">Outlets cut OFF when voltage drops below this number.</small>
+        <div class="guard-grid" style="margin-top:8px">
+          <div class="guard-input-grp">
+            <label>Brownout Cutoff (V)</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input id="mvgMinV" type="number" min="160" max="225" step="1" value="195">
+              <span style="font-size:12px;font-weight:700;color:var(--mut)">V</span>
+            </div>
+          </div>
+          <div class="guard-input-grp">
+            <label>Surge Cutoff (V)</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input id="mvgMaxV" type="number" min="235" max="275" step="1" value="250">
+              <span style="font-size:12px;font-weight:700;color:var(--mut)">V</span>
+            </div>
+          </div>
         </div>
 
-        <div class="field" style="margin-bottom:8px">
-          <span>Maximum Voltage (V) — Surge Cutoff</span>
-          <input id="mvgMaxV" type="number" min="230" max="280" step="1" value="250">
-          <small style="color:var(--mut)">Outlets cut OFF when voltage spikes above this number.</small>
+        <div class="guard-input-grp" style="margin-top:10px">
+          <label>Stabilization Delay</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input id="mvgDelay" type="number" min="1" max="15" step="1" value="3" style="flex:1">
+            <span style="font-size:13px;font-weight:700;color:var(--mut)">Minutes</span>
+          </div>
         </div>
-
-        <div class="field" style="margin-bottom:4px">
-          <span>Safe Recovery Delay (Minutes)</span>
-          <input id="mvgDelay" type="number" min="1" max="30" step="1" value="3">
-          <small style="color:var(--mut)">After voltage normalizes, wait this long before restoring previously active outlets.</small>
-        </div>
+        <div class="guard-note">Restores only previously active outlets after the grid stays within safe bounds.</div>
       </div>
-
-      <div id="mvgStatus" class="small" style="padding:4px 0;color:var(--mut)"></div>
     </div>
     <div class="modal-foot">
       <button class="ghost sm" id="mvgCancel">Cancel</button>
-      <button class="sm" id="mvgSave">💾 Save Guard Settings</button>
+      <button class="sm" id="mvgSave" style="font-weight:600">Save Guard Settings</button>
     </div>
   </div>
 </div>
@@ -1793,13 +1827,24 @@ async function openVoltageGuardModal(d) {
   }
   vg = vg || {};
 
+  const isVoltOn = vg.enabled !== undefined ? Boolean(vg.enabled) : true;
+  const isTempOn = vg.temp_enabled !== undefined ? Boolean(vg.temp_enabled) : true;
+
   if ($("mvgTitle")) $("mvgTitle").textContent = `🛡️ Safety Guard · ${d.name || d.mac}`;
-  if ($("mvgEnabled")) $("mvgEnabled").checked = vg.enabled !== undefined ? Boolean(vg.enabled) : true;
+  if ($("mvgEnabled")) $("mvgEnabled").checked = isVoltOn;
+  if ($("mvgEnabledSw")) {
+    $("mvgEnabledSw").className = "sw" + (isVoltOn ? " on" : "");
+    if ($("mvgVoltCard")) $("mvgVoltCard").classList.toggle("armed", isVoltOn);
+  }
   if ($("mvgMinV")) $("mvgMinV").value = vg.min_v !== undefined ? vg.min_v : 195;
   if ($("mvgMaxV")) $("mvgMaxV").value = vg.max_v !== undefined ? vg.max_v : 250;
   if ($("mvgDelay")) $("mvgDelay").value = vg.safe_delay_min !== undefined ? vg.safe_delay_min : 3;
 
-  if ($("mvgTempEnabled")) $("mvgTempEnabled").checked = vg.temp_enabled !== undefined ? Boolean(vg.temp_enabled) : true;
+  if ($("mvgTempEnabled")) $("mvgTempEnabled").checked = isTempOn;
+  if ($("mvgTempEnabledSw")) {
+    $("mvgTempEnabledSw").className = "sw" + (isTempOn ? " on" : "");
+    if ($("mvgTempCard")) $("mvgTempCard").classList.toggle("armed", isTempOn);
+  }
   if ($("mvgMaxTemp")) $("mvgMaxTemp").value = vg.max_temp_c !== undefined ? vg.max_temp_c : 65;
 
   const tempTripBanner = $("mvgTempTripBanner");
@@ -1856,6 +1901,25 @@ function closeVoltageGuardModal() {
 
 on("mvgClose", "click", closeVoltageGuardModal);
 on("mvgCancel", "click", closeVoltageGuardModal);
+
+// Toggle switches inside Guard Modal
+on("mvgTempEnabledSw", "click", () => {
+  const chk = $("mvgTempEnabled");
+  const sw = $("mvgTempEnabledSw");
+  if (!chk || !sw) return;
+  chk.checked = !chk.checked;
+  sw.className = "sw" + (chk.checked ? " on" : "");
+  if ($("mvgTempCard")) $("mvgTempCard").classList.toggle("armed", chk.checked);
+});
+
+on("mvgEnabledSw", "click", () => {
+  const chk = $("mvgEnabled");
+  const sw = $("mvgEnabledSw");
+  if (!chk || !sw) return;
+  chk.checked = !chk.checked;
+  sw.className = "sw" + (chk.checked ? " on" : "");
+  if ($("mvgVoltCard")) $("mvgVoltCard").classList.toggle("armed", chk.checked);
+});
 
 // Close any modal overlay when user clicks outside the modal box
 document.querySelectorAll(".modal-overlay").forEach(overlay => {
