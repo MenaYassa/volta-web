@@ -67,6 +67,7 @@ button.sm{padding:6px 10px;font-size:13px;min-height:0}
 .strip-head{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .strip-head .title-grp{display:flex;align-items:center;gap:6px}
 .strip-head b{font-size:18px;font-weight:700}
+.vg-tag-btn{display:inline-flex;align-items:center;gap:4px;cursor:pointer;border-radius:99px;font-size:11px;font-weight:600;padding:3px 10px;line-height:1.2;border:1px solid transparent;white-space:nowrap}
 .strip-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-bottom:14px}
 .s-stat{background:rgba(0,0,0,.025);border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:center}
 .s-stat span{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:var(--mut)}
@@ -87,6 +88,12 @@ button.sm{padding:6px 10px;font-size:13px;min-height:0}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:99px;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .sw.on{background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.2)}.sw.on::after{left:25px}
 .sw:disabled{opacity:.45}
+.lock-btn{background:none;border:none;cursor:pointer;padding:4px;font-size:14px;line-height:1;min-height:0;opacity:.4;border-radius:6px;transition:all .15s}
+.lock-btn:hover{opacity:.8;background:rgba(0,0,0,.05)}
+.lock-btn.locked{opacity:1;filter:drop-shadow(0 0 2px rgba(234,179,8,.5))}
+.outlet-card.is-locked{border-color:rgba(234,179,8,.3)}
+:root[data-theme="dark"] .lock-btn:hover{background:rgba(255,255,255,.08)}
+:root[data-theme="dark"] .outlet-card.is-locked{border-color:rgba(234,179,8,.35)}
 .on-txt{color:var(--green);font-weight:700}
 .tbtn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:99px;min-height:0;padding:6px 12px;font-size:14px;font-weight:600}
 .tbtn:hover{background:rgba(255,255,255,.22)}
@@ -1699,6 +1706,24 @@ on("btnCreateUser","click",async()=>{
 });
 /* ---- Control ---- */
 let _last=null,_liveBusy=false;
+function getLockedOutlets(){
+  try{return JSON.parse(localStorage.getItem("volta_locked_outlets")||"{}");}catch{return {};}
+}
+function setLockedOutlets(map){
+  try{localStorage.setItem("volta_locked_outlets", JSON.stringify(map));}catch{}
+}
+function isOutletLocked(mac, outletNum){
+  const map = getLockedOutlets();
+  return Boolean(map[`${(mac||"").toUpperCase()}_${outletNum}`]);
+}
+function toggleOutletLock(mac, outletNum){
+  const map = getLockedOutlets();
+  const key = `${(mac||"").toUpperCase()}_${outletNum}`;
+  if(map[key]) delete map[key];
+  else map[key] = true;
+  setLockedOutlets(map);
+  return Boolean(map[key]);
+}
 function fmtTime(){const d=new Date();return d.toLocaleTimeString();}
 async function live(){
   if(_liveBusy)return;_liveBusy=true;
@@ -1723,16 +1748,16 @@ async function live(){
         const vg = d.voltage_guard || {};
         let vgTag = "";
         if (vg.temp_tripped) {
-          vgTag = `<button class="tag bad vg-btn" style="cursor:pointer;background:#ef4444;color:#fff" title="Overheat Guard TRIPPED! Click to inspect">🔥 OVERHEAT TRIPPED (${vg.trip_temp_c || 65}°C)</button>`;
+          vgTag = `<button class="vg-tag-btn bad vg-btn" style="background:#ef4444;color:#fff" title="Overheat Guard TRIPPED! Click to inspect">🔥 OVERHEAT TRIPPED (${vg.trip_temp_c || 65}°C)</button>`;
         } else if (vg.tripped) {
-          vgTag = `<button class="tag bad vg-btn" style="cursor:pointer" title="Voltage Guard TRIPPED! Click to manage">🚨 VOLTAGE TRIPPED (${vg.fault_type || "VOLTAGE"})</button>`;
+          vgTag = `<button class="vg-tag-btn bad vg-btn" style="background:#fee2e2;color:var(--red);border-color:#fecaca" title="Voltage Guard TRIPPED! Click to manage">🚨 VOLTAGE TRIPPED (${vg.fault_type || "VOLTAGE"})</button>`;
         } else if (vg.enabled || vg.temp_enabled) {
           const parts = [];
           if (vg.enabled) parts.push(`${vg.min_v}-${vg.max_v}V`);
           if (vg.temp_enabled) parts.push(`≤${vg.max_temp_c}°C`);
-          vgTag = `<button class="tag ok vg-btn" style="cursor:pointer" title="Safety Guards Armed (${parts.join(", ")}). Click to configure">🛡️ Guard Armed</button>`;
+          vgTag = `<button class="vg-tag-btn ok vg-btn" style="background:#dcfce7;color:var(--green);border-color:#bbf7d0" title="Safety Guards Armed (${parts.join(", ")}). Click to configure">🛡️ Guard Armed</button>`;
         } else {
-          vgTag = `<button class="tag vg-btn" style="cursor:pointer;opacity:0.7" title="Click to setup Voltage & Temperature Guard protection">🛡️ Guard Off</button>`;
+          vgTag = `<button class="vg-tag-btn vg-btn" style="background:#f1f5f9;color:#64748b;border-color:var(--line)" title="Click to setup Voltage & Temperature Guard protection">🛡️ Guard Off</button>`;
         }
 
         // Aggregate outlet power and max outlet temperature
@@ -1832,19 +1857,21 @@ async function live(){
         }
 
         for (const o of (d.outlets || [])) {
+          const locked = isOutletLocked(d.mac, o.n);
           const card = document.createElement("div");
-          card.className = "outlet-card" + (o.on ? " on" : "");
+          card.className = "outlet-card" + (o.on ? " on" : "") + (locked ? " is-locked" : "");
 
           const pStr = (o.power_w !== undefined && o.power_w !== null) ? `${o.power_w} W` : "0 W";
           const eStr = (o.energy_kwh !== undefined && o.energy_kwh !== null) ? `${o.energy_kwh} kWh` : "0 kWh";
           const tStr = (o.temp_c !== undefined && o.temp_c !== null) ? `${o.temp_c}°C` : "";
 
           card.innerHTML = `
-            <button class="sw ${o.on ? "on" : ""}" aria-label="Outlet ${o.n}"></button>
+            <button class="sw ${o.on ? "on" : ""}" ${locked ? "disabled" : ""} aria-label="Outlet ${o.n}"></button>
             <div class="outlet-info">
               <div class="title-row">
                 <b></b>
                 <button class="rename" title="Rename outlet">✏️</button>
+                <button class="lock-btn ${locked ? "locked" : ""}" title="${locked ? "Outlet locked (protected from accidental toggles). Click to unlock." : "Lock outlet against accidental toggles"}">${locked ? "🔒" : "🔓"}</button>
               </div>
               <div class="outlet-specs">
                 <span class="${o.on ? "on-txt" : ""}" style="font-weight:700;font-size:11px">${o.on ? "ON" : "OFF"}</span>
@@ -1871,8 +1898,30 @@ async function live(){
             }
           };
 
+          const lockBtn = card.querySelector(".lock-btn");
           const sw = card.querySelector(".sw");
+
+          lockBtn.onclick = (e) => {
+            e.stopPropagation();
+            const nowLocked = toggleOutletLock(d.mac, o.n);
+            lockBtn.className = "lock-btn" + (nowLocked ? " locked" : "");
+            lockBtn.textContent = nowLocked ? "🔒" : "🔓";
+            lockBtn.title = nowLocked ? "Outlet locked (protected from accidental toggles). Click to unlock." : "Lock outlet against accidental toggles";
+            card.classList.toggle("is-locked", nowLocked);
+            sw.disabled = nowLocked;
+            if (nowLocked) {
+              msg.textContent = `Outlet ${o.n} locked 🔒 (accidental toggle protection active)`;
+            } else {
+              msg.textContent = `Outlet ${o.n} unlocked 🔓`;
+            }
+            setTimeout(() => { if (msg.textContent.includes("locked")) msg.textContent = ""; }, 3000);
+          };
+
           sw.onclick = async () => {
+            if (isOutletLocked(d.mac, o.n)) {
+              alert(`Outlet ${o.n} (${o.nick || "Outlet " + o.n}) is locked to prevent accidental switching. Tap the 🔒 icon to unlock first.`);
+              return;
+            }
             card.classList.add("busy");
             sw.disabled = true;
             msg.textContent = `Outlet ${o.n} → ${!o.on ? "ON" : "OFF"}…`;
