@@ -1,120 +1,122 @@
-# Volta Android App Developer Handoff 📱⚡
+# Volta Android App Developer Handoff — Phase 2: Auth, Safety & Smart Home 📱⚡
 
-**Document Version:** 2.0  
-**Target:** Volta Mobile Client (Android / iOS / Flutter)  
-**Target Backend:** Volta Cloud Controller (API Version 1.0)  
-**Base URL:** `https://volta.your-domain.com` (or dynamic host configured by user)
-
----
-
-## 1. Executive Summary of What Changed
-The Volta backend and Web UI have undergone a major upgrade:
-1. **Google OAuth & Multi-Tenancy**: Zero manual token sharing. Users sign in with Google or personal user tokens. Automatic provisioning with a 1-strip lifetime free license for new accounts.
-2. **Hardware Safety Guard (Voltage & Overheat Guard)**:
-   - **Voltage Guard**: Brownout (< `min_v`) and Surge (> `max_v`) auto-cutoff with selective auto-recovery after grid stabilization.
-   - **Temperature Overheat Guard**: Immediate all-outlet cutoff if any outlet exceeds `max_temp_c` with **strict manual reset** requirement.
-   - **Default-On Protection**: Automatically armed on newly claimed strips.
-3. **Alexa Smart Home Integration**: Central OAuth bridge for Account Linking and real-time state reporting (Power, Temperature, Voltage, Wattage).
-4. **City / Country Solar Automation**: Replacement of manual latitude/longitude with Open-Meteo geocoding search and auto-timezone sync.
+**Document Version:** 2.1 (Phase 2 Addendum)  
+**Target:** Volta Mobile Client (Android / Kotlin / Jetpack Compose / Flutter)  
+**Base URL:** `https://volta.your-domain.com` (or dynamic host)  
+**Previous Baseline Completed:** Analytics summary (`/api/analytics/summary`), Leaderboard (`/api/analytics/leaderboard`), Token sanitization (`volta_usr_`), and Account Expiry Lock Screen (`subscription_expired: true`).
 
 ---
 
-## 2. Authentication & User Profile Management
-
-### 2.1 Google Sign-In Flow
-Instead of manually typing a `VOLTA_TOKEN`, the app should present a **"Sign in with Google"** button using Google Identity Services / Google Play Services (`GoogleSignInClient` / `CredentialManager`).
-
-* **Google Client ID (Web/Backend Audience):**  
-  `YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com`
-* **API Dynamic Config Endpoint:**
-  ```http
-  GET /api/auth/google/config
-  ```
-  **Response:**
-  ```json
-  { "ok": true, "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com" }
-  ```
-
-* **Token Exchange Endpoint:**
-  ```http
-  POST /api/auth/google
-  Content-Type: application/json
-
-  {
-    "credential": "<GOOGLE_ID_TOKEN>"
-  }
-  ```
-  **Response:**
-  ```json
-  {
-    "ok": true,
-    "token": "volta_usr_a1b2c3d4e5f6...",
-    "email": "user@gmail.com",
-    "name": "John Doe",
-    "picture": "https://lh3.googleusercontent.com/...",
-    "is_admin": false,
-    "strips": ["88D03934E61B"],
-    "max_strips": 1,
-    "expires_at": null,
-    "status": "active"
-  }
-  ```
-* **Client Behavior:**
-  - Store the returned `token` securely in `EncryptedSharedPreferences` / Keychain.
-  - Pass this token in the `X-Token` HTTP header on **every subsequent API request**.
+## What is in this Handoff?
+This document specifies the exact **new contracts, data models, state machines, and UI components** required to upgrade the app for:
+1. **Google Identity Authentication Flow** (replacing manual token pasting as the primary sign-in).
+2. **Dual Hardware Safety Guard Engine** (Voltage sag/surge auto-recovery + Temperature fire cutoff).
+3. **Amazon Alexa Smart Home Integration** (in-app linking helper + voice control parity).
+4. **City / Geocoding Location Search** (replacing manual lat/lon entry for solar sunrise/sunset automations).
 
 ---
 
-### 2.2 Profile, License & Quota Check
-```http
-GET /api/auth/whoami
-X-Token: <STORED_TOKEN>
+## 1. Authentication: Google Sign-In & Profile Parity
+
+### 1.1 Architectural Shift
+In Phase 1, the user pasted a raw token string (`volta_usr_...`).  
+In Phase 2, Google Sign-In is the **primary onboarding and authentication method**, while token input remains as a secondary fallback.
+
 ```
-**Response:**
+┌───────────────────────────────┐
+│       Volta Login Screen      │
+│  [ 🔵 Sign in with Google ]   │ ──▶ Uses Google CredentialManager / Play Services
+│  [ Or enter user token... ]   │ ──▶ Fallback (Phase 1 SecureTokenManager)
+└───────────────┬───────────────┘
+                │ Returns Google ID Token (JWT)
+                ▼
+┌───────────────────────────────┐
+│     POST /api/auth/google     │
+└───────────────┬───────────────┘
+                │ Returns Volta User Token + Quotas + Profile
+                ▼
+┌───────────────────────────────┐
+│   Write to SecureTokenManager │
+│    Navigate to Main Screen    │
+└───────────────────────────────┘
+```
+
+### 1.2 Google Client ID Discovery Endpoint
+Do not hardcode the Google Client ID in the app APK if possible. Fetch it dynamically:
+```http
+GET /api/auth/google/config
+```
+**Response (200 OK):**
 ```json
 {
-  "authorized": true,
-  "is_admin": false,
-  "name": "John Doe",
+  "ok": true,
+  "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+}
+```
+
+### 1.3 Google ID Token Exchange Endpoint
+Send the Google ID Token obtained from Android's `CredentialManager` or `GoogleSignInAccount.idToken`:
+```http
+POST /api/auth/google
+Content-Type: application/json
+
+{
+  "credential": "<GOOGLE_ID_TOKEN_STRING>"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "token": "volta_usr_48f6c91a72d3e05a8b79b201...",
   "email": "user@gmail.com",
-  "picture": "https://lh3.googleusercontent.com/...",
+  "name": "Mena Medhat",
+  "picture": "https://lh3.googleusercontent.com/a/ACg8oc...",
+  "is_admin": false,
   "strips": ["88D03934E61B"],
   "max_strips": 1,
-  "expires_at": 1791234567,
+  "expires_at": null,
   "status": "active"
 }
 ```
 
-#### Client Rules for Licenses:
-1. **Strip Quota Enforcement**: If `strips.length >= max_strips`, disable or hide the "Add New Strip" wizard and show an in-app banner: *"You've reached your license limit (X/X strips). Contact admin to expand."*
-2. **Subscription Expiry Banner**:
-   - If `expires_at != null` and days remaining $\le 30$: show an amber warning pill/card: *"Plan renews in X days"*.
-   - If `status == "expired"` or `status == "canceled"`: backend returns HTTP 401 with `{"subscription_expired": true}`. Show an account locked dialog.
+#### Android Implementation Details:
+1. Extract `token` and store it in `SecureTokenManager` (your existing AES-256 GCM encrypted storage).
+2. Save `email`, `name`, and `picture` in local user preferences.
+3. If `expires_at == null`, display plan badge as **"Lifetime / Free Tier"** (new users get 1 free lifetime strip).
+4. If `is_admin == true`, the app can expose admin-only menus.
+5. If the user's email matches `eng.menamedhat@gmail.com`, the backend automatically issues the master admin token.
 
 ---
 
-## 3. Strip Safety Guard (Voltage & Temperature)
+## 2. Dual Hardware Safety Guard (Voltage & Temperature)
 
-Every strip now features real-time hardware safety guards that must be visible and configurable inside the mobile app.
+This is a major hardware protection system that runs 24/7 on the server. The mobile app must reflect live guard states and provide configuration controls.
 
-### 3.1 Fetch Strip Guard Configuration
-```http
-GET /api/voltage-guard?mac=88D03934E61B
-X-Token: <TOKEN>
-```
-**Response:**
+### 2.1 Live Strip Object Payload Changes
+Every device in `GET /api/live` and `GET /api/devices` now includes the `voltage_guard` data model directly inside the strip JSON:
+
 ```json
 {
-  "ok": true,
   "mac": "88D03934E61B",
-  "guard": {
+  "name": "Living Room TV",
+  "online": true,
+  "voltage_v": 221.4,
+  "power_w": 45.2,
+  "outlets": [
+    { "n": 1, "name": "TV", "on": true, "power_w": 40.0, "temp_c": 32.0 },
+    { "n": 2, "name": "Soundbar", "on": false, "power_w": 0.0, "temp_c": 28.0 },
+    { "n": 3, "name": "Apple TV", "on": true, "power_w": 5.2, "temp_c": 30.5 },
+    { "n": 4, "name": "Lamp", "on": false, "power_w": 0.0, "temp_c": 26.0 }
+  ],
+  "voltage_guard": {
     "enabled": true,
     "min_v": 195.0,
     "max_v": 250.0,
     "safe_delay_min": 3,
     "tripped": false,
     "fault_type": null,
-    "tripped_at": null,
     "trip_voltage": null,
     "saved_outlets": [],
     "safe_since": null,
@@ -127,11 +129,60 @@ X-Token: <TOKEN>
 }
 ```
 
-*(Note: The live strip object returned by `GET /api/live` and `GET /api/devices` also includes this exact `voltage_guard` sub-object directly on each strip!)*
+### 2.2 Kotlin Data Models for Safety Guard
+
+```kotlin
+data class VoltageGuardState(
+    @SerializedName("enabled") val enabled: Boolean = true,
+    @SerializedName("min_v") val minV: Float = 195.0f,
+    @SerializedName("max_v") val maxV: Float = 250.0f,
+    @SerializedName("safe_delay_min") val safeDelayMin: Int = 3,
+    @SerializedName("tripped") val tripped: Boolean = false,
+    @SerializedName("fault_type") val faultType: String? = null,
+    @SerializedName("trip_voltage") val tripVoltage: Float? = null,
+    @SerializedName("saved_outlets") val savedOutlets: List<Int> = emptyList(),
+    @SerializedName("safe_since") val safeSince: Double? = null,
+    @SerializedName("temp_enabled") val tempEnabled: Boolean = true,
+    @SerializedName("max_temp_c") val maxTempC: Float = 65.0f,
+    @SerializedName("temp_tripped") val tempTripped: Boolean = false,
+    @SerializedName("temp_fault_type") val tempFaultType: String? = null,
+    @SerializedName("trip_temp_c") val tripTempC: Float? = null
+)
+```
 
 ---
 
-### 3.2 Update Guard Settings
+### 2.3 Strip Card Presentation & State Machine
+
+In the Strip List and Strip Details screens, render status indicators based on guard states:
+
+| Priority | State Condition | Visual Presentation | Meaning to User |
+|---|---|---|---|
+| **1 (Highest)** | `guard.temp_tripped == true` | **Red Pulsing Banner / Badge**<br>`🔥 OVERHEAT TRIPPED (${guard.trip_temp_c}°C)` | Fire hazard shutdown! All outlets turned OFF. **No auto turn-on**. User must tap to inspect and manually clear trip. |
+| **2** | `guard.tripped == true && guard.safe_since == null` | **Red Banner / Badge**<br>`🚨 VOLTAGE TRIPPED (${guard.trip_voltage}V)` | Brownout or surge detected. Outlets safely cut OFF. Grid voltage is currently out of safe bounds. |
+| **3** | `guard.tripped == true && guard.safe_since != null` | **Amber Banner / Progress Indicator**<br>`⏳ Stabilizing (${elapsed}s / ${delay*60}s)` | Voltage has returned to normal range. The server is timing stability before automatically restoring the previously active outlets. |
+| **4** | `guard.enabled || guard.temp_enabled` | **Green Pill**<br>`🛡️ Guard Armed` | Active monitoring: voltage window `${guard.minV}-${guard.maxV}V` and temp `≤${guard.maxTempC}°C`. |
+| **5** | `!guard.enabled && !guard.temp_enabled` | **Muted Grey Pill**<br>`🛡️ Guard Off` | Safety monitoring disabled for this strip. |
+
+---
+
+### 2.4 Safety Guard Endpoints
+
+#### A. Fetch Strip Guard Config:
+```http
+GET /api/voltage-guard?mac=88D03934E61B
+X-Token: <TOKEN>
+```
+**Response:**
+```json
+{
+  "ok": true,
+  "mac": "88D03934E61B",
+  "guard": { ... }
+}
+```
+
+#### B. Update Guard Settings:
 ```http
 POST /api/voltage-guard
 X-Token: <TOKEN>
@@ -148,9 +199,7 @@ Content-Type: application/json
 }
 ```
 
----
-
-### 3.3 Clear / Reset Tripped State
+#### C. Clear / Reset Trip Latch (Manual Override):
 ```http
 POST /api/voltage-guard/reset
 X-Token: <TOKEN>
@@ -163,43 +212,61 @@ Content-Type: application/json
 
 ---
 
-### 3.4 Mobile UI Specifications for Safety Guard
+### 2.5 Guard BottomSheet UI Specification
+Provide a dedicated bottom sheet (`SafetyGuardBottomSheet`) accessible by tapping the `🛡️ Guard` badge on any strip card:
 
-#### Strip Card Status Badges:
-1. **Normal Armed (Safe):** Show a green badge: `🛡️ Guard Armed` (tap opens Guard Sheet).
-2. **Voltage Tripped:** Show an urgent amber/red blinking card:
-   - Title: `🚨 VOLTAGE TRIPPED (${guard.trip_voltage}V)`
-   - Subtitle: *"Power shut off to protect appliances. Stabilizing..."*
-3. **Overheat Tripped:** Show a prominent red fire banner:
-   - Title: `🔥 OVERHEAT TRIPPED (${guard.trip_temp_c}°C)`
-   - Subtitle: *"Outlets shut down for fire protection. Inspect hardware."*
-   - Action: Show a **"Clear Thermal Trip"** button calling `POST /api/voltage-guard/reset`.
-
-#### Guard Configuration BottomSheet / Dialog:
-Provide a bottom sheet containing two distinct cards:
-1. **🌡️ Temperature Guard**:
-   - Switch: `Enable Temperature Guard` (default: ON).
-   - Number Picker / Slider: `Max Temp Cutoff` (Range: 40°C – 80°C, default: 65°C).
-   - Explanatory note: *"Emergency cutoff. For fire safety, power does NOT turn back on automatically."*
-2. **⚡ Voltage Guard**:
+1. **Header**: Strip Name + Live Voltage (`221.4V`) + Max Current Temp (`32°C`).
+2. **Thermal Trip Warning Box** (Visible only if `temp_tripped == true`):
+   - Text: *"Emergency shut down due to overheating. For fire safety, power does NOT turn back on automatically. Check connected appliances."*
+   - Red Button: **"Clear Thermal Trip"** $\rightarrow$ calls `POST /api/voltage-guard/reset`.
+3. **Card 1: 🌡️ Temperature Guard**:
+   - Switch: `Enable Overheat Protection` (default: ON).
+   - Slider / Input: `Max Temperature (°C)` (range: 40–80°C, step: 1, default: 65°C).
+4. **Card 2: ⚡ Voltage Guard**:
    - Switch: `Enable Voltage Guard` (default: ON).
-   - Input: `Min Voltage (V)` (default: 195V).
-   - Input: `Max Voltage (V)` (default: 250V).
-   - Input: `Safe Delay (Minutes)` (default: 3 min).
-   - Explanatory note: *"Automatically restores previously active outlets once voltage stays within safe limits continuously for the selected delay."*
+   - Input: `Brownout Cutoff (V)` (default: 195V).
+   - Input: `Surge Cutoff (V)` (default: 250V).
+   - Input: `Stabilization Delay (Minutes)` (range: 1–30 min, default: 3 min).
+   - Caption: *"When voltage normalizes, Volta restores only the outlets that were originally on."*
+5. **Footer**:
+   - Primary Button: **"Save Guard Settings"** $\rightarrow$ calls `POST /api/voltage-guard`.
 
 ---
 
-## 4. City & Country Geocoding (Sun Automation)
+## 3. Amazon Alexa Voice Control & In-App Linking
 
-Manual latitude and longitude entry has been eliminated in favor of city search with automatic coordinate and timezone resolution.
+### 3.1 Capabilities Live on the Backend
+The Volta controller now provides full Amazon Alexa Smart Home directives. Every outlet is discovered by Alexa with:
+- **`Alexa.PowerController`**: Voice turn ON / turn OFF.
+- **`Alexa.TemperatureSensor`**: Voice query: *"Alexa, what is the temperature of Bedroom TV?"*
+- **`Alexa.RangeController` (Instance: `Voltage`)**: Reports real-time Volts (`Alexa.Unit.Volt`).
+- **`Alexa.RangeController` (Instance: `Power`)**: Reports real-time Watts (`Alexa.Unit.Watt`).
+- **`Alexa.EndpointHealth`**: Device online/offline connectivity.
 
-### 4.1 Search Cities (Autocomplete)
+### 3.2 In-App Account Linking Button
+Add a **"Connect to Amazon Alexa"** card in the app's **Settings / Integrations** section:
+- **Action on Tap**: Launch a Chrome Custom Tab or external browser to:
+  ```text
+  https://volta.your-domain.com/oauth/authorize?client_id=volta-alexa-client&response_type=code&redirect_uri=https://pitangui.amazon.com/api/skill/link/MVO1KJEHWER4U&state=volta_android
+  ```
+- **Behavior**:
+  - The web page presents the multi-user authorization screen with one-tap Google Sign-In or token paste.
+  - Upon sign-in, it redirects back to Amazon's Alexa app and confirms: *"Volta Smart Home successfully linked!"*
+  - Alexa then discovers all strips assigned to that specific user.
+
+---
+
+## 4. City / Country Geocoding (Sun Automation)
+
+Replace manual latitude and longitude text inputs in the Settings screen with autocomplete city search.
+
+### 4.1 Autocomplete City Search Endpoint
 ```http
-GET /api/geo/search?q=Cairo
+GET /api/geo/search?q={query}
 X-Token: <TOKEN>
 ```
-**Response:**
+**Example:** `GET /api/geo/search?q=Cairo`  
+**Response (200 OK):**
 ```json
 {
   "ok": true,
@@ -208,7 +275,7 @@ X-Token: <TOKEN>
       "name": "Cairo",
       "country": "Egypt",
       "country_code": "EG",
-      "admin1": "Cairo",
+      "admin1": "Cairo Governorate",
       "latitude": 30.06263,
       "longitude": 31.24967,
       "timezone": "Africa/Cairo"
@@ -217,12 +284,12 @@ X-Token: <TOKEN>
 }
 ```
 
-### 4.2 Query Sun Times (Sunrise / Sunset)
+### 4.2 Query Calculated Sun Times
 ```http
 GET /api/geo/sun?lat=30.06263&lon=31.24967&tz=Africa/Cairo
 X-Token: <TOKEN>
 ```
-**Response:**
+**Response (200 OK):**
 ```json
 {
   "ok": true,
@@ -232,35 +299,33 @@ X-Token: <TOKEN>
 }
 ```
 
----
+### 4.3 Updating Location Settings
+Save the resolved city and coordinates to the server settings:
+```http
+POST /api/settings
+X-Token: <TOKEN>
+Content-Type: application/json
 
-## 5. Amazon Alexa In-App Linking Helper
-
-The backend provides a complete turnkey OAuth 2.0 flow for Alexa. The mobile app can provide a convenient shortcut:
-
-1. **"Connect to Amazon Alexa" Button in Settings**:
-   - When tapped, launch the Amazon Alexa skill link or open the custom tab to:
-     ```text
-     https://volta.your-domain.com/oauth/authorize?client_id=volta-alexa-client&response_type=code&redirect_uri=https://pitangui.amazon.com/api/skill/link/MVO1KJEHWER4U&state=volta_app
-     ```
-   - If the user is already authenticated in the app, the mobile webview will auto-link and hand off to the Alexa app seamlessly!
-
-2. **Alexa Skill Capabilities Supported**:
-   - Relay Switch (`Alexa.PowerController`)
-   - Live Temperature (`Alexa.TemperatureSensor`)
-   - Live Voltage (`Alexa.RangeController` Instance: `Voltage`)
-   - Live Wattage (`Alexa.RangeController` Instance: `Power`)
+{
+  "city": "Cairo",
+  "country": "Egypt",
+  "lat": 30.06263,
+  "lon": 31.24967,
+  "timezone": "Africa/Cairo"
+}
+```
 
 ---
 
-## 6. Summary Checklist for App Developer
+## 5. Summary Implementation Checklist for Android Dev
 
-| Feature Area | Required App Implementation | Status in Web App |
-|---|---|---|
-| **Google Sign-In** | Google Play Services Sign-In $\rightarrow$ `POST /api/auth/google` | ✅ Live |
-| **User Profile / Quota** | Check `strips.length < max_strips` before opening add wizard | ✅ Live |
-| **Strip Live Telemetry** | Display `voltage_v`, `power_w`, and per-outlet `temp_c` | ✅ Live |
-| **Voltage Guard UI** | Config modal with `min_v`, `max_v`, `safe_delay_min` + trip state | ✅ Live |
-| **Temp Guard UI** | Config modal with `max_temp_c` + manual reset button | ✅ Live |
-| **Geocoding City Search** | Autocomplete search via `GET /api/geo/search?q=...` | ✅ Live |
-| **Alexa Linking Button** | One-tap deep-link in app Settings | ✅ Live |
+| Area | Feature | Endpoint(s) | UI Component |
+|---|---|---|---|
+| **Auth** | Google Sign-In (CredentialManager) | `POST /api/auth/google` | Sign-in screen: "Sign in with Google" button |
+| **Auth** | Client ID Auto-Discovery | `GET /api/auth/google/config` | Background config loader |
+| **Safety** | Strip Voltage Sag/Surge Guard | `POST /api/voltage-guard` | Guard BottomSheet + Strip Card badge |
+| **Safety** | Strip Overheat Guard | `POST /api/voltage-guard` | Fire badge + Manual reset button |
+| **Safety** | Clear Trip Latch | `POST /api/voltage-guard/reset` | Trip warning banner action button |
+| **Alexa** | In-App Skill Account Linking | Custom Tab to `/oauth/authorize` | Settings $\rightarrow$ Integrations: "Link Amazon Alexa" |
+| **Geo** | City Autocomplete Search | `GET /api/geo/search?q=...` | Settings: Location search text field with dropdown |
+| **Geo** | Sunrise / Sunset Display | `GET /api/geo/sun` | Solar preview card showing live rise & set times |
