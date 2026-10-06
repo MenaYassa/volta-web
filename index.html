@@ -885,7 +885,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 <div class="card" id="srvInfoCard" style="display:none">
 <h3>Server</h3>
-<div id="srvInfo" class="small">—</div>
+<pre id="srvInfo" style="margin-top:8px;white-space:pre-wrap;word-break:break-all;max-height:160px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace">—</pre>
 </div>
 <div class="card" id="gatewayLogCard" style="display:none">
 <h3>Gateway log</h3>
@@ -1424,7 +1424,7 @@ async function checkSrv(){
     const h=await api("/api/health");
     if($("srvDot"))$("srvDot").className="dot "+(h.controller?"ok":"bad");
     if($("srvState"))$("srvState").textContent=h.controller?("controller live"+(h.auth?" · locked":" · open LAN")):"controller down";
-    if($("srvInfo"))$("srvInfo").textContent=JSON.stringify(h);
+    if($("srvInfo"))$("srvInfo").textContent=JSON.stringify(h, null, 2);
     // Check whoami if token exists
     if(tok()){
       try{
