@@ -13,5 +13,6 @@ Welcome to the **Volta** technical and operational documentation. Volta is a loc
 - [Hardware & Protocols Reference (`docs/hardware-reference.md`)](./hardware-reference.md): Circuit boards, RTL8711AF MCU, I2C relay codes, USB rail details, and ESP-01 hardware mod notes.
 - [Hardware Mod Guide (ESP-01) (`docs/hardware-mod/README.md`)](./hardware-mod/README.md): Circuit wiring, firmware sketch, and pinout instructions for bypassing a dead MCU with an ESP-01.
 - [Alexa Smart Home Skill Guide (`docs/alexa-integration-guide.md`)](./alexa-integration-guide.md): Complete AWS Lambda code, discovery, and voice control setup for Echo and Alexa mobile app.
-- [Mobile App Developer Handoff (`docs/app-developer-handoff.md`)](./app-developer-handoff.md): Engineering guide for Google Auth, dual hardware safety guards (Voltage & Temp), quotas, and Alexa linking.
+- [Mobile App Developer Handoff — Phase 2 (`docs/app-developer-handoff.md`)](./app-developer-handoff.md): Engineering guide for Google Auth, dual hardware safety guards (Voltage & Temp), quotas, and Alexa linking.
+- [Mobile App Developer Handoff — Phase 3 (`docs/app-developer-handoff-phase3.md`)](./app-developer-handoff-phase3.md): Engineering guide for per-user drag-and-drop strip reordering, server-persisted outlet locks (`🔒`), selective batch switching, and UI parity.
 - [Future Improvements Roadmap (`docs/future-plans-auth-licensing.md`)](./future-plans-auth-licensing.md): Google Sign-In, free 1-strip lifetime license, dedicated Admin Users console, and native Alexa Smart Home Skill integration.

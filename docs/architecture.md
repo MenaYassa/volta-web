@@ -111,3 +111,28 @@ Computes NOAA sunrise, sunset, and localized wall-clock time for the configured 
 ### C. Solar & Timezone-Aware Scheduler
 - **Schedules (`kind: "sun"`)**: Automatically fire relative to local sunrise or sunset (e.g., Turn Garden Lights ON at `Sunset - 15min`).
 - **Timezone Sync**: The background scheduler loop evaluates target times against the configured local timezone rather than server UTC.
+
+---
+
+## 4. Hardware Safety Guards & Accidental Protection Engine
+
+Volta incorporates a multi-layer hardware protection supervisor running in the backend daemon to safeguard connected appliances and hardware against grid instability and thermal runaway:
+
+### A. Voltage Guard (Sag & Surge Protection)
+- **Monitoring Loop**: Tracks live grid voltage sampled every polling cycle.
+- **Trip Condition**: If voltage drops below `min_v` (e.g., 195 V) or spikes above `max_v` (e.g., 250 V), the controller immediately trips all relays OFF (`[1, 2, 3, 4]`) within milliseconds.
+- **Selective Restoration**: Remembers which outlets were active prior to the fault (`saved_outlets`). Once voltage returns within acceptable limits for a consecutive stabilization window (`safe_delay_min`, e.g. 3 minutes), the system automatically restores **only the outlets that were previously running**.
+
+### B. Temperature Guard (Overheat Fire Protection)
+- **Monitoring Loop**: Inspects thermistor sensors embedded in each relay outlet.
+- **Trip Condition**: If internal enclosure temperature exceeds `max_temp_c` (default 65 °C), all relays cut power immediately.
+- **Manual Reset Requirement**: For fire prevention and safety compliance, the Temperature Guard does **not** auto-restore. It requires manual acknowledgement and clearing in the UI once the device cools down.
+
+### C. Server-Persisted Outlet Switch Locks
+- **Accidental Switch Protection**: Individual outlets can be locked (`POST /api/outlet/lock`) to prevent accidental clicks or unwanted remote toggles.
+- **Batch Isolation**: Batch operations (`ALL ON` and `ALL OFF`) selectively bypass locked outlets.
+- **Multi-Device Sync**: Lock states are stored server-side per strip MAC in `strips.json` so they persist across cookie clears and sync in real time across all authorized user accounts.
+
+### D. Per-User Custom Layout Ordering
+- **Drag-and-Drop Reordering**: Users can rearrange strip cards on their dashboard via touch or drag handle.
+- **Cloud Persistence**: Saved per-user (`POST /api/strip/order`) so each family member or tenant maintains their preferred strip layout independently.

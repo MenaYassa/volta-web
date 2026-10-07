@@ -78,10 +78,13 @@ Every request to `/api/*` is authenticated via `resolve_auth_context(token)`:
 
 ### Strict Scoping Rules:
 - **`GET /api/live` & `GET /api/strips`**: Non-admin users only see devices present in their `strips` array.
-- **`POST /api/onoff`**: Verifies `can_access_mac(mac)`. Switching unowned strips returns `403 Forbidden`.
+- **`POST /api/onoff`**: Verifies `can_access_mac(mac)`. Switching unowned strips returns `403 Forbidden`. Attempting to switch an outlet locked with accidental toggle protection returns `409 Conflict`.
+- **`POST /api/outlet/lock`**: Verifies `can_access_mac(mac)`. Unauthorized users cannot modify lock states on unowned strips.
+- **`POST /api/strip/order`**: Scoped per-user. Stores user-specific card ordering without impacting other tenants.
 - **`GET /api/log`**: Restricted strictly to Admins; non-admins receive `403 Forbidden`.
 - **`POST /api/analytics/*`**: Restricts timeseries metrics, aggregate stats, and leaderboard rankings strictly to assigned strips.
 - **`⚠️ Unassigned` Filter Chip**: Exclusively visible to administrators.
+- **`Strips` Provisioning Tab**: Hidden from regular user UI navigation (admin-only). Regular users unclaim their strips directly via the card header.
 
 ---
 

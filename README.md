@@ -12,7 +12,11 @@ No cloud subscriptions. No Korean phone numbers. No vendor lock-in.
 - **Fast Local Web Dashboard**: Control individual outlets or master switches in real time with instantaneous socket confirmation.
 - **Full Electrical Telemetry**: Live power (W), cumulative energy (kWh), grid voltage (V), internal temperature (°C), and Wi-Fi signal (dBm).
 - **Time-Series Analytics**: Interactive charts for aggregate house load, per-strip power, voltage fluctuations, temperature, and top energy-consuming outlets.
-- **Multi-Tenant User Isolation & Subscriptions**: Create scoped user accounts with restricted device visibility, subscription expiration dates, maximum strip quotas, and multi-user device assignment.
+- **Dual Hardware Safety Guards**: Configurable Voltage Guard (sag/surge cutoff with automatic state restoration) and Temperature Guard (overheat cutoff with manual safety reset).
+- **Accidental Switch Locks**: Server-persisted outlet locks (`🔒`) that protect critical equipment from accidental switching and exclude them from batch `ALL ON` and `ALL OFF` operations.
+- **Custom Drag-and-Drop Organization**: Reorder power strips on desktop and mobile with automatic per-user cloud persistence.
+- **Google Sign-In & Multi-Tenant User Isolation**: Native Google authentication, 1-strip free lifetime tier, scoped user accounts with restricted device visibility, subscription quotas, and multi-user device assignment.
+- **Native Amazon Alexa Smart Home**: Control outlets and monitor power, voltage, and temperature via voice through Echo and Alexa apps.
 - **Automated Provisioning & Mobile Pairing**: Seamless Android app setup wizard and one-shot Termux script that pairs strips and claims them automatically.
 - **Location, Timezone & Solar Engine**: Select your country and city to automatically sync your local timezone and precise sunrise/sunset times for solar schedules and timers.
 - **Instant Alerts**: Push notifications for power outages, strip dropouts, voltage sags/surges, and extreme temperature thresholds via [ntfy.sh](https://ntfy.sh).
@@ -87,7 +91,8 @@ Detailed engineering guides and specifications are organized in the [`docs/`](./
 - **[Hardware Reference & Modding (`docs/hardware-reference.md`)](./docs/hardware-reference.md)**: Teardown, RTL8711AF SoC, I2C relay codes, and USB rail details.
 - **[Hardware Mod Guide (ESP-01) (`docs/hardware-mod/README.md`)](./docs/hardware-mod/README.md)**: Circuit wiring, firmware sketch, and pinout instructions for replacing a dead MCU with an ESP-01.
 - **[Alexa Smart Home Skill Guide (`docs/alexa-integration-guide.md`)](./docs/alexa-integration-guide.md)**: Full AWS Lambda skill handler, device discovery, and voice control setup.
-- **[Mobile App Developer Handoff (`docs/app-developer-handoff.md`)](./docs/app-developer-handoff.md)**: Complete guide for Google Sign-In, Safety Guards (Voltage & Temp), Quotas, Geocoding, and Alexa linking.
+- **[Mobile App Developer Handoff — Phase 2 (`docs/app-developer-handoff.md`)](./docs/app-developer-handoff.md)**: Guide for Google Sign-In, Dual Safety Guards (Voltage & Temp), Quotas, Geocoding, and Alexa linking.
+- **[Mobile App Developer Handoff — Phase 3 (`docs/app-developer-handoff-phase3.md`)](./docs/app-developer-handoff-phase3.md)**: Guide for per-user drag-and-drop strip reordering, server-side outlet locks (`🔒`), selective batch switching, and responsive telemetry HUD.
 - **[Future Improvements Roadmap (`docs/future-plans-auth-licensing.md`)](./docs/future-plans-auth-licensing.md)**: Google Sign-In, 1-strip free lifetime tier, Admin Users & Licensing console, and Alexa Smart Home Skill integration.
 
 ---
