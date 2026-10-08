@@ -195,6 +195,109 @@ def save_strip_orders(orders_dict):
     save_strips(data)
 
 
+def get_all_devices_snapshot():
+    """Return unified device list containing live connected strips plus known/claimed offline strips.
+    Offline devices are populated with their last known telemetry from analytics.db where available.
+    """
+    raw_snap = CTL.snapshot() if CTL else {"devices": []}
+    live_devices = {norm_mac(d.get("mac", "")).upper(): d for d in raw_snap.get("devices", []) if d.get("mac")}
+
+    # Read last known state for all strips from analytics.db
+    history_devices = {}
+    try:
+        import sqlite3
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "analytics.db")
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path, timeout=3.0)
+            c = conn.cursor()
+            c.execute("""
+                SELECT r.mac, r.outlet, r.is_on, r.power_w, r.energy_kwh, r.temp_c, r.voltage_v, r.ts, r.rssi
+                FROM readings r
+                INNER JOIN (SELECT mac, MAX(ts) as max_ts FROM readings GROUP BY mac) m
+                  ON r.mac = m.mac AND r.ts = m.max_ts
+                ORDER BY r.mac, r.outlet
+            """)
+            for row in c.fetchall():
+                m_raw, outlet, is_on, p_w, e_kwh, temp, volt, ts, rssi = row
+                m = norm_mac(m_raw or "").upper()
+                if m not in history_devices:
+                    history_devices[m] = {
+                        "mac": m,
+                        "name": f"MTTL {m[-7:]}",
+                        "model": "lgutap",
+                        "fw": "1.0.0",
+                        "ip": "",
+                        "online": False,
+                        "voltage_v": volt or 220.0,
+                        "current_a": 0.0,
+                        "rssi": rssi or -70,
+                        "outlets_dict": {},
+                        "last_seen": ts,
+                        "last_seen_ago": round(time.time() - ts) if ts else 999999,
+                        "pending": 0
+                    }
+                history_devices[m]["outlets_dict"][outlet] = {
+                    "n": outlet,
+                    "on": bool(is_on),
+                    "power_w": float(p_w or 0.0),
+                    "energy_kwh": float(e_kwh or 0.0),
+                    "temp_c": int(temp or 25)
+                }
+            conn.close()
+    except Exception as e:
+        log(f"[devices] error loading historical readings: {e}")
+
+    # Gather all known MACs from database, config, and claimed lists
+    known_macs = set()
+    try:
+        strips_data = load_strips()
+        for m in strips_data.get("names", {}).keys():
+            known_macs.add(norm_mac(m).upper())
+        for u in strips_data.get("users", {}).values():
+            for m in u.get("strips", []):
+                known_macs.add(norm_mac(m).upper())
+        for m in strips_data.get("voltage_guard", {}).keys():
+            known_macs.add(norm_mac(m).upper())
+    except Exception:
+        pass
+
+    all_macs = set(live_devices.keys()) | set(history_devices.keys()) | known_macs
+    devices = []
+    for m in all_macs:
+        if m in live_devices:
+            devices.append(live_devices[m])
+        elif m in history_devices:
+            hd = history_devices[m]
+            outs = [hd["outlets_dict"].get(n, {"n": n, "on": False, "power_w": 0.0, "energy_kwh": 0.0, "temp_c": 25}) for n in range(1, 5)]
+            hd["outlets"] = outs
+            hd["on"] = any(o["on"] for o in outs)
+            hd["power_w"] = round(sum(o["power_w"] for o in outs), 2)
+            hd["energy_kwh"] = round(sum(o["energy_kwh"] for o in outs), 3)
+            hd.pop("outlets_dict", None)
+            devices.append(hd)
+        else:
+            outs = [{"n": n, "on": False, "power_w": 0.0, "energy_kwh": 0.0, "temp_c": 25} for n in range(1, 5)]
+            devices.append({
+                "mac": m,
+                "name": f"MTTL {m[-7:]}",
+                "model": "lgutap",
+                "fw": "1.0.0",
+                "ip": "",
+                "online": False,
+                "on": False,
+                "power_w": 0.0,
+                "energy_kwh": 0.0,
+                "voltage_v": 220.0,
+                "current_a": 0.0,
+                "rssi": -90,
+                "outlets": outs,
+                "last_seen": 0,
+                "last_seen_ago": 999999,
+                "pending": 0
+            })
+    return devices
+
+
 def resolve_auth_context(token_str):
     """Determine role and permitted MACs for a given token string.
     Returns:
@@ -1417,12 +1520,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "admin access required"}, 403)
             return self._json({"ok": True, "users": get_users()})
         elif u.path == "/api/live":
-            # Live controller snapshot: strips that dialed in + telemetry.
+            # Live controller snapshot: strips that dialed in + telemetry + known offline strips
             ctx = self._auth_ctx()
             if not ctx["authorized"]:
                 return self._json({"error": "token required"}, 401)
-            raw_snap = CTL.snapshot() if CTL else {"devices": []}
-            devices = raw_snap.get("devices", [])
+            devices = get_all_devices_snapshot()
             # Filter devices by caller's allowed strips
             # Note: Unclaimed strips always show up for Admin so they can be discovered immediately!
             if not ctx["is_admin"]:
@@ -1489,8 +1591,7 @@ class Handler(BaseHTTPRequestHandler):
             # Check if caller wants live controller strips formatted for app client
             ctx = self._auth_ctx()
             if ctx["authorized"]:
-                raw_snap = CTL.snapshot() if CTL else {"devices": []}
-                devs = raw_snap.get("devices", [])
+                devs = get_all_devices_snapshot()
                 if not ctx["is_admin"]:
                     allowed = set(ctx["strips"])
                     devs = [d for d in devs if norm_mac(d.get("mac", "")).upper() in allowed]
