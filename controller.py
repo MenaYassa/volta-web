@@ -582,23 +582,35 @@ if __name__ == "__main__":
         raise SystemExit(f"--server-ip must be IPv4 or hostname (got {server_ip!r})")
 
     print(f"Connecting to strip at {a.host}:30300 ...")
+    strip_mac = get_ap_bootinfo(a.host)
+    if strip_mac:
+        print(f"  Detected Strip MAC: {strip_mac}")
+
     r1, r2 = provision(server_ip, ssid, password, a.host)
     print(f"  {r1}\n  {r2}")
 
-    # Register auto-claim expectation with server if token is present
+    # Register claim with server if token is present
     if a.token and a.web_url and a.web_url != "YOUR_WEB_URL":
         try:
             import urllib.request as _ur, json as _js
+            claim_payload = {"token": a.token}
+            if strip_mac:
+                claim_payload["mac"] = strip_mac
+            else:
+                claim_payload["expect_auto"] = True
+
             req = _ur.Request(
                 f"{a.web_url.rstrip('/')}/api/claim",
-                data=_js.dumps({"expect_auto": True, "token": a.token}).encode("utf-8"),
+                data=_js.dumps(claim_payload).encode("utf-8"),
                 headers={"Content-Type": "application/json", "X-Token": a.token},
                 method="POST"
             )
             with _ur.urlopen(req, timeout=5) as resp:
-                pass
-        except Exception:
-            pass
+                res_data = _js.loads(resp.read().decode("utf-8"))
+                if res_data.get("ok"):
+                    print(f"  ✓ Claimed to account: {res_data.get('user') or 'You'}")
+        except Exception as e:
+            print(f"  (Claim notification note: {e})")
 
     print(f"\n✓ Strip configured! It will now connect to '{ssid}' and dial into {server_ip}:10086.")
     print("It will automatically appear on your Volta dashboard within 10-30 seconds.")

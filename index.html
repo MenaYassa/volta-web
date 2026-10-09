@@ -2035,7 +2035,12 @@ async function live(){
               : `Unclaim ${stripName} (${d.mac}) from your account?\n\n(It will be removed from your dashboard and can be reclaimed later.)`;
             if (!confirm(promptMsg)) return;
             try {
-              const r = await apit(`/api/strip?mac=${encodeURIComponent(d.mac)}`, null, "DELETE");
+              const endpoint = _currentUserIsAdmin
+                ? `/api/strip?mac=${encodeURIComponent(d.mac)}`
+                : "/api/unclaim";
+              const method = _currentUserIsAdmin ? "DELETE" : "POST";
+              const body = _currentUserIsAdmin ? null : { mac: d.mac };
+              const r = await apit(endpoint, body, method);
               if (r.ok) {
                 _last = null;
                 await live();

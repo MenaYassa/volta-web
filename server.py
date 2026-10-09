@@ -2372,6 +2372,23 @@ class Handler(BaseHTTPRequestHandler):
                 save_users(users)
                 log(f"[claim] strip {mac} claimed by {ctx['user_name']} ({ctx['token'][:10]}...) [{len(strips_list)}/{max_strips}]")
             return self._json({"ok": True, "mac": mac, "user": ctx["user_name"], "strips": strips_list, "max_strips": max_strips})
+        if u.path == "/api/unclaim":
+            # Direct endpoint for normal users to release a strip from their account
+            token_arg = (body.get("token") or self.headers.get("X-Token", "")).strip()
+            mac = norm_mac(body.get("mac", "")).upper()
+            ctx = resolve_auth_context(token_arg)
+            if not ctx["authorized"]:
+                return self._json({"error": "invalid token"}, 401)
+            if not mac:
+                return self._json({"error": "mac required"}, 400)
+            users = get_users()
+            user_entry = users.get(ctx["token"])
+            if user_entry and mac in user_entry.get("strips", []):
+                user_entry["strips"].remove(mac)
+                save_users(users)
+                log(f"[unclaim] strip {mac} unlinked from {ctx['user_name']}")
+                return self._json({"ok": True, "unlinked": mac})
+            return self._json({"error": "strip not linked to user"}, 404)
         if u.path == "/api/rename":
             # Friendly names (server-side, keyed by MAC, survive reboots).
             # Body: {mac, name?} or {mac, outlet:1-4, outlet_name?} or {mac, name?, outlets: {1:"..", 2:"..", ..}}
