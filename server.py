@@ -195,14 +195,32 @@ def save_strip_orders(orders_dict):
     save_strips(data)
 
 
+def get_deleted_strips():
+    """Return set of normalized uppercase MACs deleted/ignored by Admin."""
+    data = load_strips()
+    return set(norm_mac(m).upper() for m in data.get("deleted_strips", []))
+
+
+def save_deleted_strips(deleted_set):
+    data = load_strips()
+    data["deleted_strips"] = sorted(list(set(norm_mac(m).upper() for m in deleted_set)))
+    save_strips(data)
+
+
 def get_all_devices_snapshot():
     """Return unified device list containing live connected strips plus known/claimed offline strips.
     Offline devices are populated with their last known telemetry from analytics.db where available.
+    Strips explicitly deleted by Admin are ignored.
     """
+    deleted_macs = get_deleted_strips()
     raw_snap = CTL.snapshot() if CTL else {"devices": []}
-    live_devices = {norm_mac(d.get("mac", "")).upper(): d for d in raw_snap.get("devices", []) if d.get("mac")}
+    live_devices = {
+        norm_mac(d.get("mac", "")).upper(): d
+        for d in raw_snap.get("devices", [])
+        if d.get("mac") and norm_mac(d.get("mac", "")).upper() not in deleted_macs
+    }
 
-    # Read last known state for all strips from analytics.db
+    # Read last known state for all non-deleted strips from analytics.db
     history_devices = {}
     try:
         import sqlite3
@@ -220,6 +238,8 @@ def get_all_devices_snapshot():
             for row in c.fetchall():
                 m_raw, outlet, is_on, p_w, e_kwh, temp, volt, ts, rssi = row
                 m = norm_mac(m_raw or "").upper()
+                if m in deleted_macs:
+                    continue
                 if m not in history_devices:
                     history_devices[m] = {
                         "mac": m,
@@ -252,16 +272,22 @@ def get_all_devices_snapshot():
     try:
         strips_data = load_strips()
         for m in strips_data.get("names", {}).keys():
-            known_macs.add(norm_mac(m).upper())
+            clean = norm_mac(m).upper()
+            if clean not in deleted_macs:
+                known_macs.add(clean)
         for u in strips_data.get("users", {}).values():
             for m in u.get("strips", []):
-                known_macs.add(norm_mac(m).upper())
+                clean = norm_mac(m).upper()
+                if clean not in deleted_macs:
+                    known_macs.add(clean)
         for m in strips_data.get("voltage_guard", {}).keys():
-            known_macs.add(norm_mac(m).upper())
+            clean = norm_mac(m).upper()
+            if clean not in deleted_macs:
+                known_macs.add(clean)
     except Exception:
         pass
 
-    all_macs = set(live_devices.keys()) | set(history_devices.keys()) | known_macs
+    all_macs = (set(live_devices.keys()) | set(history_devices.keys()) | known_macs) - deleted_macs
     devices = []
     for m in all_macs:
         if m in live_devices:
@@ -2298,6 +2324,13 @@ class Handler(BaseHTTPRequestHandler):
             if not ctx["authorized"]:
                 return self._json({"error": "invalid token"}, 401)
             
+            # Clear deleted tombstone so the strip is active again
+            deleted_macs = get_deleted_strips()
+            if mac in deleted_macs:
+                deleted_macs.remove(mac)
+                save_deleted_strips(deleted_macs)
+                log(f"[claim] strip {mac} un-deleted from tombstone list")
+
             users = get_users()
             
             # If admin is updating strip assignment (supports list of tokens or single token)
@@ -3275,21 +3308,41 @@ class Handler(BaseHTTPRequestHandler):
                     u_entry["strips"] = [m for m in u_entry["strips"] if norm_mac(m).upper() != mac]
             data["users"] = users
 
+            # Record in deleted_strips tombstone so historical readings never resurrect it
+            deleted_macs = set(norm_mac(m).upper() for m in data.get("deleted_strips", []))
+            deleted_macs.add(mac)
+            data["deleted_strips"] = sorted(list(deleted_macs))
+
             names = data.setdefault("names", {})
             names.pop(mac, None)
             names.pop(mac.lower(), None)
             data["strips"] = [s for s in data.get("strips", []) if norm_mac(s.get("mac", "")).upper() != mac]
+
+            # Remove associated voltage guards and locked outlets
+            if "voltage_guard" in data:
+                data["voltage_guard"].pop(mac, None)
+                data["voltage_guard"].pop(mac.lower(), None)
+            if "locked_outlets" in data:
+                data["locked_outlets"].pop(mac, None)
+                data["locked_outlets"].pop(mac.lower(), None)
+
             # Remove associated schedules
             scheds = get_schedules()
             scheds = [s for s in scheds if norm_mac(s.get("mac", "")).upper() != mac]
             data["schedules"] = scheds
+
+            # Remove from custom orders
+            if "strip_orders" in data:
+                for u_k in list(data["strip_orders"].keys()):
+                    data["strip_orders"][u_k] = [m for m in data["strip_orders"][u_k] if norm_mac(m).upper() != mac]
+
             save_strips(data)
 
-            # Remove from live controller
+            # Remove and disconnect from live controller
             if CTL:
                 CTL.remove_device(mac)
 
-            log(f"[admin-remove] Strip {mac} completely removed by Admin")
+            log(f"[admin-remove] Strip {mac} completely removed by Admin and tombstoned")
             return self._json({"ok": True, "removed": mac})
 
         if u.path == "/api/schedules":
@@ -3398,7 +3451,13 @@ if __name__ == "__main__":
 
         _aio.run(_t())
         raise SystemExit(0)
-    CTL = ctrl.Controller(port=DEVICE_PORT, on_event=log, on_switch=on_outlet_switch, on_connect=check_and_apply_auto_claim)
+    CTL = ctrl.Controller(
+        port=DEVICE_PORT,
+        on_event=log,
+        on_switch=on_outlet_switch,
+        on_connect=check_and_apply_auto_claim,
+        is_mac_allowed=lambda m: norm_mac(m).upper() not in get_deleted_strips()
+    )
     CTL.start()
     CTL.wait_ready(10)
     analytics.init_db()

@@ -2030,13 +2030,17 @@ async function live(){
         if (delBtn) {
           delBtn.onclick = async () => {
             const stripName = d.name || d.mac;
-            if (!confirm(`Are you sure you want to remove ${stripName} (${d.mac})?`)) return;
+            const promptMsg = _currentUserIsAdmin
+              ? `Delete ${stripName} (${d.mac}) completely from controller?\n\n(This will remove it from all users and disconnect it. You can reclaim it later in Setup using its MAC.)`
+              : `Unclaim ${stripName} (${d.mac}) from your account?\n\n(It will be removed from your dashboard and can be reclaimed later.)`;
+            if (!confirm(promptMsg)) return;
             try {
               const r = await apit(`/api/strip?mac=${encodeURIComponent(d.mac)}`, null, "DELETE");
               if (r.ok) {
                 _last = null;
                 await live();
                 if (typeof renderManage === "function") await renderManage();
+                if (_currentUserIsAdmin && typeof loadUsers === "function") await loadUsers();
               } else {
                 alert(r.error || "Failed to remove strip");
               }
@@ -2924,7 +2928,10 @@ async function renderManage(){
     }
 
     card.querySelector(".remove-strip").onclick=async()=>{
-      if(!confirm(`Are you sure you want to remove ${title} (${(d?d.mac:mac).toUpperCase()})?`))return;
+      const promptMsg = _currentUserIsAdmin
+        ? `Delete ${title} (${(d?d.mac:mac).toUpperCase()}) completely from controller?\n\n(This will disconnect it and wipe its settings. You can reclaim it anytime using its MAC in Setup.)`
+        : `Unclaim ${title} (${(d?d.mac:mac).toUpperCase()}) from your account?`;
+      if(!confirm(promptMsg))return;
       try{
         const r=await apit(`/api/strip?mac=${encodeURIComponent(d?d.mac:mac)}`,null,"DELETE");
         if(r.ok){

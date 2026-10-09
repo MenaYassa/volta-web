@@ -139,7 +139,7 @@ class Session:
 class Hub:
     MAX_ACTIVE_CONNS = 40
 
-    def __init__(self, on_event=None, on_switch=None, on_connect=None):
+    def __init__(self, on_event=None, on_switch=None, on_connect=None, is_mac_allowed=None):
         self.devices = {}
         self.sessions = {}
         self.pending = {}  # mac -> [{channels:[..], on:bool, ts:float, source:str}]
@@ -147,6 +147,7 @@ class Hub:
         self.on_event = on_event  # fn(msg) for server log
         self.on_switch = on_switch  # fn(mac, outlet, on, source)
         self.on_connect = on_connect  # fn(mac, ip)
+        self.is_mac_allowed = is_mac_allowed  # fn(mac) -> bool
 
     def _log(self, msg):
         if self.on_event:
@@ -257,6 +258,11 @@ class Hub:
                 return
 
             mac = m.group(2).upper()
+            if self.is_mac_allowed and not self.is_mac_allowed(mac):
+                self._log(f"[device] rejected connection from deleted/unauthorized strip {mac} ({ip})")
+                writer.close()
+                return
+
             d = self.devices.get(mac) or Device(mac, m.group(1), m.group(4), ip)
             d.model, d.fw, d.ip, d.online = m.group(1), m.group(4), ip, True
             d.touch()
@@ -470,9 +476,9 @@ def provision(server_ip, ssid, password, host="192.168.1.1", port=30300):
 class Controller(threading.Thread):
     """Background 10086 listener. start()/snapshot()/set_outlets()."""
 
-    def __init__(self, port=DEVICE_PORT, on_event=None, on_switch=None, on_connect=None):
+    def __init__(self, port=DEVICE_PORT, on_event=None, on_switch=None, on_connect=None, is_mac_allowed=None):
         super().__init__(daemon=True)
-        self.hub = Hub(on_event=on_event, on_switch=on_switch, on_connect=on_connect)
+        self.hub = Hub(on_event=on_event, on_switch=on_switch, on_connect=on_connect, is_mac_allowed=is_mac_allowed)
         self.port = port
         self.loop = None
         self._ready = threading.Event()
