@@ -1941,6 +1941,7 @@ async function live(){
 
         const vDisplay = d.voltage_v ? `${d.voltage_v} V` : (d.voltage ? `${d.voltage} V` : "—");
         const pDisplay = (d.power_w !== undefined && d.power_w !== null) ? `${d.power_w} W` : "—";
+        const cDisplay = (d.current_a !== undefined && d.current_a !== null) ? `${d.current_a} A` : "—";
         const eDisplay = (d.energy_kwh !== undefined && d.energy_kwh !== null) ? `${d.energy_kwh} kWh` : "—";
         const tDisplay = (maxTemp !== null && maxTemp > 0) ? `${maxTemp}°C` : "—";
 
@@ -1958,6 +1959,7 @@ async function live(){
             ${pend}
             <span style="flex:1"></span>
             <div style="display:flex;gap:6px;align-items:center">
+              <button class="ghost sm strip-reboot" title="Restart physical strip (up:reboot:0)" style="padding:2px 8px;font-size:12px;opacity:.8">🔄</button>
               <button class="ghost sm allon" style="${allOnStyle}">ALL ON</button>
               <button class="ghost sm alloff" style="${allOffStyle}">ALL OFF</button>
               <button class="ghost sm strip-del" title="Remove strip" style="color:var(--red);padding:2px 8px;font-size:12px;opacity:.7">🗑</button>
@@ -1966,6 +1968,7 @@ async function live(){
 
           <div class="strip-metrics">
             <div class="s-stat"><span>Active Power</span><b>${pDisplay}</b></div>
+            <div class="s-stat"><span>Total Current</span><b>${cDisplay}</b></div>
             <div class="s-stat"><span>Grid Voltage</span><b>${vDisplay}</b></div>
             <div class="s-stat"><span>Max Temp</span><b>${tDisplay}</b></div>
             <div class="s-stat"><span>Energy</span><b>${eDisplay}</b></div>
@@ -2026,6 +2029,26 @@ async function live(){
         c.querySelector(".allon").onclick = () => setAll(true);
         c.querySelector(".alloff").onclick = () => setAll(false);
 
+        const rebootBtn = c.querySelector(".strip-reboot");
+        if (rebootBtn) {
+          rebootBtn.onclick = async () => {
+            const stripName = d.name || d.mac;
+            if (!confirm(`Reboot physical strip "${stripName}" (${d.mac})?\n\nIt will briefly disconnect, re-negotiate Wi-Fi, and reconnect.`)) return;
+            msg.textContent = "Sending reboot command…";
+            try {
+              const r = await apit("/api/reboot", { mac: d.mac });
+              if (r.ok) {
+                msg.textContent = "✓ Reboot command sent (strip restarting)";
+                setTimeout(live, 2000);
+              } else {
+                msg.textContent = "Reboot failed: " + (r.error || "unknown error");
+              }
+            } catch(e) {
+              msg.textContent = "Reboot failed: " + (e.message || e);
+            }
+          };
+        }
+
         const delBtn = c.querySelector(".strip-del");
         if (delBtn) {
           delBtn.onclick = async () => {
@@ -2061,14 +2084,19 @@ async function live(){
           card.className = "outlet-card" + (o.on ? " on" : "") + (locked ? " is-locked" : "");
 
           const pStr = (o.power_w !== undefined && o.power_w !== null) ? `${o.power_w} W` : "0 W";
+          const aStr = (o.current_a !== undefined && o.current_a !== null && o.current_a > 0) ? `${o.current_a} A` : "";
           const eStr = (o.energy_kwh !== undefined && o.energy_kwh !== null) ? `${o.energy_kwh} kWh` : "0 kWh";
           const tStr = (o.temp_c !== undefined && o.temp_c !== null) ? `${o.temp_c}°C` : "";
+          const tripAlert = (!o.overload_ok || !o.overheat_ok)
+            ? `<span class="tag bad" style="font-size:10px;padding:1px 6px">⚠️ ${!o.overload_ok ? "OVERLOAD" : "OVERHEAT"}</span>`
+            : "";
 
           card.innerHTML = `
             <button class="sw ${o.on ? "on" : ""}" ${locked ? "disabled" : ""} aria-label="Outlet ${o.n}"></button>
             <div class="outlet-info">
               <div class="title-row">
                 <b></b>
+                ${tripAlert}
                 <button class="rename" title="Rename outlet">✏️</button>
                 <button class="lock-btn ${locked ? "locked" : ""}" title="${locked ? "Outlet locked (protected from accidental toggles). Click to unlock." : "Lock outlet against accidental toggles"}">${locked ? "🔒" : "🔓"}</button>
               </div>
@@ -2076,6 +2104,7 @@ async function live(){
                 <span class="${o.on ? "on-txt" : ""}" style="font-weight:700;font-size:11px">${o.on ? "ON" : "OFF"}</span>
                 <span>•</span>
                 <span class="val">${pStr}</span>
+                ${aStr ? `<span>•</span><span class="val">${aStr}</span>` : ""}
                 <span>•</span>
                 <span>${eStr}</span>
                 ${tStr ? `<span>•</span><span>${tStr}</span>` : ""}
