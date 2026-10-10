@@ -1,5 +1,5 @@
 /* Volta shell cache: updated to v2 with network-first for HTML */
-const CACHE = "volta-v4";
+const CACHE = "volta-v5";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
