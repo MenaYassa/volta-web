@@ -317,11 +317,11 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 :root[data-theme="dark"] .strip-toggle-expand{background:rgba(255,255,255,.04)}
 :root[data-theme="dark"] .strip-toggle-expand:hover{background:rgba(255,255,255,.08);color:#fff}
 
-/* --- APP LAYOUT WITH COLLAPSIBLE SIDEBAR --- */
+/* --- APP LAYOUT WITH COLLAPSIBLE SIDEBAR & UNIFIED HERO --- */
 :root {
   --sidebar-w: 240px;
-  --sidebar-collapsed-w: 70px;
-  --header-h: 60px;
+  --sidebar-collapsed-w: 68px;
+  --header-h: 56px;
 }
 
 .app-layout {
@@ -331,7 +331,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   position: relative;
 }
 
-/* Sidebar styles */
+/* Sidebar styling */
 .app-sidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
@@ -357,7 +357,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 14px;
+  padding: 12px 14px;
   border-bottom: 1px solid rgba(255,255,255,.08);
   min-height: var(--header-h);
   box-sizing: border-box;
@@ -374,11 +374,10 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 }
 
 .sidebar-logo-text {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.3px;
   white-space: nowrap;
-  transition: opacity .15s;
 }
 
 .app-sidebar.collapsed .sidebar-logo-text {
@@ -386,26 +385,26 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 }
 
 .sidebar-toggle-btn {
-  background: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.1);
-  color: #cbd5e1;
-  width: 32px;
-  height: 32px;
-  min-height: 0;
-  border-radius: 8px;
+  background: rgba(255,255,255,.08) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  color: #cbd5e1 !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-height: 0 !important;
+  border-radius: 8px !important;
   cursor: pointer;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  font-size: 14px;
-  transition: all .15s;
+  padding: 0 !important;
+  font-size: 13px;
+  transition: all .2s;
   flex-shrink: 0;
 }
 
 .sidebar-toggle-btn:hover {
-  background: rgba(255,255,255,.18);
-  color: #fff;
+  background: rgba(255,255,255,.18) !important;
+  color: #fff !important;
 }
 
 .app-sidebar.collapsed .sidebar-toggle-btn {
@@ -418,7 +417,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 14px 10px;
+  padding: 12px 8px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -429,9 +428,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 14px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #94a3b8;
   background: transparent;
@@ -442,7 +441,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   white-space: nowrap;
   box-sizing: border-box;
   text-decoration: none;
-  min-height: 42px;
+  min-height: 38px;
 }
 
 .sidebar-nav .tab:hover {
@@ -458,11 +457,11 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 }
 
 .tab-icon {
-  font-size: 18px;
+  font-size: 17px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
+  width: 22px;
   flex-shrink: 0;
 }
 
@@ -479,33 +478,97 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 .app-sidebar.collapsed .sidebar-nav .tab {
   justify-content: center;
-  padding: 10px 0;
+  padding: 9px 0;
 }
 
-/* Sidebar Footer */
+/* Sidebar Plan / Subscription Widget */
+.sidebar-plan-card {
+  margin: 8px 8px 4px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #fff;
+}
+.app-sidebar.collapsed .sidebar-plan-card {
+  display: none !important;
+}
+
+/* Sidebar Footer & User Profile */
 .sidebar-footer {
-  padding: 14px;
   border-top: 1px solid rgba(255,255,255,.08);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: rgba(0,0,0,.15);
+  padding: 10px;
+  background: rgba(0,0,0,.2);
+}
+
+.sidebar-user-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px;
+  min-width: 0;
+}
+
+.app-sidebar.collapsed .sidebar-user-box .user-meta,
+.app-sidebar.collapsed .sidebar-user-box .user-actions {
+  display: none !important;
+}
+
+.app-sidebar.collapsed .sidebar-user-box {
+  justify-content: center;
+}
+
+.sidebar-quick-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.app-sidebar.collapsed .sidebar-quick-actions {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-icon-btn {
+  background: rgba(255,255,255,.07) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  color: #cbd5e1 !important;
+  border-radius: 8px !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 0 !important;
+  transition: all .15s;
+}
+
+.sidebar-icon-btn:hover {
+  background: rgba(255,255,255,.16) !important;
+  color: #fff !important;
+}
+
+.app-sidebar.collapsed .sidebar-icon-btn span.btn-lbl {
+  display: none;
 }
 
 .sidebar-status-box {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: #cbd5e1;
-  min-width: 0;
-  overflow: hidden;
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 2px 4px;
 }
 
 .app-sidebar.collapsed .sidebar-status-box span:not(.dot) {
   display: none;
 }
-
 .app-sidebar.collapsed .sidebar-status-box {
   justify-content: center;
 }
@@ -527,7 +590,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 18px;
   position: sticky;
   top: 0;
   z-index: 90;
@@ -555,16 +618,129 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .app-content {
   flex: 1;
-  max-width: 1100px;
+  max-width: 1080px;
   width: 100%;
   margin: 0 auto;
-  padding: 20px 20px 60px;
+  padding: 16px 16px 50px;
   box-sizing: border-box;
+}
+
+/* Compact Unified Hero Card on Dashboard */
+.unified-overview-card {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  color: #fff;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.15);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.unified-gauge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,.1);
+  padding-right: 20px;
+}
+
+.unified-ring-container {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unified-ring-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.unified-ring-center {
+  position: absolute;
+  text-align: center;
+}
+
+.unified-ring-center b {
+  font-size: 16px;
+  font-weight: 800;
+  display: block;
+  line-height: 1.1;
+}
+
+.unified-ring-center span {
+  font-size: 9px;
+  color: #94a3b8;
+  font-weight: 600;
+  display: block;
+}
+
+.unified-kpis-wrap {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  min-width: 280px;
+}
+
+.unified-kpi-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.unified-kpi-col .label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.unified-kpi-col b {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.unified-kpi-col .sub {
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+@media(max-width: 860px) {
+  .unified-overview-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 14px 16px;
+  }
+  .unified-gauge-wrap {
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    padding-right: 0;
+    padding-bottom: 12px;
+    justify-content: space-between;
+  }
+  .unified-kpis-wrap {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
 }
 
 /* Mobile Sidebar Drawer Overlay */
@@ -584,6 +760,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     width: 250px !important;
     transition: left .25s ease;
   }
+  .app-sidebar .sidebar-toggle-btn {
+    display: none !important;
+  }
   .app-sidebar.mobile-open {
     left: 0;
   }
@@ -601,13 +780,12 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   }
   .app-sidebar .sidebar-nav .tab {
     justify-content: flex-start !important;
-    padding: 10px 14px !important;
+    padding: 9px 12px !important;
   }
   .app-content {
-    padding: 14px 12px 60px;
+    padding: 12px 10px 50px;
   }
 }
-
 </style>
 </head>
 <body>
@@ -619,10 +797,20 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   <aside class="app-sidebar" id="appSidebar">
     <div class="sidebar-brand">
       <div class="sidebar-logo">
-        <span style="font-size:22px;line-height:1">⚡</span>
+        <span style="font-size:20px;line-height:1">⚡</span>
         <span class="sidebar-logo-text">Volta</span>
       </div>
       <button class="sidebar-toggle-btn" id="btnToggleSidebar" title="Collapse / Expand sidebar">◀</button>
+    </div>
+
+    <!-- User Subscription & Admin Badge in Sidebar -->
+    <div class="sidebar-plan-card" id="sfnSubSummaryCard" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:700">Account Plan</span>
+        <span class="tag ok sm" id="sfnPlanStatus" style="font-size:10px;padding:1px 6px">Active</span>
+      </div>
+      <b style="font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="sfnPlanTitle">Standard Plan</b>
+      <span style="font-size:11px;color:#cbd5e1" id="sfnPlanCapacity">3 strips · Unlimited</span>
     </div>
 
     <nav class="sidebar-nav" id="mainTabsNav">
@@ -660,7 +848,30 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
       </button>
     </nav>
 
+    <!-- Sidebar Footer with User Profile, Theme Toggle & Signout -->
     <div class="sidebar-footer">
+      <div id="userHeaderProfile" class="sidebar-user-box" style="display:none">
+        <img id="userAvatar" src="" style="width:28px;height:28px;border-radius:50%;display:none;border:1px solid rgba(255,255,255,.2);flex-shrink:0">
+        <div class="user-meta" style="flex:1;min-width:0">
+          <div id="userNameBadge" style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-quick-actions">
+        <button class="sidebar-icon-btn" id="btnTheme" title="Toggle light/dark theme" style="flex:1">
+          <span id="btnThemeIcon">🌙</span>
+          <span class="btn-lbl">Theme</span>
+        </button>
+        <button class="sidebar-icon-btn" id="btnLogout" title="Sign out" style="display:none">
+          <span>🚪</span>
+          <span class="btn-lbl">Sign out</span>
+        </button>
+        <button class="sidebar-icon-btn" id="btnLoginHeader" title="Sign in" style="display:none;flex:1">
+          <span>🔑</span>
+          <span class="btn-lbl">Sign in</span>
+        </button>
+      </div>
+
       <div class="sidebar-status-box" title="Daemon connection state">
         <span class="dot" id="srvDot"></span>
         <span id="srvState" style="font-weight:600">connecting…</span>
@@ -673,16 +884,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     <header class="app-topbar">
       <div class="topbar-left">
         <button class="topbar-mobile-btn" id="btnMobileSidebar">☰</button>
-        <div style="font-size:15px;font-weight:700;color:var(--ink)" id="topbarActiveTitle">⚡ Volta Dashboard</div>
+        <div style="font-size:15px;font-weight:700;color:var(--ink)" id="topbarActiveTitle">🎛️ Power &amp; Outlets Control</div>
       </div>
       <div class="topbar-right">
-        <div id="userHeaderProfile" style="display:none;align-items:center;gap:8px">
-          <img id="userAvatar" src="" style="width:28px;height:28px;border-radius:50%;display:none;border:1px solid var(--line)">
-          <span id="userNameBadge" class="small" style="color:var(--ink);font-weight:600"></span>
-          <button id="btnLogout" class="ghost sm" style="padding:4px 10px;font-size:11px;border-radius:8px">Sign out</button>
-        </div>
-        <button id="btnLoginHeader" class="sm" style="display:none;padding:4px 12px;font-size:12px;border-radius:8px">Sign in</button>
-        <button class="tbtn" id="btnTheme" title="toggle light/dark" style="border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:14px">🌙</button>
         <span class="small tag mono" id="liveCount" style="font-size:11px"></span>
       </div>
     </header>
@@ -738,35 +942,12 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 <section class="tabpane on" id="pane-control">
 
 <!-- SFN Power-Inspired Hero & Radial Consumption Widget -->
-<div class="sfn-dashboard-hero">
-  <!-- SFN Household & Subscription Summary Widget -->
-  <div class="card" id="sfnSubSummaryCard" style="grid-column:1 / -1;margin-bottom:0;display:none;background:linear-gradient(135deg,rgba(30,41,59,.6) 0%,rgba(15,23,42,.8) 100%);border:1px solid rgba(255,255,255,.08);padding:14px 18px">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-      <div style="display:flex;gap:12px;align-items:center">
-        <span style="font-size:24px">⭐</span>
-        <div>
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8">Current Subscription Plan</div>
-          <div style="font-size:16px;font-weight:800;color:#fff" id="sfnPlanTitle">Standard Plan</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-        <div>
-          <span style="display:block;font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:600">Strip Capacity</span>
-          <b style="font-size:13px;color:#cbd5e1" id="sfnPlanCapacity">3 strips · Unlimited</b>
-        </div>
-        <div>
-          <span style="display:block;font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:600">Status</span>
-          <span class="tag ok" id="sfnPlanStatus">Active</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Power Gauge Card -->
-  <div class="sfn-power-ring-card">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;margin-bottom:2px">Total Household Load</div>
-    <div class="sfn-ring-container">
-      <svg class="sfn-ring-svg" viewBox="0 0 100 100">
+<!-- Compact Unified Household Load & Fleet KPIs Card -->
+<div class="unified-overview-card">
+  <!-- Power Gauge Gauge Wrap -->
+  <div class="unified-gauge-wrap">
+    <div class="unified-ring-container">
+      <svg class="unified-ring-svg" viewBox="0 0 100 100">
         <defs>
           <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#3b82f6"/>
@@ -777,39 +958,41 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
         <circle class="sfn-ring-bg" cx="50" cy="50" r="42"/>
         <circle class="sfn-ring-val" id="sfnRadialCircle" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"/>
       </svg>
-      <div class="sfn-ring-center">
+      <div class="unified-ring-center">
         <b id="sfnRingWatts">0 W</b>
-        <span id="sfnRingRatio">0/0 strips reporting</span>
+        <span id="sfnRingRatio">Fleet Load</span>
       </div>
     </div>
-    <div class="sfn-ring-badge" id="sfnRingStatus">Active Live Stream</div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8">Total Household Load</div>
+      <div style="font-size:12px;color:#cbd5e1;margin-top:2px" id="sfnRingStatus">Active Live Stream</div>
+    </div>
   </div>
 
-  <!-- 2x2 Household KPIs Grid -->
-  <div class="sfn-kpis-grid">
-    <div class="sfn-kpi-card">
-      <div class="sfn-kpi-head"><span class="icon">🔌</span><span>Total Strips</span></div>
+  <!-- 4 Compact KPIs in One Card -->
+  <div class="unified-kpis-wrap">
+    <div class="unified-kpi-col">
+      <span class="label">🔌 Total Strips</span>
       <b id="sfnKpiStrips">—</b>
       <span class="sub" id="sfnKpiStripsSub">Fleet capacity</span>
     </div>
-    <div class="sfn-kpi-card">
-      <div class="sfn-kpi-head"><span class="icon">🟢</span><span>Connected</span></div>
+    <div class="unified-kpi-col">
+      <span class="label">🟢 Connected</span>
       <b id="sfnKpiOnline" style="color:#22c55e">—</b>
       <span class="sub" id="sfnKpiOnlineSub">Online now</span>
     </div>
-    <div class="sfn-kpi-card">
-      <div class="sfn-kpi-head"><span class="icon">⚡</span><span>Active Outlets</span></div>
+    <div class="unified-kpi-col">
+      <span class="label">⚡ Active Outlets</span>
       <b id="sfnKpiOutlets">—</b>
       <span class="sub" id="sfnKpiOutletsSub">Supplying power</span>
     </div>
-    <div class="sfn-kpi-card">
-      <div class="sfn-kpi-head"><span class="icon">🛡️</span><span>Protection</span></div>
+    <div class="unified-kpi-col">
+      <span class="label">🛡️ Protection</span>
       <b id="sfnKpiGuard" style="color:#3b82f6">Armed</b>
       <span class="sub">Dual Safety Active</span>
     </div>
   </div>
 </div>
-
 <div class="row" style="margin-bottom:12px;justify-content:space-between;align-items:center">
   <div style="display:flex;gap:8px;align-items:center">
     <button id="btnLiveRefresh" class="ghost sm" style="font-size:12px">↻ Refresh</button>
@@ -1857,12 +2040,14 @@ function initSidebar(){
   }
 
   if(toggleBtn && sidebar){
-    toggleBtn.onclick = ()=>{
+    toggleBtn.addEventListener("click", (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
       sidebar.classList.toggle("collapsed");
       try{
         localStorage.setItem("volta_sidebar_collapsed", sidebar.classList.contains("collapsed") ? "1" : "0");
       }catch{}
-    };
+    });
   }
 
   if(mobileBtn && sidebar && overlay){
@@ -2050,7 +2235,7 @@ function applyTheme(mode){ // auto | light | dark
   else if(mode==="light"){root.dataset.theme="light";}
   else{delete root.dataset.theme;}
   const darkNow=mode==="dark"||(mode==="auto"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);
-  const b=$("btnTheme");if(b)b.textContent=darkNow?"☀️":"🌙";
+  const b=$("btnTheme");const ic=$("btnThemeIcon");if(ic)ic.textContent=darkNow?"☀️":"🌙";else if(b)b.textContent=darkNow?"☀️":"🌙";
   const s=$("prefTheme");if(s)s.value=mode;
   try{localStorage.setItem("volta_theme",mode);}catch{}}
 function getTheme(){try{return localStorage.getItem("volta_theme")||localStorage.getItem("voltra_theme")||"auto";}catch{return "auto";}}
@@ -2098,6 +2283,7 @@ async function checkSrv(){
           
           if($("srvState"))$("srvState").textContent=`${who.name} (${who.is_admin?"Admin":"User"})`;
           if($("userHeaderProfile"))$("userHeaderProfile").style.display = "flex";
+          if($("btnLogout"))$("btnLogout").style.display = "inline-flex";
           if($("userNameBadge"))$("userNameBadge").textContent = who.name;
           if($("btnLoginHeader"))$("btnLoginHeader").style.display = "none";
           if(who.picture && $("userAvatar")){
@@ -2196,6 +2382,7 @@ async function checkSrv(){
         if($("srvInfoCard"))$("srvInfoCard").style.display="none";
         if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
         if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
+    if($("btnLogout"))$("btnLogout").style.display = "none";
         if($("btnLoginHeader"))$("btnLoginHeader").style.display = "inline-block";
         updateAuthGateState(false);
       }
@@ -2205,6 +2392,7 @@ async function checkSrv(){
       if($("srvInfoCard"))$("srvInfoCard").style.display="none";
       if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
       if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
+    if($("btnLogout"))$("btnLogout").style.display = "none";
       if($("btnLoginHeader"))$("btnLoginHeader").style.display = "inline-block";
       updateAuthGateState(false);
     }
