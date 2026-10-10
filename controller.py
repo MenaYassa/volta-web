@@ -44,6 +44,16 @@ POWER_REPORT_RE = re.compile(r"^up:power_report:([1-5]):(-?\d+)$", re.I)
 QUERY_RE = re.compile(r"^up:query:(-?\d+)$")
 
 
+EVENT_CODES = {
+    "00": "Normal / OK",
+    "01": "Overcurrent / Overload Trip (>16A)",
+    "02": "Overheat / Thermal Cutoff Trip",
+    "03": "Overvoltage / Transient Surge",
+    "04": "Manual Switch / Pushbutton Toggled",
+    "08": "Communication / Internal MCU Fault",
+}
+
+
 def parse_getinfo(line):
     text = line.strip("\r\n\x00 ")
     if text.startswith("up:getinfo:"):
@@ -54,10 +64,21 @@ def parse_getinfo(line):
         ch = int(g["ch"])
         if ch > 4:
             continue
-        out.append({"n": ch, "on": g["relay"].lower() == "on",
-                    "power_w": round(int(g["power"]) / 1000.0, 2),
-                    "energy_kwh": round(int(g["energy"], 16) / 1000.0, 3),
-                    "temp_c": int(g["temperature"])})
+        ev = (g.get("event") or "00").upper()
+        # Fail-safe protection polarity: 'on' means circuit intact/normal, 'off' means tripped
+        overload_ok = g.get("overload", "on").lower() == "on"
+        overheat_ok = g.get("overheat", "on").lower() == "on"
+        out.append({
+            "n": ch,
+            "on": g["relay"].lower() == "on",
+            "power_w": round(int(g["power"]) / 1000.0, 2),
+            "energy_kwh": round(int(g["energy"], 16) / 1000.0, 3),
+            "temp_c": int(g["temperature"]),
+            "event_code": ev,
+            "event_desc": EVENT_CODES.get(ev, "Normal / OK"),
+            "overload_ok": overload_ok,
+            "overheat_ok": overheat_ok,
+        })
     return out
 
 
@@ -140,6 +161,11 @@ class Session:
                 await self.send(f"up:onoff:{ch}:{'on' if on else 'off'}")
             await asyncio.sleep(0.3)
             return await self._refresh()
+
+    async def reboot(self):
+        async with self.lock:
+            await self.send("up:reboot:0")
+            return True
 
     async def diagnostics(self):
         async with self.lock:
@@ -471,6 +497,17 @@ def claim_strip_api(web_url, token, mac):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def derive_ap_password(ssid):
+    """Derive default WPA2 password for strip SoftAP network.
+    e.g. TONLY_TAP_9132171 -> LGU_9132171
+    """
+    clean = (ssid or "").strip()
+    if "_" in clean:
+        suffix = clean.split("_")[-1]
+        return f"LGU_{suffix.upper()}"
+    return f"LGU_{clean.upper()}"
+
+
 def provision(server_ip, ssid, password, host="192.168.1.1", port=30300):
     """Write server address (IP or hostname) + Wi-Fi into the strip."""
     server_ip = valid_server(server_ip)
@@ -550,6 +587,20 @@ class Controller(threading.Thread):
                     except Exception as e:
                         self.hub._log(f"[device] on_switch hook error: {e}")
             return res, ""
+        except _f.TimeoutError:
+            return False, "command timeout"
+        except Exception as e:
+            return False, str(e)
+
+    def reboot(self, mac, timeout=5):
+        """Thread-safe: send up:reboot:0 to the connected strip."""
+        import concurrent.futures as _f
+        s = self.hub.session(mac)
+        if not s:
+            return False, "device offline"
+        fut = asyncio.run_coroutine_threadsafe(s.reboot(), self.loop)
+        try:
+            return bool(fut.result(timeout=timeout)), ""
         except _f.TimeoutError:
             return False, "command timeout"
         except Exception as e:

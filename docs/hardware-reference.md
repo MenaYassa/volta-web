@@ -77,7 +77,28 @@ Reverse-engineering and empirical testing of the 1809 BJY3 current sensing ICs o
 
 ---
 
-## 4. Alternative Operating Modes (Standalone Firmware)
+## 4. Hardware Telemetry Protocol (12-Field Record & Protection Polarity)
+
+The stock firmware reports four-outlet telemetry in reply to `up:getinfo:all` formatted as `up:getinfo:1:<R1>:2:<R2>:3:<R3>:4:<R4>`. Each record contains 12 semicolon-separated fields:
+
+| Field | Format | Parameter | Realtek Function & Behavior |
+|---|---|---|---|
+| `F0` | integer | `countdown_sec` | Active countdown timer remaining in seconds (`0` when idle). |
+| `F1` | `on`/`off` | `relay` | Physical relay contact state (`on` = closed/energized, `off` = isolated). |
+| `F2` | integer | `standby_threshold_w` | Standby power cutoff threshold in Watts (default: `3`W). |
+| `F3` | `on`/`off` | `overload_ok` | **Fail-safe protection circuit polarity**: `on` = healthy/normal; `off` = tripped (>16A). |
+| `F4` | `on`/`off` | `overheat_ok` | **Fail-safe thermal circuit polarity**: `on` = healthy/normal; `off` = thermal trip. |
+| `F5` | integer | `power_w` | Active power in milliwatts ($P_W = \text{val} / 1000.0$). |
+| `F6` | 8-char hex | `energy_kwh` | Total cumulative active energy ($E = \text{hex} / 1000.0$ kWh). |
+| `F7` | 8-char hex | `secondary_energy_kwh` | Secondary/daily active energy in Watt-hours ($E_2 = \text{hex} / 1000.0$ kWh). |
+| `F8` | 8-char hex | `energy_budget_kwh` | Energy quota/budget accumulator in Watt-hours. |
+| `F9` | `on`/`off` | `standby_cutoff_enabled` | Automatic standby cutoff feature flag. |
+| `F10` | 2-char hex | `event_code` | **Hardware event code**: `00` = Normal/OK, `01` = Overcurrent (>16A), `02` = Overheat, `03` = Overvoltage, `04` = Pushbutton toggled, `08` = MCU fault. |
+| `F11` | signed int | `temperature_c` | Temperature sensor reading in °C. |
+
+---
+
+## 5. Alternative Operating Modes (Standalone Firmware)
 
 For environments requiring 100% offline, local-only Home Assistant MQTT control without any central VPS dial-in, the open-source **`af950833/mttl_w01_standalone`** firmware (`comMTTL-W01_2.0.8.fwr`) can be flashed directly to the Realtek RTL8711AF:
 - **Flashing Method**: Over Wi-Fi AP (`TONLY_TAP_...:30300`) using the OTA tool or via the device's web UI.

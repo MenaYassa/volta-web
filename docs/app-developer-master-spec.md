@@ -419,6 +419,7 @@ Add a card under **Settings → Smart Home & Voice Assistants**:
 | `/api/rename` | `POST` | Bearer | `{"mac": "...", "name": "...", "outlets": {...}}` | Renames strip or specific outlets |
 | `/api/voltage-guard` | `POST` | Bearer | `{"mac": "...", "min_v": 195, ...}` | Configures Voltage & Thermal Safety Guards |
 | `/api/voltage-guard/reset`| `POST` | Bearer | `{"mac": "..."}` | Manually resets latching thermal overheat trip |
+| `/api/reboot` | `POST` | Bearer | `{"mac": "..."}` | Sends hardware restart command (`up:reboot:0`) to strip |
 | `/api/health` | `GET` | Public | - | Returns `server_ip` destination host for SoftAP pairing |
 | `/api/geo/search` | `GET` | Bearer | `?q=<CITY>` | Geocodes city for solar schedule calculations |
 | `/api/geo/sun` | `GET` | Bearer | `?lat=...&lon=...` | Returns calculated NOAA sunrise/sunset times |

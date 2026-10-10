@@ -2579,6 +2579,20 @@ class Handler(BaseHTTPRequestHandler):
             log(f"provision {host}: {r1} / {r2}")
             return self._json({"ok": True, "ip_reply": r1, "wifi_reply": r2,
                                "next": "Rejoin home LAN; the strip will dial this server shortly."})
+        if u.path == "/api/reboot":
+            # Restart connected physical strip via up:reboot:0
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            mac = norm_mac(body.get("mac") or "").upper()
+            if not mac:
+                return self._json({"error": "mac required"}, 400)
+            if not self._can_access_strip(mac):
+                return self._json({"error": "forbidden: strip not assigned to your account"}, 403)
+            ok, err = CTL.reboot(mac)
+            if not ok:
+                return self._json({"error": err or "device offline"}, 502)
+            log(f"reboot {mac} command sent (up:reboot:0)")
+            return self._json({"ok": True, "reboot_sent": True})
         if u.path == "/api/schedules":
             # Create or update a schedule. Kinds: {kind:time,time} or {kind:sun,sun,offset_min}.
             if not self._authorized():
