@@ -702,12 +702,14 @@ def voltage_guard_loop():
     """Real-time protection loop: monitors live strip voltages & temperatures every 2-3s.
     Voltage Guard:
       - If voltage violates min_v or max_v: turns OFF all outlets, snapshots active ones.
+        Debounces 2 consecutive polling cycles to prevent nuisance tripping on brief switching noise.
       - Once voltage is stably safe continuously for safe_delay_min: restores originally active outlets.
     Temperature Guard:
-      - If ANY outlet exceeds max_temp_c: emergency cuts all outlets OFF immediately.
+      - If ANY outlet exceeds max_temp_c: emergency cuts all outlets OFF immediately on 1st violation.
       - Latches TRIPPED until user manually resets (NO automatic turn back on for fire/thermal safety!).
     """
     last_eval = {}  # mac -> {safe_start_ts}
+    fault_counts = {}  # mac -> int (consecutive fault polling cycles)
     while True:
         try:
             if CTL and CTL.wait_ready(0):
@@ -791,11 +793,16 @@ def voltage_guard_loop():
                         last_eval.pop(mac, None)
 
                         if not is_tripped:
+                            # 2-round debounce to prevent false trips on brief motor/compressor startup noise
+                            fault_counts[mac] = fault_counts.get(mac, 0) + 1
+                            if fault_counts[mac] < 2:
+                                continue  # Wait for 2nd consecutive violation before tripping
+
                             active_outlets = [o.get("n") for o in outlets if o.get("on") and o.get("n")]
                             fault_type = "LOW VOLTAGE (BROWNOUT)" if v_now < min_v else "HIGH VOLTAGE (SURGE)"
                             threshold = min_v if v_now < min_v else max_v
 
-                            log(f"[voltage-guard] 🚨 TRIP on {nm} ({mac}): {v_now}V ({fault_type}, threshold {threshold}V). Outlets ON: {active_outlets}")
+                            log(f"[voltage-guard] 🚨 TRIP on {nm} ({mac}): {v_now}V ({fault_type}, threshold {threshold}V) [confirmed 2 consecutive cycles]. Outlets ON: {active_outlets}")
 
                             ok, err = CTL.set_outlets(mac, [1, 2, 3, 4], False, source="voltage_guard")
                             if not ok:
@@ -807,6 +814,7 @@ def voltage_guard_loop():
                             g["trip_voltage"] = v_now
                             g["saved_outlets"] = active_outlets
                             g["safe_since"] = None
+                            fault_counts.pop(mac, None)
                             dirty = True
 
                             if topic:
@@ -822,6 +830,7 @@ def voltage_guard_loop():
 
                     # 2. RECOVERY MONITORING (Voltage is back within safe window)
                     elif is_tripped:
+                        fault_counts.pop(mac, None)
                         now_ts = time.time()
                         safe_start = last_eval.get(mac)
                         if not safe_start:
@@ -860,6 +869,9 @@ def voltage_guard_loop():
                                         )
                                     except Exception as e:
                                         log(f"[voltage-guard] ntfy error: {e}")
+                    else:
+                        # Voltage is normal and strip is not tripped: clear any intermittent single-cycle fault count
+                        fault_counts.pop(mac, None)
 
                 if dirty:
                     save_voltage_guards(guards)

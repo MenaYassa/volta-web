@@ -83,14 +83,25 @@ class Device:
 
     def snapshot(self, pending=0):
         outs = list(self.outlets.values())
+        v = self.voltage_v or 220.0
+        # Calculate per-outlet current subtracting the hardware 0.019A baseline idle offset
+        for o in outs:
+            if o.get("on") and o.get("power_w", 0.0) > 0.0 and v > 0.0:
+                raw_a = o["power_w"] / v
+                o["current_a"] = round(max(raw_a - 0.019, 0.0), 3)
+            else:
+                o["current_a"] = 0.0
+
         total_w = round(sum(o["power_w"] for o in outs), 2)
+        total_a = round(sum(o["current_a"] for o in outs), 3)
+
         return {"mac": self.mac, "name": self.model and self.name,
                 "model": self.model, "fw": self.fw, "ip": self.ip,
                 "online": self.online, "on": any(o["on"] for o in outs),
                 "power_w": total_w,
                 "energy_kwh": round(sum(o["energy_kwh"] for o in outs), 3),
                 "voltage_v": self.voltage_v,
-                "current_a": round(total_w / self.voltage_v, 2) if self.voltage_v else 0.0,
+                "current_a": total_a,
                 "rssi": self.rssi, "outlets": outs,
                 "last_seen": self.last_seen,
                 "last_seen_ago": round(time.time() - self.last_seen),

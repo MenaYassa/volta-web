@@ -57,4 +57,30 @@ For hardware modding (e.g. replacing the RTL8711AF with an ESP-01), the latching
 | **Outlet 3** | `13 29 0A 04 00` | `13 29 06 00 00` | `13 2A 06 08 00` | `13 2A 0A 00 00` |
 | **Outlet 4** | `13 2A 0A 10 00` | `13 2A 06 00 00` | `13 2A 06 20 00` | `13 2A 0A 00 00` |
 
-*(Note: These low-level hex codes travel exclusively over the physical internal ribbon cable and are handled natively by the strip's internal firmware when receiving `up:onoff` over Wi-Fi).*
+## 3. Sensor Math & Hardware Offset Calibration
+
+Reverse-engineering and empirical testing of the 1809 BJY3 current sensing ICs on the power board reveal key hardware characteristics:
+
+- **Current Sensor Zero-Offset Baseline**:
+  - The onboard current sensors output a baseline idle noise floor of approximately **0.019 A** (~4.5W ghost load) per channel even when no load is attached.
+  - To eliminate ghost readings, production telemetry logic subtracts `0.019 A` from each active channel's calculated current and clamps negative values to `0.0 A`:
+    $$\text{current\_a} = \max\left(\frac{P_W}{V} - 0.019, 0.0\right)$$
+  - Channels that are powered OFF are clamped to `0.0 A` immediately.
+
+- **Dual-Cycle Safety Debounce**:
+  - Motor inrush currents, inductive compressor starts, and line noise frequently cause momentary microsecond/sub-second voltage or current sags and spikes.
+  - While thermal overheating triggers instantaneous hardware cutoff on the first violation, voltage and overload guards enforce a **2-consecutive-cycle debounce** before tripping the safety latch, completely eliminating nuisance tripping.
+
+- **Relay State NVRAM Flash Delay**:
+  - The internal Realtek MCU commits relay states to non-volatile flash memory exactly **10 seconds** after the last switching command.
+  - If power is cut within 10 seconds of a toggle, the strip reboots to its previous state upon recovery.
+
+---
+
+## 4. Alternative Operating Modes (Standalone Firmware)
+
+For environments requiring 100% offline, local-only Home Assistant MQTT control without any central VPS dial-in, the open-source **`af950833/mttl_w01_standalone`** firmware (`comMTTL-W01_2.0.8.fwr`) can be flashed directly to the Realtek RTL8711AF:
+- **Flashing Method**: Over Wi-Fi AP (`TONLY_TAP_...:30300`) using the OTA tool or via the device's web UI.
+- **Embedded Web Server**: Strips run an internal HTTP web interface, SSE telemetry, and MQTT Home Assistant auto-discovery.
+- **Trade-offs**: Standalone mode does not provide multi-user Google auth, long-term SQLite timeseries analytics, Alexa cloud integration, or global WAN dashboard routing without local port forwarding or VPNs. Volta combines the best of both worlds with server-side offset calibration and safety debouncing.
+
