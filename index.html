@@ -316,37 +316,378 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .strip-toggle-expand:hover{color:var(--ink);background:rgba(0,0,0,.06)}
 :root[data-theme="dark"] .strip-toggle-expand{background:rgba(255,255,255,.04)}
 :root[data-theme="dark"] .strip-toggle-expand:hover{background:rgba(255,255,255,.08);color:#fff}
+
+/* --- APP LAYOUT WITH COLLAPSIBLE SIDEBAR --- */
+:root {
+  --sidebar-w: 240px;
+  --sidebar-collapsed-w: 70px;
+  --header-h: 60px;
+}
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+}
+
+/* Sidebar styles */
+.app-sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 100;
+  box-shadow: 2px 0 12px rgba(0,0,0,.15);
+  transition: width .25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.app-sidebar.collapsed {
+  width: var(--sidebar-collapsed-w);
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  min-height: var(--header-h);
+  box-sizing: border-box;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-decoration: none;
+  color: #fff;
+}
+
+.sidebar-logo-text {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  transition: opacity .15s;
+}
+
+.app-sidebar.collapsed .sidebar-logo-text {
+  display: none;
+}
+
+.sidebar-toggle-btn {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.1);
+  color: #cbd5e1;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 14px;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(255,255,255,.18);
+  color: #fff;
+}
+
+.app-sidebar.collapsed .sidebar-toggle-btn {
+  transform: rotate(180deg);
+  margin: 0 auto;
+}
+
+/* Sidebar Nav Items */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 10px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-nav .tab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all .15s;
+  white-space: nowrap;
+  box-sizing: border-box;
+  text-decoration: none;
+  min-height: 42px;
+}
+
+.sidebar-nav .tab:hover {
+  background: rgba(255,255,255,.06);
+  color: #f1f5f9;
+}
+
+.sidebar-nav .tab.on {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(37,99,235,.35);
+  border-color: rgba(255,255,255,.1);
+}
+
+.tab-icon {
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.tab-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-sidebar.collapsed .tab-label {
+  display: none;
+}
+
+.app-sidebar.collapsed .sidebar-nav .tab {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 14px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(0,0,0,.15);
+}
+
+.sidebar-status-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #cbd5e1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app-sidebar.collapsed .sidebar-status-box span:not(.dot) {
+  display: none;
+}
+
+.app-sidebar.collapsed .sidebar-status-box {
+  justify-content: center;
+}
+
+/* Main Container & Topbar */
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+.app-topbar {
+  height: var(--header-h);
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  box-shadow: 0 1px 3px rgba(0,0,0,.03);
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-mobile-btn {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--ink);
+  min-height: 0;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-content {
+  flex: 1;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 20px 60px;
+  box-sizing: border-box;
+}
+
+/* Mobile Sidebar Drawer Overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 95;
+  backdrop-filter: blur(2px);
+}
+
+@media(max-width: 768px) {
+  .app-sidebar {
+    position: fixed;
+    left: -260px;
+    width: 250px !important;
+    transition: left .25s ease;
+  }
+  .app-sidebar.mobile-open {
+    left: 0;
+  }
+  .sidebar-overlay.open {
+    display: block;
+  }
+  .topbar-mobile-btn {
+    display: inline-flex;
+  }
+  .app-sidebar .sidebar-logo-text {
+    display: inline !important;
+  }
+  .app-sidebar .tab-label {
+    display: inline !important;
+  }
+  .app-sidebar .sidebar-nav .tab {
+    justify-content: flex-start !important;
+    padding: 10px 14px !important;
+  }
+  .app-content {
+    padding: 14px 12px 60px;
+  }
+}
+
 </style>
 </head>
 <body>
-<div class="wrap">
+<!-- Sidebar Overlay for Mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<header class="hero">
-<div class="top">
-<span class="dot" id="srvDot"></span>
-<h1>⚡ Volta</h1>
-<span id="srvState">connecting…</span>
-<span style="flex:1"></span>
-<div id="userHeaderProfile" style="display:none;align-items:center;gap:8px;margin-right:8px">
-  <img id="userAvatar" src="" style="width:26px;height:26px;border-radius:50%;display:none;border:1px solid rgba(255,255,255,.3)">
-  <span id="userNameBadge" class="small" style="color:#fff;font-weight:600"></span>
-  <button id="btnLogout" class="ghost sm" style="padding:2px 8px;font-size:11px;color:#fff;border-color:rgba(255,255,255,.3)">Sign out</button>
-</div>
-<button id="btnLoginHeader" class="sm" style="display:none;padding:3px 10px;font-size:12px">Sign in</button>
-<button class="tbtn" id="btnTheme" title="toggle light/dark">🌙</button>
-<span class="small" style="color:#cbd5e1" id="liveCount"></span>
-</div>
-<nav class="tabs" id="mainTabsNav">
-<button class="tab on" data-tab="control">Control</button>
-<button class="tab" data-tab="analytics">Analytics</button>
-<button class="tab" id="tabStrips" data-tab="strips" style="display:none">Strips</button>
-<button class="tab" data-tab="sched">Schedules</button>
-<button class="tab" data-tab="setup">Setup</button>
-<button class="tab" data-tab="tools">Advanced</button>
-<button class="tab" id="tabUsers" data-tab="users" style="display:none">👥 Users &amp; Licenses</button>
-<button class="tab" data-tab="settings">Settings</button>
-</nav>
-</header>
+<div class="app-layout">
+  <!-- Collapsible Left Navigation Sidebar -->
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">
+        <span style="font-size:22px;line-height:1">⚡</span>
+        <span class="sidebar-logo-text">Volta</span>
+      </div>
+      <button class="sidebar-toggle-btn" id="btnToggleSidebar" title="Collapse / Expand sidebar">◀</button>
+    </div>
+
+    <nav class="sidebar-nav" id="mainTabsNav">
+      <button class="tab on" data-tab="control">
+        <span class="tab-icon">🎛️</span>
+        <span class="tab-label">Control</span>
+      </button>
+      <button class="tab" data-tab="analytics">
+        <span class="tab-icon">📊</span>
+        <span class="tab-label">Analytics</span>
+      </button>
+      <button class="tab" id="tabStrips" data-tab="strips" style="display:none">
+        <span class="tab-icon">🔌</span>
+        <span class="tab-label">Strips</span>
+      </button>
+      <button class="tab" data-tab="sched">
+        <span class="tab-icon">📅</span>
+        <span class="tab-label">Schedules</span>
+      </button>
+      <button class="tab" data-tab="setup">
+        <span class="tab-icon">⚙️</span>
+        <span class="tab-label">Setup</span>
+      </button>
+      <button class="tab" data-tab="tools">
+        <span class="tab-icon">🛠️</span>
+        <span class="tab-label">Advanced</span>
+      </button>
+      <button class="tab" id="tabUsers" data-tab="users" style="display:none">
+        <span class="tab-icon">👥</span>
+        <span class="tab-label">Users &amp; Licenses</span>
+      </button>
+      <button class="tab" data-tab="settings">
+        <span class="tab-icon">🔧</span>
+        <span class="tab-label">Settings</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-status-box" title="Daemon connection state">
+        <span class="dot" id="srvDot"></span>
+        <span id="srvState" style="font-weight:600">connecting…</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <div class="app-main">
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <button class="topbar-mobile-btn" id="btnMobileSidebar">☰</button>
+        <div style="font-size:15px;font-weight:700;color:var(--ink)" id="topbarActiveTitle">⚡ Volta Dashboard</div>
+      </div>
+      <div class="topbar-right">
+        <div id="userHeaderProfile" style="display:none;align-items:center;gap:8px">
+          <img id="userAvatar" src="" style="width:28px;height:28px;border-radius:50%;display:none;border:1px solid var(--line)">
+          <span id="userNameBadge" class="small" style="color:var(--ink);font-weight:600"></span>
+          <button id="btnLogout" class="ghost sm" style="padding:4px 10px;font-size:11px;border-radius:8px">Sign out</button>
+        </div>
+        <button id="btnLoginHeader" class="sm" style="display:none;padding:4px 12px;font-size:12px;border-radius:8px">Sign in</button>
+        <button class="tbtn" id="btnTheme" title="toggle light/dark" style="border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:14px">🌙</button>
+        <span class="small tag mono" id="liveCount" style="font-size:11px"></span>
+      </div>
+    </header>
+
+    <div class="app-content">
 
 <!-- Expiry Warning Notification Banner (Users & Admin) -->
 <div id="subNoticeBanner" style="display:none;background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:12px 16px;border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow)">
@@ -1217,7 +1558,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </section>
 
 </div><!-- /appPanesView -->
-</div><!-- /wrap -->
+    </div><!-- /app-content -->
+  </div><!-- /app-main -->
+</div><!-- /app-layout -->
 
 <!-- Modal: Assign strips to a specific user -->
 <div id="modalUserStrips" class="modal-overlay">
@@ -1464,10 +1807,35 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 function esc(s){if(s==null)return "";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 const $=id=>document.getElementById(id);
 const on=(id,ev,fn)=>{const el=$(id);if(el)el.addEventListener(ev,fn);};
+const TAB_TITLES = {
+  control: "🎛️ Power & Outlets Control",
+  analytics: "📊 Power Analytics & Trends",
+  strips: "🔌 Manage Power Strips",
+  sched: "📅 Daily Schedules & Timers",
+  setup: "⚙️ Provisioning & Wi-Fi Setup",
+  tools: "🛠️ Advanced Diagnostics & Protocol Tools",
+  users: "👥 Users & Licenses Administration",
+  settings: "🔧 System & Account Settings"
+};
+
+function updateActiveTabHeader(tabName){
+  if($("topbarActiveTitle")) $("topbarActiveTitle").textContent = TAB_TITLES[tabName] || "⚡ Volta";
+}
+
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
   document.querySelectorAll(".tabpane").forEach(x=>x.classList.remove("on"));
   t.classList.add("on");$("pane-"+t.dataset.tab).classList.add("on");
+  updateActiveTabHeader(t.dataset.tab);
+
+  // Auto-close mobile sidebar drawer on selection
+  const sidebar = $("appSidebar");
+  const overlay = $("sidebarOverlay");
+  if(sidebar && sidebar.classList.contains("mobile-open")){
+    sidebar.classList.remove("mobile-open");
+    if(overlay) overlay.classList.remove("open");
+  }
+
   if(t.dataset.tab==="control")live();
   if(t.dataset.tab==="analytics"){loadAnalytics();startAnalyticsTicker();}else stopAnalyticsTicker();
   if(t.dataset.tab==="strips")renderManage();
@@ -1475,6 +1843,40 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   if(t.dataset.tab==="users" && _currentUserIsAdmin)loadUsers();
   if(t.dataset.tab==="settings")checkSrv();
 });
+
+// Sidebar collapse & mobile drawer toggle
+function initSidebar(){
+  const sidebar = $("appSidebar");
+  const toggleBtn = $("btnToggleSidebar");
+  const mobileBtn = $("btnMobileSidebar");
+  const overlay = $("sidebarOverlay");
+
+  const isCollapsed = localStorage.getItem("volta_sidebar_collapsed") === "1";
+  if(sidebar && isCollapsed){
+    sidebar.classList.add("collapsed");
+  }
+
+  if(toggleBtn && sidebar){
+    toggleBtn.onclick = ()=>{
+      sidebar.classList.toggle("collapsed");
+      try{
+        localStorage.setItem("volta_sidebar_collapsed", sidebar.classList.contains("collapsed") ? "1" : "0");
+      }catch{}
+    };
+  }
+
+  if(mobileBtn && sidebar && overlay){
+    mobileBtn.onclick = ()=>{
+      sidebar.classList.add("mobile-open");
+      overlay.classList.add("open");
+    };
+    overlay.onclick = ()=>{
+      sidebar.classList.remove("mobile-open");
+      overlay.classList.remove("open");
+    };
+  }
+}
+initSidebar();
 const api=async(p,b,signal)=>{const r=await fetch(p,{method:b?"POST":"GET",headers:{"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined,signal});const j=await r.json();if(!r.ok)throw new Error(j.error||("HTTP "+r.status));return j;};
 const tok=()=>($("token")&&$("token").value||"").trim();
 if($("token"))$("token").value=localStorage.getItem("volta_token")||localStorage.getItem("voltra_token")||"";
