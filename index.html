@@ -231,13 +231,15 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .sfn-kpi-card span.sub{font-size:11px;color:var(--mut);margin-top:2px}
 
 /* Physical Power Strip Component (Visual Enclosure with 4 sockets) */
-.strip-physical{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.15)}
-.strip-phys-sockets{display:flex;gap:12px;align-items:center}
+.strip-physical{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px 16px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.15)}
+.strip-phys-sockets{display:flex;gap:10px;align-items:flex-start}
+.phys-socket-wrap{display:flex;flex-direction:column;align-items:center;width:48px;max-width:48px;flex:0 0 48px;text-align:center}
 .phys-socket{width:36px;height:36px;border-radius:50%;background:#090d16;border:2px solid #334155;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:all .2s;color:#64748b;font-size:13px;font-weight:700}
 .phys-socket.on{border-color:#22c55e;color:#fff;background:radial-gradient(circle,#166534 0%,#052e16 100%);box-shadow:0 0 10px rgba(34,197,94,.5),inset 0 0 6px rgba(34,197,94,.4)}
 .phys-socket:hover{transform:scale(1.08)}
-.phys-socket span.socket-num{font-size:10px;position:absolute;bottom:-18px;color:#94a3b8;font-weight:600}
-.strip-phys-summary{text-align:right;color:#cbd5e1;font-size:12px}
+.phys-socket-name{font-size:10px;color:#94a3b8;font-weight:600;margin-top:6px;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;cursor:pointer}
+.phys-socket-name:hover{color:#cbd5e1}
+.strip-phys-summary{text-align:right;color:#cbd5e1;font-size:12px;flex:1 0 auto;min-width:90px}
 .strip-phys-summary b{display:block;font-size:15px;color:#fff;font-weight:700}
 .strip-phys-summary span.dots{letter-spacing:2px;font-size:14px}
 .strip-phys-summary span.dots .d-on{color:#22c55e}
@@ -2131,7 +2133,13 @@ async function live(){
         const stripSocketsHtml = [1, 2, 3, 4].map(num => {
           const out = (d.outlets || []).find(o => o.n === num);
           const isOn = Boolean(out && out.on);
-          return `<div class="phys-socket ${isOn ? "on" : ""}" data-socket="${num}" title="Outlet ${num} (${out && out.nick ? out.nick : 'Socket '+num}): ${isOn ? 'ON' : 'OFF'}. Click to toggle.">⚡<span class="socket-num">${num}</span></div>`;
+          const outLabel = (out && out.nick) ? out.nick : `Outlet ${num}`;
+          return `
+            <div class="phys-socket-wrap">
+              <div class="phys-socket ${isOn ? "on" : ""}" data-socket="${num}" title="${outLabel}: ${isOn ? 'ON' : 'OFF'}. Click to toggle.">⚡</div>
+              <div class="phys-socket-name" data-socket="${num}" title="${outLabel}">${outLabel}</div>
+            </div>
+          `;
         }).join("");
 
         const dotsHtml = [1, 2, 3, 4].map(num => {
@@ -2305,8 +2313,8 @@ async function live(){
           };
         }
 
-        // Quick click on physical socket indicator toggles that outlet
-        c.querySelectorAll(".phys-socket").forEach(ps => {
+        // Quick click on physical socket indicator or name toggles that outlet
+        c.querySelectorAll(".phys-socket, .phys-socket-name").forEach(ps => {
           ps.onclick = async () => {
             const socketNum = parseInt(ps.getAttribute("data-socket"), 10);
             const targetOut = (d.outlets || []).find(o => o.n === socketNum);
