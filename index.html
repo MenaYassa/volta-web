@@ -2084,7 +2084,7 @@ async function live(){
           card.className = "outlet-card" + (o.on ? " on" : "") + (locked ? " is-locked" : "");
 
           const pStr = (o.power_w !== undefined && o.power_w !== null) ? `${o.power_w} W` : "0 W";
-          const aStr = (o.current_a !== undefined && o.current_a !== null && o.current_a > 0) ? `${o.current_a} A` : "";
+          const aStr = (o.current_a !== undefined && o.current_a !== null) ? `${Number(o.current_a).toFixed(2)} A` : "0.00 A";
           const eStr = (o.energy_kwh !== undefined && o.energy_kwh !== null) ? `${o.energy_kwh} kWh` : "0 kWh";
           const tStr = (o.temp_c !== undefined && o.temp_c !== null) ? `${o.temp_c}°C` : "";
           const tripAlert = (!o.overload_ok || !o.overheat_ok)
@@ -2104,7 +2104,8 @@ async function live(){
                 <span class="${o.on ? "on-txt" : ""}" style="font-weight:700;font-size:11px">${o.on ? "ON" : "OFF"}</span>
                 <span>•</span>
                 <span class="val">${pStr}</span>
-                ${aStr ? `<span>•</span><span class="val">${aStr}</span>` : ""}
+                <span>•</span>
+                <span class="val">${aStr}</span>
                 <span>•</span>
                 <span>${eStr}</span>
                 ${tStr ? `<span>•</span><span>${tStr}</span>` : ""}

@@ -121,6 +121,7 @@ Authorization: Bearer <TOKEN>
       "online": true,
       "voltage_v": 236.5,
       "power_w": 172.6,
+      "current_a": 0.693,
       "energy_kwh": 6.34,
       "rssi": -65,
       "locked_outlets": [2],
@@ -139,8 +140,13 @@ Authorization: Bearer <TOKEN>
           "name": "TV OLED",
           "on": true,
           "power_w": 64.4,
+          "current_a": 0.253,
           "energy_kwh": 1.84,
           "temp_c": 28,
+          "event_code": "00",
+          "event_desc": "Normal / OK",
+          "overload_ok": true,
+          "overheat_ok": true,
           "locked": false
         },
         {
@@ -148,8 +154,13 @@ Authorization: Bearer <TOKEN>
           "name": "NAS Storage",
           "on": true,
           "power_w": 35.1,
+          "current_a": 0.129,
           "energy_kwh": 0.83,
           "temp_c": 30,
+          "event_code": "00",
+          "event_desc": "Normal / OK",
+          "overload_ok": true,
+          "overheat_ok": true,
           "locked": true
         }
       ]
@@ -220,9 +231,15 @@ Maintain 1:1 visual continuity with the web dashboard:
   - `Online (0 outlets ON)`: Muted Gray (`#94A3B8`).
   - `Online (1–3 outlets ON)`: Vibrant Light Green (`#4ADE80`).
   - `Online (All 4 outlets ON)`: Shiny Glowing Green (`#22C55E` with subtle drop-shadow).
-- **Batch Button Dynamic Accents**:
+- **Batch & Utility Buttons**:
   - `ALL ON`: Filled Solid Green (`#22C55E`) when all outlets are ON; otherwise ghost button.
   - `ALL OFF`: Filled Solid Red (`#EF4444`) when all outlets are OFF; otherwise ghost button.
+  - `🔄 Reboot`: Header utility button sending `POST /api/reboot` with prompt confirmation.
+- **Outlet Specs Row**:
+  - Always render formatted specs consistently:
+    `[STATE] • [POWER W] • [CURRENT A] • [ENERGY kWh] • [TEMP °C]`
+    (e.g., `ON • 103.71 W • 0.43 A • 1.856 kWh • 28°C`).
+  - If `overload_ok == false` or `overheat_ok == false`, display a warning tag (`⚠️ OVERLOAD` / `⚠️ OVERHEAT`).
 
 ---
 
