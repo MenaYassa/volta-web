@@ -1239,7 +1239,19 @@ class Handler(BaseHTTPRequestHandler):
         return clean_mac in ctx["strips"]
 
     def do_HEAD(self):  # noqa: N802
-        self.do_GET()
+        u = urllib.parse.urlparse(self.path)
+        if u.path in ("/", "/index.html"):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(os.path.getsize("index.html")))
+            self.end_headers()
+        elif u.path == "/api/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+        else:
+            self.send_response(200)
+            self.end_headers()
 
     def do_GET(self):  # noqa: N802
         u = urllib.parse.urlparse(self.path)
