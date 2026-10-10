@@ -208,6 +208,46 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .auth-gate-divider{margin:18px 0;display:flex;align-items:center;gap:10px}
 .auth-gate-divider span:first-child,.auth-gate-divider span:last-child{flex:1;height:1px;background:var(--line)}
 .auth-gate-divider span:nth-child(2){font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--mut)}
+
+/* SFN Power-inspired Dashboard Widgets & Hardware Strip Visuals */
+.sfn-dashboard-hero{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:16px}
+@media(min-width:768px){.sfn-dashboard-hero{grid-template-columns:300px 1fr}}
+.sfn-power-ring-card{background:linear-gradient(145deg,rgba(15,23,42,.95),rgba(30,41,59,.9));border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;box-shadow:0 8px 24px rgba(0,0,0,.15);color:#fff}
+.sfn-ring-container{position:relative;width:150px;height:150px;display:flex;align-items:center;justify-content:center;margin:8px 0}
+.sfn-ring-svg{width:100%;height:100%;transform:rotate(-90deg)}
+.sfn-ring-bg{fill:none;stroke:rgba(255,255,255,.1);stroke-width:10}
+.sfn-ring-val{fill:none;stroke:url(#ringGradient);stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset .6s ease}
+.sfn-ring-center{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.sfn-ring-center b{font-size:28px;font-weight:800;letter-spacing:-0.5px;line-height:1}
+.sfn-ring-center span{font-size:11px;font-weight:600;color:#94a3b8;margin-top:4px}
+.sfn-ring-badge{margin-top:4px;font-size:11px;font-weight:600;padding:2px 10px;border-radius:99px;background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+
+.sfn-kpis-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sfn-kpi-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow);transition:transform .15s}
+.sfn-kpi-card:hover{transform:translateY(-1px)}
+.sfn-kpi-head{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--mut)}
+.sfn-kpi-head span.icon{font-size:16px}
+.sfn-kpi-card b{font-size:22px;font-weight:800;color:var(--ink);margin-top:6px}
+.sfn-kpi-card span.sub{font-size:11px;color:var(--mut);margin-top:2px}
+
+/* Physical Power Strip Component (Visual Enclosure with 4 sockets) */
+.strip-physical{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.15)}
+.strip-phys-sockets{display:flex;gap:12px;align-items:center}
+.phys-socket{width:36px;height:36px;border-radius:50%;background:#090d16;border:2px solid #334155;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:all .2s;color:#64748b;font-size:13px;font-weight:700}
+.phys-socket.on{border-color:#22c55e;color:#fff;background:radial-gradient(circle,#166534 0%,#052e16 100%);box-shadow:0 0 10px rgba(34,197,94,.5),inset 0 0 6px rgba(34,197,94,.4)}
+.phys-socket:hover{transform:scale(1.08)}
+.phys-socket span.socket-num{font-size:10px;position:absolute;bottom:-18px;color:#94a3b8;font-weight:600}
+.strip-phys-summary{text-align:right;color:#cbd5e1;font-size:12px}
+.strip-phys-summary b{display:block;font-size:15px;color:#fff;font-weight:700}
+.strip-phys-summary span.dots{letter-spacing:2px;font-size:14px}
+.strip-phys-summary span.dots .d-on{color:#22c55e}
+.strip-phys-summary span.dots .d-off{color:#475569}
+
+/* Outlets expansion drawer toggle button */
+.strip-toggle-expand{background:rgba(0,0,0,.03);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--mut);cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;transition:all .15s}
+.strip-toggle-expand:hover{color:var(--ink);background:rgba(0,0,0,.06)}
+:root[data-theme="dark"] .strip-toggle-expand{background:rgba(255,255,255,.04)}
+:root[data-theme="dark"] .strip-toggle-expand:hover{background:rgba(255,255,255,.08);color:#fff}
 </style>
 </head>
 <body>
@@ -287,16 +327,88 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 <!-- ============ CONTROL ============ -->
 <section class="tabpane on" id="pane-control">
-<div class="ov">
-<div class="stat"><b id="ovOnline">—</b><span>online strips</span></div>
-<div class="stat"><b id="ovOutlets">—</b><span>outlets on</span></div>
-<div class="stat"><b id="ovPower">—</b><span>total load</span></div>
-<div class="stat"><b id="ovUpdated">—</b><span>last update</span></div>
+
+<!-- SFN Power-Inspired Hero & Radial Consumption Widget -->
+<div class="sfn-dashboard-hero">
+  <!-- SFN Household & Subscription Summary Widget -->
+  <div class="card" id="sfnSubSummaryCard" style="grid-column:1 / -1;margin-bottom:0;display:none;background:linear-gradient(135deg,rgba(30,41,59,.6) 0%,rgba(15,23,42,.8) 100%);border:1px solid rgba(255,255,255,.08);padding:14px 18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <span style="font-size:24px">⭐</span>
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8">Current Subscription Plan</div>
+          <div style="font-size:16px;font-weight:800;color:#fff" id="sfnPlanTitle">Standard Plan</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <div>
+          <span style="display:block;font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:600">Strip Capacity</span>
+          <b style="font-size:13px;color:#cbd5e1" id="sfnPlanCapacity">3 strips · Unlimited</b>
+        </div>
+        <div>
+          <span style="display:block;font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:600">Status</span>
+          <span class="tag ok" id="sfnPlanStatus">Active</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Power Gauge Card -->
+  <div class="sfn-power-ring-card">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;margin-bottom:2px">Total Household Load</div>
+    <div class="sfn-ring-container">
+      <svg class="sfn-ring-svg" viewBox="0 0 100 100">
+        <defs>
+          <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#3b82f6"/>
+            <stop offset="60%" stop-color="#22c55e"/>
+            <stop offset="100%" stop-color="#eab308"/>
+          </linearGradient>
+        </defs>
+        <circle class="sfn-ring-bg" cx="50" cy="50" r="42"/>
+        <circle class="sfn-ring-val" id="sfnRadialCircle" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"/>
+      </svg>
+      <div class="sfn-ring-center">
+        <b id="sfnRingWatts">0 W</b>
+        <span id="sfnRingRatio">0/0 strips reporting</span>
+      </div>
+    </div>
+    <div class="sfn-ring-badge" id="sfnRingStatus">Active Live Stream</div>
+  </div>
+
+  <!-- 2x2 Household KPIs Grid -->
+  <div class="sfn-kpis-grid">
+    <div class="sfn-kpi-card">
+      <div class="sfn-kpi-head"><span class="icon">🔌</span><span>Total Strips</span></div>
+      <b id="sfnKpiStrips">—</b>
+      <span class="sub" id="sfnKpiStripsSub">Fleet capacity</span>
+    </div>
+    <div class="sfn-kpi-card">
+      <div class="sfn-kpi-head"><span class="icon">🟢</span><span>Connected</span></div>
+      <b id="sfnKpiOnline" style="color:#22c55e">—</b>
+      <span class="sub" id="sfnKpiOnlineSub">Online now</span>
+    </div>
+    <div class="sfn-kpi-card">
+      <div class="sfn-kpi-head"><span class="icon">⚡</span><span>Active Outlets</span></div>
+      <b id="sfnKpiOutlets">—</b>
+      <span class="sub" id="sfnKpiOutletsSub">Supplying power</span>
+    </div>
+    <div class="sfn-kpi-card">
+      <div class="sfn-kpi-head"><span class="icon">🛡️</span><span>Protection</span></div>
+      <b id="sfnKpiGuard" style="color:#3b82f6">Armed</b>
+      <span class="sub">Dual Safety Active</span>
+    </div>
+  </div>
 </div>
-<div class="row" style="margin-bottom:10px">
-<button id="btnLiveRefresh" class="ghost sm">↻ Refresh now</button>
-<span class="small">Auto-refresh every 5s while here. State is confirmed by the strip itself.</span>
+
+<div class="row" style="margin-bottom:12px;justify-content:space-between;align-items:center">
+  <div style="display:flex;gap:8px;align-items:center">
+    <button id="btnLiveRefresh" class="ghost sm" style="font-size:12px">↻ Refresh</button>
+    <span class="small" id="sfnLiveUpdated">Updated just now</span>
+  </div>
+  <button id="btnExpandAllStrips" class="ghost sm" style="font-size:12px">Show All Outlets</button>
 </div>
+
 <div id="live"></div>
 </section>
 
@@ -1457,6 +1569,34 @@ async function checkSrv(){
           if($("gatewayLogCard"))$("gatewayLogCard").style.display = who.is_admin ? "block" : "none";
           if($("fltManageUnassigned"))$("fltManageUnassigned").style.display = who.is_admin ? "" : "none";
 
+          // Update SFN Subscription Summary Card
+          const sfnCard = $("sfnSubSummaryCard");
+          if(sfnCard){
+            sfnCard.style.display = "block";
+            const planTitle = $("sfnPlanTitle");
+            const planCap = $("sfnPlanCapacity");
+            const planStat = $("sfnPlanStatus");
+            if(who.is_admin){
+              if(planTitle) planTitle.textContent = "Administrator Suite";
+              if(planCap) planCap.textContent = "Unlimited strips · Full Access";
+              if(planStat) { planStat.className = "tag ok"; planStat.textContent = "System Admin"; }
+            } else {
+              const maxS = who.max_strips || 1;
+              if(planTitle) planTitle.textContent = who.role ? `${who.role} Plan` : "Home Standard";
+              if(planCap) planCap.textContent = `${maxS} strip${maxS===1?"":"s"} · Standard Tier`;
+              if(who.expires_at){
+                const nowSec = Math.floor(Date.now() / 1000);
+                const isExp = who.expires_at <= nowSec;
+                if(planStat){
+                  planStat.className = isExp ? "tag bad" : "tag ok";
+                  planStat.textContent = isExp ? "Expired" : "Active";
+                }
+              } else {
+                if(planStat){ planStat.className = "tag ok"; planStat.textContent = "Lifetime"; }
+              }
+            }
+          }
+
           // Check subscription expiry warning (less than 30 days remaining)
           const banner = $("subNoticeBanner");
           if(banner){
@@ -1854,6 +1994,27 @@ async function saveStripCardOrder(){
   }
 }
 
+let _expandedStrips = {}; // mac -> boolean
+let _allStripsExpanded = false;
+
+on("btnExpandAllStrips", "click", () => {
+  _allStripsExpanded = !_allStripsExpanded;
+  const btn = $("btnExpandAllStrips");
+  if (btn) btn.textContent = _allStripsExpanded ? "Collapse Outlets" : "Show All Outlets";
+  if (_last && _last.devices) {
+    _last.devices.forEach(d => {
+      const cleanM = (d.mac || "").replace(/[^0-9a-f]/gi, "").toUpperCase();
+      _expandedStrips[cleanM] = _allStripsExpanded;
+    });
+  }
+  document.querySelectorAll(".strip-outs-wrapper").forEach(w => {
+    w.style.display = _allStripsExpanded ? "block" : "none";
+  });
+  document.querySelectorAll(".strip-toggle-expand").forEach(b => {
+    b.textContent = _allStripsExpanded ? "▲ Hide Outlets" : "▼ Show Outlets";
+  });
+});
+
 async function live(){
   if(!tok()){
     updateAuthGateState(false);
@@ -1882,6 +2043,27 @@ async function live(){
     const totW=devs.reduce((a,d)=>a+(d.power_w||0),0);
     if($("ovPower"))$("ovPower").textContent=devs.length?totW.toFixed(1)+" W":"—";
     if($("ovUpdated"))$("ovUpdated").textContent=fmtTime();
+
+    // SFN Power Hero & Radial Metrics Update
+    if($("sfnRingWatts")) $("sfnRingWatts").textContent = totW.toFixed(1) + " W";
+    if($("sfnRingRatio")) $("sfnRingRatio").textContent = devs.length ? `${online.length}/${devs.length} strips live` : "0 strips";
+    if($("sfnKpiStrips")) $("sfnKpiStrips").textContent = String(devs.length);
+    if($("sfnKpiStripsSub")) $("sfnKpiStripsSub").textContent = `${online.length} connected`;
+    if($("sfnKpiOnline")) $("sfnKpiOnline").textContent = String(online.length);
+    if($("sfnKpiOnlineSub")) $("sfnKpiOnlineSub").textContent = online.length === devs.length ? "All connected" : `${devs.length - online.length} disconnected`;
+    if($("sfnKpiOutlets")) $("sfnKpiOutlets").textContent = String(onCount);
+    if($("sfnKpiOutletsSub")) $("sfnKpiOutletsSub").textContent = `${onCount} of ${devs.length * 4} active`;
+    if($("sfnLiveUpdated")) $("sfnLiveUpdated").textContent = "Updated " + fmtTime();
+
+    // Update SFN Radial Ring progress (max reference household capacity ~3520W / 16A @ 220V)
+    const ringCircle = $("sfnRadialCircle");
+    if(ringCircle){
+      const maxW = 3520;
+      const pct = Math.min(Math.max(totW / maxW, 0), 1);
+      const circumference = 264;
+      const offset = circumference - (pct * circumference);
+      ringCircle.style.strokeDashoffset = offset;
+    }
     const el=$("live");
     if(el){
       el.innerHTML=devs.length?"":"<div class='card'><h3>No strips yet</h3><p class='desc'>Provision one strip and it dials in here by itself. Go to <b>Setup → Provision a strip</b>.</p></div>";
@@ -1945,6 +2127,21 @@ async function live(){
         const eDisplay = (d.energy_kwh !== undefined && d.energy_kwh !== null) ? `${d.energy_kwh} kWh` : "—";
         const tDisplay = (maxTemp !== null && maxTemp > 0) ? `${maxTemp}°C` : "—";
 
+        // SFN Power Strip Visual Representation (4 physical socket indicators)
+        const stripSocketsHtml = [1, 2, 3, 4].map(num => {
+          const out = (d.outlets || []).find(o => o.n === num);
+          const isOn = Boolean(out && out.on);
+          return `<div class="phys-socket ${isOn ? "on" : ""}" data-socket="${num}" title="Outlet ${num} (${out && out.nick ? out.nick : 'Socket '+num}): ${isOn ? 'ON' : 'OFF'}. Click to toggle.">⚡<span class="socket-num">${num}</span></div>`;
+        }).join("");
+
+        const dotsHtml = [1, 2, 3, 4].map(num => {
+          const out = (d.outlets || []).find(o => o.n === num);
+          return `<span class="${out && out.on ? 'd-on' : 'd-off'}">●</span>`;
+        }).join(" ");
+
+        const cleanMac = (d.mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase();
+        const isExp = _expandedStrips[cleanMac] !== undefined ? _expandedStrips[cleanMac] : _allStripsExpanded;
+
         c.innerHTML = `
           <div class="strip-head">
             <span class="strip-drag-handle" title="Drag to reorder strip cards">⠿</span>
@@ -1966,6 +2163,18 @@ async function live(){
             </div>
           </div>
 
+          <!-- SFN Physical Power Strip Visual Enclosure -->
+          <div class="strip-physical">
+            <div class="strip-phys-sockets">
+              ${stripSocketsHtml}
+            </div>
+            <div class="strip-phys-summary">
+              <b>${pDisplay}</b>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">${activeOutlets} of ${totalOutlets} outlets ON</div>
+              <span class="dots">${dotsHtml}</span>
+            </div>
+          </div>
+
           <div class="strip-metrics">
             <div class="s-stat"><span>Active Power</span><b>${pDisplay}</b></div>
             <div class="s-stat"><span>Total Current</span><b>${cDisplay}</b></div>
@@ -1975,7 +2184,13 @@ async function live(){
             <div class="s-stat"><span>Active Outlets</span><b>${activeOutlets} / ${totalOutlets}</b></div>
           </div>
 
-          <div class="outs-grid"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <button class="strip-toggle-expand">${isExp ? "▲ Hide Outlets" : "▼ Show Outlets"}</button>
+          </div>
+
+          <div class="strip-outs-wrapper" style="display:${isExp ? 'block' : 'none'}">
+            <div class="outs-grid"></div>
+          </div>
           <div class="msg small" style="margin-top:8px"></div>
         `;
 
@@ -2077,6 +2292,41 @@ async function live(){
             }
           };
         }
+
+        // Toggle Outlets Drawer expansion
+        const expBtn = c.querySelector(".strip-toggle-expand");
+        const outsWrapper = c.querySelector(".strip-outs-wrapper");
+        if (expBtn && outsWrapper) {
+          expBtn.onclick = () => {
+            const currentlyOpen = outsWrapper.style.display !== "none";
+            outsWrapper.style.display = currentlyOpen ? "none" : "block";
+            expBtn.textContent = currentlyOpen ? "▼ Show Outlets" : "▲ Hide Outlets";
+            _expandedStrips[cleanMac] = !currentlyOpen;
+          };
+        }
+
+        // Quick click on physical socket indicator toggles that outlet
+        c.querySelectorAll(".phys-socket").forEach(ps => {
+          ps.onclick = async () => {
+            const socketNum = parseInt(ps.getAttribute("data-socket"), 10);
+            const targetOut = (d.outlets || []).find(o => o.n === socketNum);
+            if (!targetOut) return;
+            if (isOutletLocked(d.mac, socketNum)) {
+              alert(`Outlet ${socketNum} (${targetOut.nick || "Outlet " + socketNum}) is locked 🔒. Unlock it before toggling.`);
+              return;
+            }
+            msg.textContent = `Outlet ${socketNum} → ${!targetOut.on ? "ON" : "OFF"}…`;
+            try {
+              const r = await apit("/api/onoff", { mac: d.mac, outlet: socketNum, on: !targetOut.on });
+              msg.textContent = r.queued ? "⏳ Queued" : (r.ok ? "✓ Confirmed" : "⚠ Failed");
+              await live();
+            } catch(err) {
+              msg.textContent = "";
+              showErr(msg, d.ip, err);
+              await live();
+            }
+          };
+        });
 
         for (const o of (d.outlets || [])) {
           const locked = isOutletLocked(d.mac, o.n);
