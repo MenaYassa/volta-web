@@ -1177,6 +1177,13 @@ def run_sweep(ip, port, start, end, timeout=1.5):
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "volta-local/1.0"
+    timeout = 15
+
+    def handle(self):
+        try:
+            super().handle()
+        except (ConnectionResetError, BrokenPipeError, TimeoutError, OSError):
+            pass
 
     def _send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")

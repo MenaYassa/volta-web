@@ -4289,8 +4289,11 @@ function rangeDownsample(rs){
   if(rs==="7d"||rs==="30d")return "hour";
   return "day";
 }
+let _rangeKpisBusy = false;
 async function loadRangeKpis(){
   // KPI cards scoped to the currently selected chart range + strip selection
+  if(_rangeKpisBusy) return;
+  _rangeKpisBusy = true;
   try{
     const now=Math.floor(Date.now()/1000);
     const start=now-(RANGE_SEC[aRange]||86400);
@@ -4308,6 +4311,7 @@ async function loadRangeKpis(){
     if($("aCost"))$("aCost").textContent=Number(cost).toFixed(2)+" "+currency;
     if($("aHeroRange"))$("aHeroRange").textContent=`period: ${RANGE_LABEL[aRange]||aRange} · ${aMac==="__all__"?"all strips":nmOfMac(aMac)}`;
   }catch(e){console.error("kpi error:",e);}
+  finally{_rangeKpisBusy = false;}
 }
 async function loadOverview(st){
   try{
