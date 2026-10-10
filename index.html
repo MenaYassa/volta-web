@@ -231,19 +231,41 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .sfn-kpi-card span.sub{font-size:11px;color:var(--mut);margin-top:2px}
 
 /* Physical Power Strip Component (Visual Enclosure with 4 sockets) */
-.strip-physical{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px 16px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.15)}
-.strip-phys-sockets{display:flex;gap:10px;align-items:flex-start}
-.phys-socket-wrap{display:flex;flex-direction:column;align-items:center;width:48px;max-width:48px;flex:0 0 48px;text-align:center}
-.phys-socket{width:36px;height:36px;border-radius:50%;background:#090d16;border:2px solid #334155;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:all .2s;color:#64748b;font-size:13px;font-weight:700}
+.strip-physical{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px 14px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.15);width:100%;box-sizing:border-box;overflow:hidden}
+.strip-phys-sockets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:center;flex:1 1 auto;min-width:0}
+.phys-socket-wrap{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0;text-align:center}
+.phys-socket{width:36px;height:36px;border-radius:50%;background:#090d16;border:2px solid #334155;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:all .2s;color:#64748b;font-size:13px;font-weight:700;flex-shrink:0}
 .phys-socket.on{border-color:#22c55e;color:#fff;background:radial-gradient(circle,#166534 0%,#052e16 100%);box-shadow:0 0 10px rgba(34,197,94,.5),inset 0 0 6px rgba(34,197,94,.4)}
 .phys-socket:hover{transform:scale(1.08)}
-.phys-socket-name{font-size:10px;color:#94a3b8;font-weight:600;margin-top:6px;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;cursor:pointer}
+.phys-socket-name{font-size:10px;color:#94a3b8;font-weight:600;margin-top:5px;width:100%;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;cursor:pointer;padding:0 2px;box-sizing:border-box}
 .phys-socket-name:hover{color:#cbd5e1}
-.strip-phys-summary{text-align:right;color:#cbd5e1;font-size:12px;flex:1 0 auto;min-width:90px}
-.strip-phys-summary b{display:block;font-size:15px;color:#fff;font-weight:700}
-.strip-phys-summary span.dots{letter-spacing:2px;font-size:14px}
+.strip-phys-summary{text-align:right;color:#cbd5e1;font-size:12px;flex:0 0 auto;padding-left:10px;border-left:1px solid rgba(255,255,255,.1)}
+.strip-phys-summary b{display:block;font-size:15px;color:#fff;font-weight:700;white-space:nowrap}
+.strip-phys-summary span.dots{letter-spacing:2px;font-size:13px}
 .strip-phys-summary span.dots .d-on{color:#22c55e}
 .strip-phys-summary span.dots .d-off{color:#475569}
+
+@media(max-width:480px){
+  .strip-physical{padding:10px 10px 12px;gap:6px}
+  .strip-phys-sockets{gap:4px}
+  .phys-socket{width:30px;height:30px;font-size:11px}
+  .phys-socket-name{font-size:9px;margin-top:4px}
+  .strip-phys-summary{padding-left:6px;font-size:10px}
+  .strip-phys-summary b{font-size:13px}
+}
+
+/* SFN Card & Form Styling for Automation / Schedules / Timers */
+.sfn-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px;position:relative}
+.sfn-hero-banner{background:linear-gradient(135deg,rgba(15,23,42,.95) 0%,rgba(30,41,59,.9) 100%);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px 22px;color:#fff;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.sfn-item-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin-bottom:10px;box-shadow:0 2px 5px rgba(0,0,0,.02);transition:all .15s}
+.sfn-item-card:hover{border-color:rgba(59,130,246,.3);transform:translateY(-1px)}
+.sfn-item-card.is-paused{opacity:.65;background:rgba(0,0,0,.01)}
+.sfn-action-toggle{display:flex;gap:8px}
+.sfn-action-btn{flex:1;border-radius:12px;padding:12px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all .15s}
+.sfn-action-btn.active-on{background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;border:none;box-shadow:0 4px 12px rgba(34,197,94,.3)}
+.sfn-action-btn.active-off{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;box-shadow:0 4px 12px rgba(239,68,68,.3)}
+.sfn-action-btn.inactive{background:transparent;color:var(--mut);border:1.5px solid var(--line)}
+.sfn-action-btn.inactive:hover{border-color:var(--ink);color:var(--ink)}
 
 /* Outlets expansion drawer toggle button */
 .strip-toggle-expand{background:rgba(0,0,0,.03);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--mut);cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;transition:all .15s}
@@ -573,31 +595,31 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 <!-- ============ SCHEDULES ============ -->
 <section class="tabpane" id="pane-sched">
-<div class="row" style="margin-bottom:12px;gap:8px">
-  <button id="segSched" class="sm on" style="border-radius:99px;padding:8px 18px">📅 Daily Schedules</button>
-  <button id="segTimers" class="ghost sm" style="border-radius:99px;padding:8px 18px">⏱️ Outlet Timers <span id="timerBadge" class="tag">0</span></button>
+<div class="row" style="margin-bottom:14px;gap:8px">
+  <button id="segSched" class="sm on" style="border-radius:99px;padding:8px 18px;font-weight:600">📅 Daily Schedules</button>
+  <button id="segTimers" class="ghost sm" style="border-radius:99px;padding:8px 18px;font-weight:600">⏱️ Outlet Timers <span id="timerBadge" class="tag" style="margin-left:4px">0</span></button>
 </div>
 
 <div id="schedPane">
-<div class="card" style="background:linear-gradient(135deg,#064e3b 0%,#059669 70%,#10b981 100%);border:none;color:#fff">
-  <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.85">Rule preview</div>
-  <div style="font-size:19px;font-weight:700;line-height:1.35;margin-top:4px" id="scPreview">Select a strip to begin…</div>
+<div class="sfn-hero-banner" style="background:linear-gradient(135deg,#064e3b 0%,#059669 70%,#10b981 100%)">
+  <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.9;font-weight:700">Automation Rule Summary</div>
+  <div style="font-size:18px;font-weight:700;line-height:1.35;margin-top:4px" id="scPreview">Select a strip to begin…</div>
 </div>
 
-<div class="card">
-<h3>New schedule</h3>
+<div class="sfn-card">
+<h3 style="margin-top:0">Create New Schedule</h3>
 <div class="grid cols2">
   <div class="field"><span>Target strip</span><select id="scMac"></select></div>
   <div class="field"><span>Trigger</span><select id="scKind"><option value="time">🕐 Clock time</option><option value="rise">🌅 Astronomical sunrise</option><option value="set">🌇 Astronomical sunset</option></select></div>
 </div>
 <div class="field"><span>Outlets</span><div id="scOutletPills" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>
 <div class="field" style="margin-top:10px"><span>Power action</span>
-  <div style="display:flex;gap:10px">
-    <button id="scOnBtn" class="on" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#059669;color:#fff;border:2px solid #059669">⚡ Turn ON</button>
-    <button id="scOffBtn" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)">⏻ Turn OFF</button>
+  <div class="sfn-action-toggle">
+    <button id="scOnBtn" class="sfn-action-btn active-on">⚡ Turn ON</button>
+    <button id="scOffBtn" class="sfn-action-btn inactive">⏻ Turn OFF</button>
   </div>
 </div>
-<div class="field" style="margin-top:10px"><span>Time</span>
+<div class="field" style="margin-top:10px"><span>Trigger Time</span>
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
     <input id="scTime" type="time" value="23:00" style="max-width:140px">
     <button class="ghost sm scPreset" data-t="06:00">06:00 Early</button>
@@ -636,24 +658,31 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     </div>
   </div>
 </div>
-<div class="row"><button id="btnSchedAdd">💾 Save Schedule</button></div>
+<div class="row" style="margin-top:12px"><button id="btnSchedAdd" style="border-radius:12px;padding:10px 20px;font-weight:700">💾 Save Schedule</button></div>
 <div id="schedMsg" class="msgline"></div>
 <p class="desc">Sun times use your saved location (Settings → Location &amp; alerts). Schedules run on the server — your phone can be off.</p>
 </div>
-<div class="card">
-<h3>Active schedules</h3>
-<div class="row" style="margin-bottom:8px"><button id="btnSchedReload" class="ghost sm">↻ Reload</button><span class="small" id="schedCount"></span></div>
+
+<div class="sfn-card">
+<div class="row" style="margin-bottom:10px;justify-content:space-between;align-items:center">
+  <h3 style="margin:0">Active Schedules</h3>
+  <div class="row" style="gap:8px">
+    <span class="small" id="schedCount"></span>
+    <button id="btnSchedReload" class="ghost sm">↻ Reload</button>
+  </div>
+</div>
 <div id="schedList"><p class="small">Loading…</p></div>
 </div>
 </div>
 
 <div id="timerPane" style="display:none">
-<div class="card" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 70%,#3b82f6 100%);border:none;color:#fff">
-  <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.85">Timer preview</div>
-  <div style="font-size:19px;font-weight:700;line-height:1.35;margin-top:4px" id="tmPreview">Configure a timer below…</div>
+<div class="sfn-hero-banner" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 70%,#3b82f6 100%)">
+  <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.9;font-weight:700">Timer Rule Summary</div>
+  <div style="font-size:18px;font-weight:700;line-height:1.35;margin-top:4px" id="tmPreview">Configure a timer below…</div>
 </div>
-<div class="card">
-<h3>New outlet timer</h3>
+
+<div class="sfn-card">
+<h3 style="margin-top:0">New Outlet Timer</h3>
 <p class="desc">Countdown to switch, or a repeating ON/OFF cycle — runs on the server even with every browser closed.</p>
 <div class="grid cols2">
   <div class="field"><span>Target strip</span><select id="tmMac"></select></div>
@@ -661,9 +690,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 </div>
 <div class="field"><span>Outlets</span><div id="tmOutletPills" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>
 <div class="field" style="margin-top:10px"><span>Action (when countdown fires)</span>
-  <div style="display:flex;gap:10px">
-    <button id="tmOnBtn" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)">⚡ Turn ON</button>
-    <button id="tmOffBtn" style="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#dc2626;color:#fff;border:2px solid #dc2626">⏻ Turn OFF</button>
+  <div class="sfn-action-toggle">
+    <button id="tmOnBtn" class="sfn-action-btn inactive">⚡ Turn ON</button>
+    <button id="tmOffBtn" class="sfn-action-btn active-off">⏻ Turn OFF</button>
   </div>
 </div>
 <div class="grid cols2" style="margin-top:10px">
@@ -710,12 +739,18 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     <button class="ghost sm tmLabelSug" data-l="Exhaust Fan Pulse">+ Fan Pulse</button>
   </div>
 </div>
-<div class="row"><button id="btnTimerAdd">💾 Save Timer</button></div>
+<div class="row" style="margin-top:12px"><button id="btnTimerAdd" style="border-radius:12px;padding:10px 20px;font-weight:700">💾 Save Timer</button></div>
 <div id="timerMsg" class="msgline"></div>
 </div>
-<div class="card">
-<h3>Active timers</h3>
-<div class="row" style="margin-bottom:8px"><button id="btnTimerReload" class="ghost sm">↻ Reload</button><span class="small" id="timerCount"></span></div>
+
+<div class="sfn-card">
+<div class="row" style="margin-bottom:10px;justify-content:space-between;align-items:center">
+  <h3 style="margin:0">Active Timers</h3>
+  <div class="row" style="gap:8px">
+    <span class="small" id="timerCount"></span>
+    <button id="btnTimerReload" class="ghost sm">↻ Reload</button>
+  </div>
+</div>
 <div id="timerList"><p class="small">Loading…</p></div>
 </div>
 </div>
@@ -3372,8 +3407,14 @@ function tmOffSec(){return Math.max(1,(+$("tmOffVal").value||0)*(+$("tmOffUnit")
 on("scMac","change",()=>{outletPills("scOutletPills",()=>scOutlet,n=>scOutlet=n);scPreviewUpd();});
 on("tmMac","change",()=>{outletPills("tmOutletPills",()=>tmOutlet,n=>tmOutlet=n);tmPreviewUpd();});
 on("scKind","change",()=>{$("scTime").parentElement.style.display=$("scKind").value==="time"?"":"none";$("scSunRow").style.display=$("scKind").value==="time"?"none":"grid";scPreviewUpd();});
-on("scOnBtn","click",()=>{scOn=true;$("scOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#059669;color:#fff;border:2px solid #059669";$("scOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";scPreviewUpd();});
-on("scOffBtn","click",()=>{scOn=false;$("scOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#dc2626;color:#fff;border:2px solid #dc2626";$("scOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";scPreviewUpd();});
+on("scOnBtn","click",()=>{scOn=true;
+  $("scOnBtn").className="sfn-action-btn active-on";
+  $("scOffBtn").className="sfn-action-btn inactive";
+  scPreviewUpd();});
+on("scOffBtn","click",()=>{scOn=false;
+  $("scOffBtn").className="sfn-action-btn active-off";
+  $("scOnBtn").className="sfn-action-btn inactive";
+  scPreviewUpd();});
 document.querySelectorAll(".scPreset").forEach(b=>b.onclick=()=>{$("scTime").value=b.dataset.t;scPreviewUpd();});
 document.querySelectorAll(".scSunOff").forEach(b=>b.onclick=()=>{document.querySelectorAll(".scSunOff").forEach(x=>x.classList.remove("on"));b.classList.add("on");scSunOff=+b.dataset.o;scPreviewUpd();});
 document.querySelectorAll(".scDayPreset").forEach(b=>b.onclick=()=>{
@@ -3382,8 +3423,14 @@ document.querySelectorAll(".scDayPreset").forEach(b=>b.onclick=()=>{
 document.querySelectorAll(".scLabelSug").forEach(b=>b.onclick=()=>{$("scLabel").value=b.dataset.l;});
 on("scTime","change",scPreviewUpd);
 on("tmMode","change",()=>{$("tmOffField").style.display=$("tmMode").value==="cyclic"?"":"none";tmPreviewUpd();});
-on("tmOnBtn","click",()=>{tmOn=true;$("tmOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#059669;color:#fff;border:2px solid #059669";$("tmOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";tmPreviewUpd();});
-on("tmOffBtn","click",()=>{tmOn=false;$("tmOffBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:#dc2626;color:#fff;border:2px solid #dc2626";$("tmOnBtn").style.cssText="flex:1;border-radius:12px;padding:14px;font-size:16px;background:transparent;border:2px solid var(--line)";tmPreviewUpd();});
+on("tmOnBtn","click",()=>{tmOn=true;
+  $("tmOnBtn").className="sfn-action-btn active-on";
+  $("tmOffBtn").className="sfn-action-btn inactive";
+  tmPreviewUpd();});
+on("tmOffBtn","click",()=>{tmOn=false;
+  $("tmOffBtn").className="sfn-action-btn active-off";
+  $("tmOnBtn").className="sfn-action-btn inactive";
+  tmPreviewUpd();});
 document.querySelectorAll(".tmOnPreset").forEach(b=>b.onclick=()=>{
   const s=+b.dataset.s;
   if(s>=86400){$("tmOnVal").value=s/86400;$("tmOnUnit").value="86400";}
@@ -3421,16 +3468,22 @@ function renderSched(list){
   const nmOf=(mac)=>{const m=mac.replace(/[^0-9a-f]/gi,"").toLowerCase();
     return (names[m]||{}).name||(devs.find(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()===m)||{}).name||mac;};
   for(const s of list){
-    const d=document.createElement("div");d.className="sched";d.style.opacity=s.enabled?"":"0.65";
+    const d=document.createElement("div");d.className="sfn-item-card"+(s.enabled?"":" is-paused");
     const when=(s.kind==="sun")?`☀ ${(s.sun==="rise"?"sunrise":"sunset")}${s.offset_min?` ${s.offset_min>0?"+":""}${s.offset_min}min`:""}`:(s.time||"");
-    d.innerHTML=`<div class="row1"><b></b><span class="tag ${s.on?"ok":""}">${s.on?"ON":"OFF"}</span>
-      <span class="tag mono"></span><span class="tag">${when} · ${s.days.map(i=>DAYN[i]).join(" ")}</span>
-      <span class="tag">${s.tz||""}</span><span style="flex:1"></span>
-      <button class="ghost sm tgl">${s.enabled?"Pause":"Resume"}</button><button class="danger sm del">Delete</button></div>
-      <div class="small" style="margin-top:4px"></div>`;
+    d.innerHTML=`<div class="row1" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <b style="font-size:14px"></b>
+      <span class="tag ${s.on?"ok":"bad"}">${s.on?"⚡ TURN ON":"⏻ TURN OFF"}</span>
+      <span class="tag mono"></span>
+      <span class="tag">${when} · ${s.days.map(i=>DAYN[i]).join(" ")}</span>
+      <span class="tag">${s.tz||""}</span>
+      <span style="flex:1"></span>
+      <button class="ghost sm tgl" style="border-radius:8px">${s.enabled?"⏸ Pause":"▶ Resume"}</button>
+      <button class="danger sm del" style="border-radius:8px">Delete</button>
+    </div>
+    <div class="small" style="margin-top:6px;color:var(--mut)"></div>`;
     d.querySelector("b").textContent=`${nmOf(s.mac)} · ${s.outlet===0?"ALL outlets":"outlet "+s.outlet}${s.label?" · "+s.label:""}`;
     d.querySelector(".mono").textContent=s.mac;
-    d.querySelector(".small").textContent="fires "+when+" ("+(s.tz||"")+")"+(s.last_fired?" · last fired "+s.last_fired:" · never fired yet");
+    d.querySelector(".small").textContent="Fires "+when+" ("+(s.tz||"")+")"+(s.last_fired?" · last fired "+s.last_fired:" · never fired yet");
     d.querySelector(".tgl").onclick=async()=>{try{await apit("/api/schedules",Object.assign({},s,{enabled:!s.enabled}));await loadSched();}catch(e){alert(e.message);}};
     d.querySelector(".del").onclick=async()=>{if(!confirm("Delete this schedule?"))return;
       try{await fetch("/api/schedules?id="+encodeURIComponent(s.id),{method:"DELETE",headers:tok()?{"X-Token":tok()}:{}});await loadSched();}catch(e){alert(e.message);}};
@@ -3469,7 +3522,7 @@ async function renderTimers(){
     if($("timerCount"))$("timerCount").textContent=list.length?`${active}/${list.length} active`:"";
     box.innerHTML=list.length?"":"<p class='small'>No timers yet. Create one above — e.g. turn the heater OFF after 2h.</p>";
     for(const t of list){
-      const d=document.createElement("div");d.className="sched";d.style.opacity=t.enabled?"":"0.6";
+      const d=document.createElement("div");d.className="sfn-item-card"+(t.enabled?"":" is-paused");
       const mode=t.mode==="cyclic"
         ?`🔁 ON ${Math.round(t.on_sec/60)}m ↔ OFF ${Math.round(t.off_sec/60)}m`
         :`⏳ after ${fmtDur(t.on_sec)} → ${t.on?"ON":"OFF"}`;
@@ -3481,12 +3534,15 @@ async function renderTimers(){
         const left=Math.max(0,Math.round(phaseLen-(Date.now()/1000-t.phase_started)));
         live=` · <b class="mono" style="color:var(--blue)">⏱ ${fmtDur(left)} until ${t.mode==="cyclic"?(t.phase==="on"?"OFF":"ON"):"fire"}</b> · phase ${t.phase}${t.repeat!=="once"?` · cycle ${t.cycles_done||0}${t.repeat==="times"?"/"+t.repeat_n:""}`:""}`;
       }
-      d.innerHTML=`<div class="row1"><b></b>
-        <span class="tag">${mode}</span><span class="tag">${rep}</span>
+      d.innerHTML=`<div class="row1" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <b style="font-size:14px"></b>
+        <span class="tag">${mode}</span>
+        <span class="tag">${rep}</span>
         <span style="flex:1"></span>
-        <button class="ghost sm tgl">${t.enabled?"⏸ Pause":"▶ Resume"}</button>
-        <button class="danger sm del">Delete</button></div>
-        <div class="small" style="margin-top:4px"></div>`;
+        <button class="ghost sm tgl" style="border-radius:8px">${t.enabled?"⏸ Pause":"▶ Resume"}</button>
+        <button class="danger sm del" style="border-radius:8px">Delete</button>
+      </div>
+      <div class="small" style="margin-top:6px;color:var(--mut)"></div>`;
       d.querySelector("b").textContent=`${nmOfMac(t.mac)} · ${t.outlet===0?"ALL outlets":"outlet "+t.outlet}${t.label?" · "+t.label:""}${t.enabled?"":" (paused)"}`;
       d.querySelector(".small").innerHTML=live||"paused — will not fire until resumed";
       d.querySelector(".tgl").onclick=async()=>{try{await apit("/api/timers",Object.assign({},t,{enabled:!t.enabled,phase_started:Date.now()/1000}));await renderTimers();}catch(e){alert(e.message);}};
