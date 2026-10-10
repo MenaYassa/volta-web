@@ -1250,6 +1250,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path in ("/", "/index.html"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
             self.send_header("Content-Length", str(os.path.getsize("index.html")))
             self.end_headers()
         elif u.path == "/api/health":
@@ -1266,6 +1269,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path in ("/", "/index.html"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
             self.send_header("Content-Security-Policy",
                              "default-src 'self'; "
                              "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com; "
@@ -2020,6 +2026,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "no sw"}, 404)
             self.send_response(200)
             self.send_header("Content-Type", "application/javascript")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)

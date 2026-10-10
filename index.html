@@ -65,7 +65,7 @@ button.sm{padding:6px 10px;font-size:13px;min-height:0}
 .ov .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .ov .stat b{display:block;font-size:20px}
 .ov .stat span{font-size:12px;color:var(--mut)}
-.strip{border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:16px 0;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.03);transition:border-color .2s,box-shadow .2s,transform .15s}
+.strip{border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:16px 0;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.03);transition:border-color .2s,box-shadow .2s,transform .15s;overflow:hidden;box-sizing:border-box}
 .strip.off{opacity:.8}
 .strip.dragging{opacity:.4;border:2px dashed var(--blue);transform:scale(.98)}
 .strip.drag-over{border-top:3px solid var(--blue)}
@@ -231,27 +231,33 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .sfn-kpi-card span.sub{font-size:11px;color:var(--mut);margin-top:2px}
 
 /* Physical Power Strip Component (Visual Enclosure with 4 sockets) */
-.strip-physical{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px 14px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.15);width:100%;box-sizing:border-box;overflow:hidden}
-.strip-phys-sockets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:center;flex:1 1 auto;min-width:0}
-.phys-socket-wrap{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0;text-align:center}
+.strip-physical{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px 14px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.15);width:100%;max-width:100%;box-sizing:border-box;overflow:hidden}
+.strip-phys-sockets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:center;flex:1 1 auto;min-width:0;max-width:100%;overflow:hidden}
+.phys-socket-wrap{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0;text-align:center;overflow:hidden}
 .phys-socket{width:36px;height:36px;border-radius:50%;background:#090d16;border:2px solid #334155;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:all .2s;color:#64748b;font-size:13px;font-weight:700;flex-shrink:0}
 .phys-socket.on{border-color:#22c55e;color:#fff;background:radial-gradient(circle,#166534 0%,#052e16 100%);box-shadow:0 0 10px rgba(34,197,94,.5),inset 0 0 6px rgba(34,197,94,.4)}
 .phys-socket:hover{transform:scale(1.08)}
 .phys-socket-name{font-size:10px;color:#94a3b8;font-weight:600;margin-top:5px;width:100%;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;cursor:pointer;padding:0 2px;box-sizing:border-box}
 .phys-socket-name:hover{color:#cbd5e1}
-.strip-phys-summary{text-align:right;color:#cbd5e1;font-size:12px;flex:0 0 auto;padding-left:10px;border-left:1px solid rgba(255,255,255,.1)}
-.strip-phys-summary b{display:block;font-size:15px;color:#fff;font-weight:700;white-space:nowrap}
+.strip-phys-summary{text-align:right;color:#cbd5e1;font-size:12px;flex:0 0 auto;padding-left:10px;border-left:1px solid rgba(255,255,255,.1);max-width:35%;overflow:hidden}
+.strip-phys-summary b{display:block;font-size:15px;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .strip-phys-summary span.dots{letter-spacing:2px;font-size:13px}
 .strip-phys-summary span.dots .d-on{color:#22c55e}
 .strip-phys-summary span.dots .d-off{color:#475569}
 
-@media(max-width:480px){
-  .strip-physical{padding:10px 10px 12px;gap:6px}
+@media(max-width:560px){
+  .strip{padding:12px 12px;overflow:hidden}
+  .strip-head b{font-size:16px}
+  .strip-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .strip-physical{padding:10px 8px 12px;gap:6px}
   .strip-phys-sockets{gap:4px}
-  .phys-socket{width:30px;height:30px;font-size:11px}
-  .phys-socket-name{font-size:9px;margin-top:4px}
-  .strip-phys-summary{padding-left:6px;font-size:10px}
+  .phys-socket{width:28px;height:28px;font-size:10px}
+  .phys-socket-name{font-size:9px;margin-top:3px}
+  .strip-phys-summary{padding-left:6px;font-size:10px;max-width:40%}
   .strip-phys-summary b{font-size:13px}
+}
+@media(max-width:380px){
+  .strip-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 /* SFN Card & Form Styling for Automation / Schedules / Timers */
@@ -1651,7 +1657,14 @@ on("btnTheme","click",()=>{const cur=getTheme();
 on("prefTheme","change",()=>applyTheme($("prefTheme").value));
 applyTheme(getTheme());
 if(window.matchMedia)window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(getTheme()==="auto")applyTheme("auto");});
-if("serviceWorker"in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("/sw.js").catch(()=>{});});}
+if("serviceWorker"in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.getRegistrations().then(regs=>{
+      for(let r of regs) r.update();
+    });
+    navigator.serviceWorker.register("/sw.js").catch(()=>{});
+  });
+}
 function explain(ip,e){e=String(e||"").toLowerCase();
   if(/token required|401/.test(e))return "set the token in Settings first.";
   if(/connectionrefused/.test(e))return ip==="192.168.1.1"?"Nothing listening — on HOME Wi-Fi this is your ROUTER (join the strip AP first); on the strip AP it may be rebooting.":"Port closed — wrong IP, or strip rebooting/offline.";

@@ -12,6 +12,9 @@ services:
     volumes:
       - ./strips.json:/app/strips.json
       - ./analytics.db:/app/analytics.db
+      - ./index.html:/app/index.html
+      - ./server.py:/app/server.py
+      - ./sw.js:/app/sw.js
     deploy:
       resources:
         limits:
