@@ -342,7 +342,8 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   position: sticky;
   top: 0;
   height: 100vh;
-  max-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   z-index: 100;
   box-shadow: 2px 0 12px rgba(0,0,0,.06);
   border-right: 1px solid var(--line);
@@ -549,7 +550,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 8px 10px calc(12px + env(safe-area-inset-bottom, 0px));
   background: rgba(0,0,0,.02);
   flex-shrink: 0;
 }
@@ -854,8 +855,13 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 @media(max-width: 768px) {
   .app-sidebar {
     position: fixed;
-    left: -260px;
-    width: 250px !important;
+    top: 0;
+    bottom: 0;
+    left: -270px;
+    width: 260px !important;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     transition: left .25s ease;
   }
   .app-sidebar .sidebar-toggle-btn {
