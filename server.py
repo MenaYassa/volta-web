@@ -3542,4 +3542,22 @@ if __name__ == "__main__":
     log(f"volta-local on :{PORT} — open http://<this-host>:{PORT}")
     log(f"controller listening :{DEVICE_PORT} (strips dial in; provision them with this server's IP)")
     log(f"auth: {'TOKEN required' if TOKEN else 'OPEN (trusted LAN only — set VOLTA_TOKEN if exposed)'}")
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    import signal
+    httpd = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    httpd.daemon_threads = True
+
+    def _graceful_shutdown(sig, frame):
+        log(f"[server] received signal {sig}, shutting down gracefully...")
+        # Shutdown server in a thread to unblock serve_forever
+        _th.Thread(target=httpd.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _graceful_shutdown)
+    signal.signal(signal.SIGINT, _graceful_shutdown)
+
+    try:
+        httpd.serve_forever()
+    except Exception as e:
+        log(f"[server] server loop terminated: {e}")
+    finally:
+        httpd.server_close()
+        log("[server] port 8080 released cleanly")
