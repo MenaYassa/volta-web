@@ -319,9 +319,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 /* --- APP LAYOUT WITH COLLAPSIBLE SIDEBAR & UNIFIED HERO --- */
 :root {
-  --sidebar-w: 240px;
-  --sidebar-collapsed-w: 68px;
-  --header-h: 56px;
+  --sidebar-w: 248px;
+  --sidebar-collapsed-w: 72px;
+  --header-h: 58px;
 }
 
 .app-layout {
@@ -331,11 +331,11 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   position: relative;
 }
 
-/* Sidebar styling with fixed height and contained scrolling */
+/* Slick modern sidebar */
 .app-sidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
-  background: #ffffff;
+  background: #f8fafc;
   color: var(--ink);
   display: flex;
   flex-direction: column;
@@ -345,39 +345,41 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   height: 100dvh;
   max-height: 100dvh;
   z-index: 100;
-  box-shadow: 2px 0 12px rgba(0,0,0,.06);
+  box-shadow: 1px 0 0 var(--line), 4px 0 24px rgba(15,23,42,.03);
   border-right: 1px solid var(--line);
-  transition: width .25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width .22s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-x: hidden;
   box-sizing: border-box;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  user-select: none;
 }
 
 :root[data-theme="dark"] .app-sidebar {
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-  color: #fff;
-  border-right-color: rgba(255,255,255,.08);
-  box-shadow: 2px 0 16px rgba(0,0,0,.35);
+  background: #090e17;
+  border-right-color: rgba(255,255,255,.07);
+  box-shadow: 1px 0 0 rgba(255,255,255,.07), 4px 0 24px rgba(0,0,0,.4);
+  color: #f1f5f9;
 }
 
 .app-sidebar.collapsed {
   width: var(--sidebar-collapsed-w);
 }
 
+/* Sidebar Brand Header */
 .sidebar-brand {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
   min-height: var(--header-h);
+  border-bottom: 1px solid var(--line);
   flex-shrink: 0;
   box-sizing: border-box;
 }
 
 :root[data-theme="dark"] .sidebar-brand {
-  border-bottom-color: rgba(255,255,255,.08);
+  border-bottom-color: rgba(255,255,255,.07);
 }
 
 .sidebar-logo {
@@ -394,10 +396,24 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   color: #fff;
 }
 
+.sidebar-logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  box-shadow: 0 4px 12px rgba(37,99,235,.35);
+  flex-shrink: 0;
+}
+
 .sidebar-logo-text {
   font-size: 18px;
   font-weight: 800;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.4px;
   white-space: nowrap;
 }
 
@@ -405,8 +421,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   display: none;
 }
 
+/* Slick Collapse Toggle Button */
 .sidebar-toggle-btn {
-  background: rgba(0,0,0,.05) !important;
+  background: rgba(0,0,0,.04) !important;
   border: 1px solid var(--line) !important;
   color: var(--mut) !important;
   width: 30px !important;
@@ -418,38 +435,110 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   align-items: center;
   justify-content: center;
   padding: 0 !important;
-  font-size: 12px;
-  transition: all .2s;
+  transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
 }
 
 .sidebar-toggle-btn:hover {
-  background: rgba(0,0,0,.1) !important;
-  color: var(--ink) !important;
+  background: rgba(37,99,235,.1) !important;
+  border-color: rgba(37,99,235,.3) !important;
+  color: var(--blue) !important;
+  transform: scale(1.04);
 }
 
 :root[data-theme="dark"] .sidebar-toggle-btn {
-  background: rgba(255,255,255,.08) !important;
-  border-color: rgba(255,255,255,.1) !important;
-  color: #cbd5e1 !important;
+  background: rgba(255,255,255,.05) !important;
+  border-color: rgba(255,255,255,.09) !important;
+  color: #94a3b8 !important;
 }
 
 :root[data-theme="dark"] .sidebar-toggle-btn:hover {
-  background: rgba(255,255,255,.18) !important;
+  background: rgba(255,255,255,.12) !important;
+  border-color: rgba(255,255,255,.2) !important;
   color: #fff !important;
 }
 
-.app-sidebar.collapsed .sidebar-toggle-btn {
-  transform: rotate(180deg);
-  margin: 0 auto;
+.sidebar-toggle-btn .chevron-icon {
+  width: 15px;
+  height: 15px;
+  transition: transform .22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Sidebar Nav Items */
+.app-sidebar.collapsed .sidebar-toggle-btn .chevron-icon {
+  transform: rotate(180deg);
+}
+
+.app-sidebar.collapsed .sidebar-brand {
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+.app-sidebar.collapsed .sidebar-brand .sidebar-logo {
+  display: none;
+}
+
+/* Sidebar Plan Card */
+.sidebar-plan-card {
+  margin: 10px 10px 4px;
+  background: rgba(0,0,0,.025);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  flex-shrink: 0;
+  transition: all .2s;
+}
+
+:root[data-theme="dark"] .sidebar-plan-card {
+  background: rgba(255,255,255,.03);
+  border-color: rgba(255,255,255,.07);
+}
+
+.plan-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.plan-card-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--mut);
+  font-weight: 700;
+}
+
+.plan-card-title {
+  font-size: 13px;
+  display: block;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-theme="dark"] .plan-card-title {
+  color: #fff;
+}
+
+.plan-card-desc {
+  font-size: 11px;
+  color: var(--mut);
+  display: block;
+  margin-top: 2px;
+}
+
+.app-sidebar.collapsed .sidebar-plan-card {
+  display: none !important;
+}
+
+/* Sidebar Nav */
 .sidebar-nav {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 8px 8px;
+  padding: 10px 10px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -461,7 +550,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 10px;
   font-size: 13.5px;
   font-weight: 600;
@@ -470,11 +559,11 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   border: 1px solid transparent;
   cursor: pointer;
   text-align: left;
-  transition: all .15s;
+  transition: all .15s ease;
   white-space: nowrap;
   box-sizing: border-box;
   text-decoration: none;
-  min-height: 36px;
+  min-height: 40px;
 }
 
 .sidebar-nav .tab:hover {
@@ -487,15 +576,15 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 }
 
 :root[data-theme="dark"] .sidebar-nav .tab:hover {
-  background: rgba(255,255,255,.06);
+  background: rgba(255,255,255,.05);
   color: #f1f5f9;
 }
 
 .sidebar-nav .tab.on {
-  background: var(--blue) !important;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
   color: #fff !important;
-  box-shadow: 0 4px 12px rgba(37,99,235,.25);
-  border-color: rgba(37,99,235,.2);
+  box-shadow: 0 4px 14px rgba(37,99,235,.35);
+  border-color: rgba(255,255,255,.15);
 }
 
 .tab-icon {
@@ -505,6 +594,11 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   justify-content: center;
   width: 22px;
   flex-shrink: 0;
+  transition: transform .15s;
+}
+
+.sidebar-nav .tab:hover .tab-icon {
+  transform: scale(1.1);
 }
 
 .tab-label {
@@ -518,131 +612,256 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   display: none;
 }
 
+.app-sidebar.collapsed .sidebar-nav {
+  padding: 10px 6px;
+}
+
 .app-sidebar.collapsed .sidebar-nav .tab {
   justify-content: center;
-  padding: 8px 0;
-}
-
-/* Sidebar Plan / Subscription Widget */
-.sidebar-plan-card {
-  margin: 6px 8px 2px;
-  background: rgba(0,0,0,.03);
-  border: 1px solid var(--line);
+  padding: 10px 0;
   border-radius: 10px;
-  padding: 8px 10px;
-  color: var(--ink);
-  flex-shrink: 0;
 }
 
-:root[data-theme="dark"] .sidebar-plan-card {
-  background: rgba(255,255,255,.05);
-  border-color: rgba(255,255,255,.08);
-  color: #fff;
-}
-
-.app-sidebar.collapsed .sidebar-plan-card {
-  display: none !important;
-}
-
-/* Sidebar Footer & User Profile */
+/* Modern Sidebar Footer */
 .sidebar-footer {
   border-top: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px calc(12px + env(safe-area-inset-bottom, 0px));
-  background: rgba(0,0,0,.02);
+  gap: 8px;
+  padding: 12px 10px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: rgba(0,0,0,.015);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
-:root[data-theme="dark"] #userNameBadge {
-  color: #fff !important;
-}
-:root[data-theme="dark"] .sidebar-status-box {
-  color: #94a3b8;
-}
 :root[data-theme="dark"] .sidebar-footer {
-  border-top-color: rgba(255,255,255,.08);
-  background: rgba(0,0,0,.2);
+  border-top-color: rgba(255,255,255,.07);
+  background: rgba(0,0,0,.25);
 }
 
-.sidebar-user-box {
+/* Connection Status Box */
+.sidebar-status-box {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--mut);
+  padding: 4px 8px;
+  background: rgba(0,0,0,.03);
+  border-radius: 7px;
+}
+
+:root[data-theme="dark"] .sidebar-status-box {
+  background: rgba(255,255,255,.04);
+  color: #94a3b8;
+}
+
+.app-sidebar.collapsed .sidebar-status-box {
+  justify-content: center;
+  padding: 6px 0;
+}
+
+.app-sidebar.collapsed .sidebar-status-box span:not(.dot) {
+  display: none;
+}
+
+/* User Profile Tile */
+.sidebar-user-tile {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,.025);
+  border: 1px solid var(--line);
+  min-width: 0;
+  transition: all .15s;
+}
+
+:root[data-theme="dark"] .sidebar-user-tile {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.07);
+}
+
+.user-avatar-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.2);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.user-avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(37,99,235,.15);
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
   min-width: 0;
 }
 
-.app-sidebar.collapsed .sidebar-user-box .user-meta,
-.app-sidebar.collapsed .sidebar-user-box .user-actions {
+.user-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+:root[data-theme="dark"] .user-name {
+  color: #fff;
+}
+
+.user-sub {
+  font-size: 10px;
+  color: #16a34a;
+  font-weight: 600;
+  display: block;
+}
+
+.app-sidebar.collapsed .sidebar-user-tile {
+  justify-content: center;
+  padding: 6px;
+  border: none;
+  background: transparent;
+}
+
+.app-sidebar.collapsed .sidebar-user-tile .user-info,
+.app-sidebar.collapsed .sidebar-user-tile #btnLogout {
   display: none !important;
 }
 
-.app-sidebar.collapsed .sidebar-user-box {
-  justify-content: center;
-}
-
-.sidebar-quick-actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.app-sidebar.collapsed .sidebar-quick-actions {
-  flex-direction: column;
-  gap: 6px;
-}
-
-.sidebar-icon-btn {
-  background: rgba(0,0,0,.04) !important;
-  border: 1px solid var(--line) !important;
-  color: var(--ink) !important;
+/* Action pills (Sign in / Sign out) */
+.sidebar-action-pill {
+  border: 1px solid transparent !important;
   border-radius: 8px !important;
-  padding: 5px 8px !important;
+  padding: 5px 9px !important;
   font-size: 11.5px !important;
+  font-weight: 600 !important;
   cursor: pointer;
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
   gap: 5px;
   min-height: 0 !important;
-  transition: all .15s;
+  transition: all .15s ease;
+  line-height: 1 !important;
 }
 
-.sidebar-icon-btn:hover {
-  background: rgba(0,0,0,.08) !important;
+.sidebar-action-pill.danger {
+  background: rgba(220,38,38,.08) !important;
+  color: #dc2626 !important;
+  border-color: rgba(220,38,38,.2) !important;
 }
 
-:root[data-theme="dark"] .sidebar-icon-btn {
-  background: rgba(255,255,255,.07) !important;
-  border-color: rgba(255,255,255,.1) !important;
-  color: #cbd5e1 !important;
-}
-
-:root[data-theme="dark"] .sidebar-icon-btn:hover {
-  background: rgba(255,255,255,.16) !important;
+.sidebar-action-pill.danger:hover {
+  background: #dc2626 !important;
   color: #fff !important;
 }
 
-.app-sidebar.collapsed .sidebar-icon-btn span.btn-lbl {
+.sidebar-action-pill.primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(37,99,235,.25);
+}
+
+.sidebar-action-pill.primary:hover {
+  opacity: .95;
+}
+
+.app-sidebar.collapsed .sidebar-action-pill {
+  padding: 8px !important;
+}
+
+.app-sidebar.collapsed .sidebar-action-pill .btn-lbl {
   display: none;
 }
 
-.sidebar-status-box {
+/* Modern Sleek Theme Toggle Pill */
+.sidebar-theme-toggle {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 7px 10px !important;
+  border-radius: 9px !important;
+  background: rgba(0,0,0,.03) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--ink) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  min-height: 0 !important;
+  transition: all .15s ease;
+  box-sizing: border-box;
+}
+
+.sidebar-theme-toggle:hover {
+  background: rgba(0,0,0,.06) !important;
+  border-color: rgba(0,0,0,.15) !important;
+}
+
+:root[data-theme="dark"] .sidebar-theme-toggle {
+  background: rgba(255,255,255,.04) !important;
+  border-color: rgba(255,255,255,.08) !important;
+  color: #e2e8f0 !important;
+}
+
+:root[data-theme="dark"] .sidebar-theme-toggle:hover {
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(255,255,255,.15) !important;
+}
+
+.theme-icon-wrap {
+  font-size: 14px;
+  line-height: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--mut);
-  padding: 2px 4px;
+  justify-content: center;
 }
 
-.app-sidebar.collapsed .sidebar-status-box span:not(.dot) {
-  display: none;
+.theme-label {
+  flex: 1;
+  text-align: left;
 }
-.app-sidebar.collapsed .sidebar-status-box {
+
+.theme-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(0,0,0,.06);
+  color: var(--mut);
+}
+
+:root[data-theme="dark"] .theme-badge {
+  background: rgba(255,255,255,.08);
+  color: #94a3b8;
+}
+
+.app-sidebar.collapsed .sidebar-theme-toggle {
   justify-content: center;
+  padding: 8px 0 !important;
+}
+
+.app-sidebar.collapsed .sidebar-theme-toggle .theme-label,
+.app-sidebar.collapsed .sidebar-theme-toggle .theme-badge {
+  display: none !important;
 }
 
 /* Main Container & Topbar */
@@ -901,85 +1120,103 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   <aside class="app-sidebar" id="appSidebar">
     <div class="sidebar-brand">
       <div class="sidebar-logo">
-        <span style="font-size:20px;line-height:1">⚡</span>
+        <div class="sidebar-logo-icon">⚡</div>
         <span class="sidebar-logo-text">Volta</span>
       </div>
-      <button class="sidebar-toggle-btn" id="btnToggleSidebar" title="Collapse / Expand sidebar">◀</button>
+      <button class="sidebar-toggle-btn" id="btnToggleSidebar" title="Collapse / Expand sidebar" aria-label="Toggle sidebar">
+        <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
     </div>
 
     <!-- User Subscription & Admin Badge in Sidebar -->
     <div class="sidebar-plan-card" id="sfnSubSummaryCard" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:700">Account Plan</span>
-        <span class="tag ok sm" id="sfnPlanStatus" style="font-size:10px;padding:1px 6px">Active</span>
+      <div class="plan-card-header">
+        <span class="plan-card-tag">Account Plan</span>
+        <span class="tag ok sm" id="sfnPlanStatus">Active</span>
       </div>
-      <b style="font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="sfnPlanTitle">Standard Plan</b>
-      <span style="font-size:11px;color:#cbd5e1" id="sfnPlanCapacity">3 strips · Unlimited</span>
+      <b class="plan-card-title" id="sfnPlanTitle">Standard Plan</b>
+      <span class="plan-card-desc" id="sfnPlanCapacity">3 strips · Unlimited</span>
     </div>
 
     <nav class="sidebar-nav" id="mainTabsNav">
-      <button class="tab on" data-tab="control">
+      <button class="tab on" data-tab="control" title="Control">
         <span class="tab-icon">🎛️</span>
         <span class="tab-label">Control</span>
       </button>
-      <button class="tab" data-tab="analytics">
+      <button class="tab" data-tab="analytics" title="Analytics">
         <span class="tab-icon">📊</span>
         <span class="tab-label">Analytics</span>
       </button>
-      <button class="tab" id="tabStrips" data-tab="strips" style="display:none">
+      <button class="tab" id="tabStrips" data-tab="strips" style="display:none" title="Strips">
         <span class="tab-icon">🔌</span>
         <span class="tab-label">Strips</span>
       </button>
-      <button class="tab" data-tab="sched">
+      <button class="tab" data-tab="sched" title="Schedules">
         <span class="tab-icon">📅</span>
         <span class="tab-label">Schedules</span>
       </button>
-      <button class="tab" data-tab="setup">
+      <button class="tab" data-tab="setup" title="Setup">
         <span class="tab-icon">⚙️</span>
         <span class="tab-label">Setup</span>
       </button>
-      <button class="tab" data-tab="tools">
+      <button class="tab" data-tab="tools" title="Advanced">
         <span class="tab-icon">🛠️</span>
         <span class="tab-label">Advanced</span>
       </button>
-      <button class="tab" id="tabUsers" data-tab="users" style="display:none">
+      <button class="tab" id="tabUsers" data-tab="users" style="display:none" title="Users & Licenses">
         <span class="tab-icon">👥</span>
         <span class="tab-label">Users &amp; Licenses</span>
       </button>
-      <button class="tab" data-tab="settings">
+      <button class="tab" data-tab="settings" title="Settings">
         <span class="tab-icon">🔧</span>
         <span class="tab-label">Settings</span>
       </button>
     </nav>
 
-    <!-- Sidebar Footer with User Profile, Theme Toggle & Signout -->
+    <!-- Modern Reconstructed Sidebar Footer -->
     <div class="sidebar-footer">
-      <div id="userHeaderProfile" class="sidebar-user-box" style="display:none">
-        <img id="userAvatar" src="" style="width:28px;height:28px;border-radius:50%;display:none;border:1px solid rgba(255,255,255,.2);flex-shrink:0">
-        <div class="user-meta" style="flex:1;min-width:0">
-          <div id="userNameBadge" style="font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-        </div>
-      </div>
-
-      <div class="sidebar-quick-actions">
-        <button class="sidebar-icon-btn" id="btnTheme" title="Toggle light/dark theme" style="flex:1">
-          <span id="btnThemeIcon">🌙</span>
-          <span class="btn-lbl">Theme</span>
-        </button>
-        <button class="sidebar-icon-btn" id="btnLogout" title="Sign out" style="display:none">
-          <span>🚪</span>
-          <span class="btn-lbl">Sign out</span>
-        </button>
-        <button class="sidebar-icon-btn" id="btnLoginHeader" title="Sign in" style="display:none;flex:1">
-          <span>🔑</span>
-          <span class="btn-lbl">Sign in</span>
-        </button>
-      </div>
-
-      <div class="sidebar-status-box" title="Daemon connection state">
+      <!-- Status pill -->
+      <div class="sidebar-status-box" title="System Connection Status">
         <span class="dot" id="srvDot"></span>
-        <span id="srvState" style="font-weight:600">connecting…</span>
+        <span id="srvState">connecting…</span>
       </div>
+
+      <!-- User Profile Tile -->
+      <div id="userHeaderProfile" class="sidebar-user-tile" style="display:none">
+        <img id="userAvatar" src="" class="user-avatar-img" style="display:none">
+        <div class="user-avatar-placeholder" id="userAvatarPlaceholder">👤</div>
+        <div class="user-info">
+          <div id="userNameBadge" class="user-name">User</div>
+          <span class="user-sub">Connected</span>
+        </div>
+        <button class="sidebar-action-pill danger" id="btnLogout" title="Sign out">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span class="btn-lbl">Exit</span>
+        </button>
+      </div>
+
+      <!-- Sign In Button (When Signed Out) -->
+      <button class="sidebar-action-pill primary" id="btnLoginHeader" title="Sign in" style="display:none;width:100%;margin-top:2px">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+          <polyline points="10 17 15 12 10 7"></polyline>
+          <line x1="15" y1="12" x2="3" y2="12"></line>
+        </svg>
+        <span class="btn-lbl">Sign in to Volta</span>
+      </button>
+
+      <!-- Theme Switcher Pill -->
+      <button class="sidebar-theme-toggle" id="btnTheme" title="Toggle color theme">
+        <span class="theme-icon-wrap" id="btnThemeIcon">🌙</span>
+        <span class="theme-label">Appearance</span>
+        <span class="theme-badge" id="themeStatusBadge">Dark</span>
+      </button>
     </div>
   </aside>
 
@@ -2345,9 +2582,10 @@ function applyTheme(mode){ // light | dark | auto
   else if(mode==="light"){root.dataset.theme="light";}
   else{delete root.dataset.theme;}
   const darkNow=mode==="dark"||(mode==="auto"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches);
-  const b=$("btnTheme");const ic=$("btnThemeIcon");
+  const b=$("btnTheme");const ic=$("btnThemeIcon");const badge=$("themeStatusBadge");
   if(ic) ic.textContent = darkNow ? "☀️" : "🌙";
-  else if(b) b.textContent = darkNow ? "☀️" : "🌙";
+  if(badge) badge.textContent = darkNow ? "Dark" : "Light";
+  else if(b && !ic) b.textContent = darkNow ? "☀️" : "🌙";
   const s=$("prefTheme");if(s)s.value=mode;
   try{localStorage.setItem("volta_theme",mode);}catch{}
 }
@@ -2411,8 +2649,10 @@ async function checkSrv(){
           if(who.picture && $("userAvatar")){
             $("userAvatar").src = who.picture;
             $("userAvatar").style.display = "inline-block";
+            if($("userAvatarPlaceholder")) $("userAvatarPlaceholder").style.display = "none";
           }else if($("userAvatar")){
             $("userAvatar").style.display = "none";
+            if($("userAvatarPlaceholder")) $("userAvatarPlaceholder").style.display = "flex";
           }
 
           if($("srvInfoCard"))$("srvInfoCard").style.display = who.is_admin ? "block" : "none";
