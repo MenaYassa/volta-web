@@ -231,19 +231,128 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .sfn-kpi-card span.sub{font-size:11px;color:var(--mut);margin-top:2px}
 
 /* Physical Power Strip Component (Visual Enclosure with 4 sockets) */
-.strip-physical{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px 14px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.15);width:100%;max-width:100%;box-sizing:border-box;overflow:hidden}
+/* SFN Physical Power Strip Enclosure with Full Light / Dark Theme Support */
+.strip-physical{
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 10px 0 12px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.04), 0 2px 6px rgba(0,0,0,.02);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: background .2s, border-color .2s;
+}
+
+:root[data-theme="dark"] .strip-physical{
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-color: rgba(255,255,255,.12);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.15);
+}
+
 .strip-phys-sockets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:center;flex:1 1 auto;min-width:0;max-width:100%;overflow:hidden}
 .phys-socket-wrap{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0;text-align:center;overflow:hidden}
-.phys-socket{width:36px;height:36px;border-radius:50%;background:#090d16;border:2px solid #334155;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:all .2s;color:#64748b;font-size:13px;font-weight:700;flex-shrink:0}
-.phys-socket.on{border-color:#22c55e;color:#fff;background:radial-gradient(circle,#166534 0%,#052e16 100%);box-shadow:0 0 10px rgba(34,197,94,.5),inset 0 0 6px rgba(34,197,94,.4)}
+
+.phys-socket{
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all .2s;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+:root[data-theme="dark"] .phys-socket{
+  background: #090d16;
+  border-color: #334155;
+  color: #64748b;
+}
+
+.phys-socket.on{
+  border-color: #16a34a;
+  color: #fff;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 0 10px rgba(34,197,94,.45), inset 0 0 6px rgba(255,255,255,.3);
+}
+
+:root[data-theme="dark"] .phys-socket.on{
+  border-color: #22c55e;
+  background: radial-gradient(circle, #166534 0%, #052e16 100%);
+  box-shadow: 0 0 10px rgba(34,197,94,.5), inset 0 0 6px rgba(34,197,94,.4);
+}
+
 .phys-socket:hover{transform:scale(1.08)}
-.phys-socket-name{font-size:10px;color:#94a3b8;font-weight:600;margin-top:5px;width:100%;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;cursor:pointer;padding:0 2px;box-sizing:border-box}
-.phys-socket-name:hover{color:#cbd5e1}
-.strip-phys-summary{text-align:right;color:#cbd5e1;font-size:12px;flex:0 0 auto;padding-left:10px;border-left:1px solid rgba(255,255,255,.1);max-width:35%;overflow:hidden}
-.strip-phys-summary b{display:block;font-size:15px;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.phys-socket-name{
+  font-size: 10px;
+  color: var(--mut);
+  font-weight: 600;
+  margin-top: 5px;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  cursor: pointer;
+  padding: 0 2px;
+  box-sizing: border-box;
+  transition: color .15s;
+}
+
+.phys-socket-name:hover{color:var(--ink)}
+:root[data-theme="dark"] .phys-socket-name{color:#94a3b8}
+:root[data-theme="dark"] .phys-socket-name:hover{color:#cbd5e1}
+
+.strip-phys-summary{
+  text-align: right;
+  color: var(--mut);
+  font-size: 11px;
+  flex: 0 0 auto;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+  max-width: 35%;
+  overflow: hidden;
+}
+
+:root[data-theme="dark"] .strip-phys-summary{
+  border-left-color: rgba(255,255,255,.1);
+  color: #cbd5e1;
+}
+
+.strip-phys-summary b{
+  display: block;
+  font-size: 15px;
+  color: var(--ink);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-theme="dark"] .strip-phys-summary b{
+  color: #fff;
+}
+
 .strip-phys-summary span.dots{letter-spacing:2px;font-size:13px}
 .strip-phys-summary span.dots .d-on{color:#22c55e}
-.strip-phys-summary span.dots .d-off{color:#475569}
+.strip-phys-summary span.dots .d-off{color:#94a3b8}
+:root[data-theme="dark"] .strip-phys-summary span.dots .d-off{color:#475569}
 
 @media(max-width:560px){
   .strip{padding:12px 12px;overflow:hidden}
@@ -312,10 +421,62 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 :root[data-theme="dark"] .sfn-day-btn.on{background:var(--blue);color:#fff}
 
 /* Outlets expansion drawer toggle button */
-.strip-toggle-expand{background:rgba(0,0,0,.03);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--mut);cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;transition:all .15s}
-.strip-toggle-expand:hover{color:var(--ink);background:rgba(0,0,0,.06)}
-:root[data-theme="dark"] .strip-toggle-expand{background:rgba(255,255,255,.04)}
-:root[data-theme="dark"] .strip-toggle-expand:hover{background:rgba(255,255,255,.08);color:#fff}
+/* Minimal arrow button to expand/collapse card details */
+.strip-toggle-expand {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  width: 28px;
+  height: 24px;
+  min-height: 0;
+  padding: 0;
+  font-size: 11px;
+  color: var(--mut);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.strip-toggle-expand:hover {
+  background: rgba(37,99,235,.08);
+  border-color: rgba(37,99,235,.3);
+  color: var(--blue);
+  transform: translateY(1px);
+}
+
+.strip-toggle-expand svg {
+  width: 14px;
+  height: 14px;
+  transition: transform .22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.strip-toggle-expand.is-expanded {
+  background: rgba(0,0,0,.04);
+  color: var(--ink);
+}
+
+.strip-toggle-expand.is-expanded svg {
+  transform: rotate(180deg);
+}
+
+:root[data-theme="dark"] .strip-toggle-expand {
+  border-color: rgba(255,255,255,.1);
+  color: #94a3b8;
+}
+
+:root[data-theme="dark"] .strip-toggle-expand:hover {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.2);
+  color: #fff;
+}
+
+:root[data-theme="dark"] .strip-toggle-expand.is-expanded {
+  background: rgba(255,255,255,.06);
+  color: #fff;
+}
 
 /* --- APP LAYOUT WITH COLLAPSIBLE SIDEBAR & UNIFIED HERO --- */
 :root {
@@ -614,12 +775,62 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 .app-sidebar.collapsed .sidebar-nav {
   padding: 10px 6px;
+  align-items: center;
 }
 
 .app-sidebar.collapsed .sidebar-nav .tab {
   justify-content: center;
-  padding: 10px 0;
-  border-radius: 10px;
+  align-items: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+
+.app-sidebar.collapsed .tab-icon {
+  width: auto;
+  margin: 0;
+  font-size: 18px;
+}
+
+.app-sidebar.collapsed .sidebar-footer {
+  align-items: center;
+  padding: 10px 6px calc(14px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-sidebar.collapsed .sidebar-status-box {
+  width: 44px;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  margin: 0 auto;
+}
+
+.app-sidebar.collapsed .sidebar-user-tile {
+  width: 44px;
+  height: 44px;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  margin: 0 auto;
+}
+
+.app-sidebar.collapsed .sidebar-theme-toggle {
+  width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  border-radius: 12px !important;
+}
+
+.app-sidebar.collapsed .sidebar-theme-toggle .theme-icon-wrap {
+  margin: 0;
+  font-size: 16px;
 }
 
 /* Modern Sidebar Footer */
@@ -3138,7 +3349,8 @@ on("btnExpandAllStrips", "click", () => {
     w.style.display = _allStripsExpanded ? "block" : "none";
   });
   document.querySelectorAll(".strip-toggle-expand").forEach(b => {
-    b.textContent = _allStripsExpanded ? "▲ Hide Outlets" : "▼ Show Outlets";
+    b.classList.toggle("is-expanded", _allStripsExpanded);
+    b.title = _allStripsExpanded ? "Hide outlet switches" : "Show outlet switches";
   });
 });
 
@@ -3317,8 +3529,8 @@ async function live(){
             <div class="s-stat"><span>Active Outlets</span><b>${activeOutlets} / ${totalOutlets}</b></div>
           </div>
 
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <button class="strip-toggle-expand">${isExp ? "▲ Hide Outlets" : "▼ Show Outlets"}</button>
+          <div style="display:flex;justify-content:center;align-items:center;margin-top:2px">
+            <button class="strip-toggle-expand ${isExp ? 'is-expanded' : ''}" title="${isExp ? 'Hide outlet switches' : 'Show outlet switches'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
           </div>
 
           <div class="strip-outs-wrapper" style="display:${isExp ? 'block' : 'none'}">
@@ -3433,7 +3645,8 @@ async function live(){
           expBtn.onclick = () => {
             const currentlyOpen = outsWrapper.style.display !== "none";
             outsWrapper.style.display = currentlyOpen ? "none" : "block";
-            expBtn.textContent = currentlyOpen ? "▼ Show Outlets" : "▲ Hide Outlets";
+            expBtn.classList.toggle("is-expanded", !currentlyOpen);
+            expBtn.title = currentlyOpen ? "Show outlet switches" : "Hide outlet switches";
             _expandedStrips[cleanMac] = !currentlyOpen;
           };
         }
