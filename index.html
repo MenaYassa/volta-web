@@ -479,11 +479,11 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 /* Sidebar Plan Card */
 .sidebar-plan-card {
-  margin: 10px 10px 4px;
+  margin: 0;
   background: rgba(0,0,0,.025);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 10px 12px;
+  border-radius: 10px;
+  padding: 8px 10px;
   flex-shrink: 0;
   transition: all .2s;
 }
@@ -776,6 +776,12 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
   color: #fff !important;
   box-shadow: 0 2px 8px rgba(37,99,235,.25);
+}
+
+.app-sidebar.collapsed #btnLoginHeader {
+  width: auto !important;
+  justify-content: center !important;
+  padding: 8px !important;
 }
 
 .sidebar-action-pill.primary:hover {
@@ -1130,16 +1136,6 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
       </button>
     </div>
 
-    <!-- User Subscription & Admin Badge in Sidebar -->
-    <div class="sidebar-plan-card" id="sfnSubSummaryCard" style="display:none">
-      <div class="plan-card-header">
-        <span class="plan-card-tag">Account Plan</span>
-        <span class="tag ok sm" id="sfnPlanStatus">Active</span>
-      </div>
-      <b class="plan-card-title" id="sfnPlanTitle">Standard Plan</b>
-      <span class="plan-card-desc" id="sfnPlanCapacity">3 strips · Unlimited</span>
-    </div>
-
     <nav class="sidebar-nav" id="mainTabsNav">
       <button class="tab on" data-tab="control" title="Control">
         <span class="tab-icon">🎛️</span>
@@ -1177,19 +1173,29 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
     <!-- Modern Reconstructed Sidebar Footer -->
     <div class="sidebar-footer">
-      <!-- Status pill -->
-      <div class="sidebar-status-box" title="System Connection Status">
+      <!-- Status pill: Controller & Hardware Connection -->
+      <div class="sidebar-status-box" title="Controller Daemon Status">
         <span class="dot" id="srvDot"></span>
         <span id="srvState">connecting…</span>
       </div>
 
-      <!-- User Profile Tile -->
+      <!-- Plan Info Card (Relocated to bottom when signed in) -->
+      <div class="sidebar-plan-card" id="sfnSubSummaryCard" style="display:none">
+        <div class="plan-card-header">
+          <span class="plan-card-tag">Account Plan</span>
+          <span class="tag ok sm" id="sfnPlanStatus">Active</span>
+        </div>
+        <b class="plan-card-title" id="sfnPlanTitle">Standard Plan</b>
+        <span class="plan-card-desc" id="sfnPlanCapacity">3 strips · Unlimited</span>
+      </div>
+
+      <!-- User Profile Tile (Only visible when signed in) -->
       <div id="userHeaderProfile" class="sidebar-user-tile" style="display:none">
         <img id="userAvatar" src="" class="user-avatar-img" style="display:none">
         <div class="user-avatar-placeholder" id="userAvatarPlaceholder">👤</div>
         <div class="user-info">
           <div id="userNameBadge" class="user-name">User</div>
-          <span class="user-sub">Connected</span>
+          <span class="user-sub" id="userRoleBadge">Connected</span>
         </div>
         <button class="sidebar-action-pill danger" id="btnLogout" title="Sign out">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -1201,8 +1207,8 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
         </button>
       </div>
 
-      <!-- Sign In Button (When Signed Out) -->
-      <button class="sidebar-action-pill primary" id="btnLoginHeader" title="Sign in" style="display:none;width:100%;margin-top:2px">
+      <!-- Sign In Button (Strictly only when signed out) -->
+      <button class="sidebar-action-pill primary" id="btnLoginHeader" title="Sign in" style="display:none;width:100%">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
           <polyline points="10 17 15 12 10 7"></polyline>
@@ -2412,9 +2418,18 @@ function updateAuthGateState(signedIn){
   const panes = $("appPanesView");
   const tabsNav = $("mainTabsNav");
   const liveCount = $("liveCount");
+  const loginBtn = $("btnLoginHeader");
+  const userProfile = $("userHeaderProfile");
+  const planCard = $("sfnSubSummaryCard");
+
   if(gate) gate.style.display = signedIn ? "none" : "block";
   if(panes) panes.style.display = signedIn ? "block" : "none";
   if(tabsNav) tabsNav.style.display = signedIn ? "flex" : "none";
+
+  if(loginBtn) loginBtn.style.display = signedIn ? "none" : "inline-flex";
+  if(!signedIn && userProfile) userProfile.style.display = "none";
+  if(!signedIn && planCard) planCard.style.display = "none";
+
   if(!signedIn && liveCount) liveCount.textContent = "";
   if(!signedIn) initGoogleAuth();
 }
@@ -2430,7 +2445,8 @@ function logoutUser(){
   if($("tabUsers"))$("tabUsers").style.display="none";
   if($("tabStrips"))$("tabStrips").style.display="none";
   if($("userHeaderProfile"))$("userHeaderProfile").style.display="none";
-  if($("btnLoginHeader"))$("btnLoginHeader").style.display="inline-block";
+  if($("sfnSubSummaryCard"))$("sfnSubSummaryCard").style.display="none";
+  if($("btnLoginHeader"))$("btnLoginHeader").style.display="inline-flex";
   updateAuthGateState(false);
   // Switch to Control tab
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
@@ -2641,10 +2657,10 @@ async function checkSrv(){
           if(who.is_admin && $("pane-users").classList.contains("on"))loadUsers();
           if(who.is_admin && $("pane-strips").classList.contains("on"))renderManage();
           
-          if($("srvState"))$("srvState").textContent=`${who.name} (${who.is_admin?"Admin":"User"})`;
           if($("userHeaderProfile"))$("userHeaderProfile").style.display = "flex";
           if($("btnLogout"))$("btnLogout").style.display = "inline-flex";
           if($("userNameBadge"))$("userNameBadge").textContent = who.name;
+          if($("userRoleBadge"))$("userRoleBadge").textContent = who.is_admin ? "Administrator" : "Standard User";
           if($("btnLoginHeader"))$("btnLoginHeader").style.display = "none";
           if(who.picture && $("userAvatar")){
             $("userAvatar").src = who.picture;
