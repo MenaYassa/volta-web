@@ -752,7 +752,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   font-size: 11.5px !important;
   font-weight: 600 !important;
   cursor: pointer;
-  display: inline-flex !important;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
@@ -782,6 +782,10 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   width: auto !important;
   justify-content: center !important;
   padding: 8px !important;
+}
+
+#btnLoginHeader.is-hidden {
+  display: none !important;
 }
 
 .sidebar-action-pill.primary:hover {
@@ -2426,7 +2430,16 @@ function updateAuthGateState(signedIn){
   if(panes) panes.style.display = signedIn ? "block" : "none";
   if(tabsNav) tabsNav.style.display = signedIn ? "flex" : "none";
 
-  if(loginBtn) loginBtn.style.display = signedIn ? "none" : "inline-flex";
+  if(loginBtn){
+    if(signedIn){
+      loginBtn.classList.add("is-hidden");
+      loginBtn.style.setProperty("display", "none", "important");
+    } else {
+      loginBtn.classList.remove("is-hidden");
+      loginBtn.style.setProperty("display", "inline-flex", "important");
+    }
+  }
+
   if(!signedIn && userProfile) userProfile.style.display = "none";
   if(!signedIn && planCard) planCard.style.display = "none";
 
@@ -2446,7 +2459,10 @@ function logoutUser(){
   if($("tabStrips"))$("tabStrips").style.display="none";
   if($("userHeaderProfile"))$("userHeaderProfile").style.display="none";
   if($("sfnSubSummaryCard"))$("sfnSubSummaryCard").style.display="none";
-  if($("btnLoginHeader"))$("btnLoginHeader").style.display="inline-flex";
+  if($("btnLoginHeader")){
+    $("btnLoginHeader").classList.remove("is-hidden");
+    $("btnLoginHeader").style.setProperty("display", "inline-flex", "important");
+  }
   updateAuthGateState(false);
   // Switch to Control tab
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
@@ -2661,7 +2677,10 @@ async function checkSrv(){
           if($("btnLogout"))$("btnLogout").style.display = "inline-flex";
           if($("userNameBadge"))$("userNameBadge").textContent = who.name;
           if($("userRoleBadge"))$("userRoleBadge").textContent = who.is_admin ? "Administrator" : "Standard User";
-          if($("btnLoginHeader"))$("btnLoginHeader").style.display = "none";
+          if($("btnLoginHeader")){
+            $("btnLoginHeader").classList.add("is-hidden");
+            $("btnLoginHeader").style.setProperty("display", "none", "important");
+          }
           if(who.picture && $("userAvatar")){
             $("userAvatar").src = who.picture;
             $("userAvatar").style.display = "inline-block";
@@ -2761,7 +2780,7 @@ async function checkSrv(){
         if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
         if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
     if($("btnLogout"))$("btnLogout").style.display = "none";
-        if($("btnLoginHeader"))$("btnLoginHeader").style.display = "inline-block";
+        if($("btnLoginHeader")){ $("btnLoginHeader").classList.remove("is-hidden"); $("btnLoginHeader").style.setProperty("display", "inline-flex", "important"); }
         updateAuthGateState(false);
       }
     }else{
@@ -2771,7 +2790,7 @@ async function checkSrv(){
       if($("gatewayLogCard"))$("gatewayLogCard").style.display="none";
       if($("userHeaderProfile"))$("userHeaderProfile").style.display = "none";
     if($("btnLogout"))$("btnLogout").style.display = "none";
-      if($("btnLoginHeader"))$("btnLoginHeader").style.display = "inline-block";
+      if($("btnLoginHeader")){ $("btnLoginHeader").classList.remove("is-hidden"); $("btnLoginHeader").style.setProperty("display", "inline-flex", "important"); }
       updateAuthGateState(false);
     }
   }catch{
