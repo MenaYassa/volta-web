@@ -268,10 +268,19 @@ def get_all_devices_snapshot():
     except Exception as e:
         log(f"[devices] error loading historical readings: {e}")
 
-    # Gather all known MACs from database, config, and claimed lists
+    # Gather all known MACs from database, config, claimed lists, and strips list
     known_macs = set()
     try:
         strips_data = load_strips()
+        for s in strips_data.get("strips", []):
+            if isinstance(s, dict) and s.get("mac"):
+                clean = norm_mac(s.get("mac")).upper()
+                if clean not in deleted_macs:
+                    known_macs.add(clean)
+            elif isinstance(s, str) and s:
+                clean = norm_mac(s).upper()
+                if clean not in deleted_macs:
+                    known_macs.add(clean)
         for m in strips_data.get("names", {}).keys():
             clean = norm_mac(m).upper()
             if clean not in deleted_macs:
@@ -282,6 +291,10 @@ def get_all_devices_snapshot():
                 if clean not in deleted_macs:
                     known_macs.add(clean)
         for m in strips_data.get("voltage_guard", {}).keys():
+            clean = norm_mac(m).upper()
+            if clean not in deleted_macs:
+                known_macs.add(clean)
+        for m in strips_data.get("claimed_strips", []):
             clean = norm_mac(m).upper()
             if clean not in deleted_macs:
                 known_macs.add(clean)
@@ -2405,14 +2418,30 @@ class Handler(BaseHTTPRequestHandler):
                 log(f"[claim] strip {mac} assignments updated by Admin: {', '.join(assigned_names) if assigned_names else 'unassigned'}")
                 return self._json({"ok": True, "mac": mac, "assigned_users": assigned_names})
             
+            # Always register claimed strip in system claimed_strips list and default guard
+            data = load_strips()
+            c_strips = data.setdefault("claimed_strips", [])
+            if mac not in c_strips:
+                c_strips.append(mac)
+            if not any(s.get("mac") == mac for s in data.get("strips", []) if isinstance(s, dict)):
+                data.setdefault("strips", []).append({"mac": mac, "ip": ""})
+            save_strips(data)
+
+            # Ensure default voltage guard is active
+            guards = get_voltage_guards()
+            if mac not in guards:
+                guards[mac] = get_default_guard_config()
+                save_voltage_guards(guards)
+
             if ctx["is_admin"] and not ("target_tokens" in body or target_user_token):
-                # When admin claims a strip for themselves, add it to admin's strip list so it displays in their profile/dashboard
+                # When admin claims a strip for themselves, also add it to admin user's strip list
                 user_entry = users.get(ctx["token"])
                 if user_entry:
                     strips_list = user_entry.setdefault("strips", [])
                     if mac not in strips_list:
                         strips_list.append(mac)
                         save_users(users)
+                log(f"[claim] strip {mac} claimed by Admin ({ctx['token'][:10]}...)")
                 return self._json({"ok": True, "admin": True, "mac": mac, "message": "Strip claimed for admin."})
             
             user_entry = users.get(ctx["token"])
