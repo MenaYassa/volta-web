@@ -195,6 +195,22 @@ def save_strip_orders(orders_dict):
     save_strips(data)
 
 
+
+def get_devices():
+    """Return dict of devices from strips.json keyed by normalized uppercase MAC."""
+    return load_strips().get("devices", {})
+
+
+def save_devices(devices_dict):
+    data = load_strips()
+    data["devices"] = devices_dict
+    save_strips(data)
+
+
+def get_device(mac):
+    if not mac:
+        return None
+    return get_devices().get(norm_mac(mac).upper())
 def get_deleted_strips():
     """Return set of normalized uppercase MACs deleted/ignored by Admin."""
     data = load_strips()
@@ -208,20 +224,36 @@ def save_deleted_strips(deleted_set):
 
 
 def get_all_devices_snapshot():
-    """Return unified device list containing live connected strips plus known/claimed offline strips.
-    Offline devices are populated with their last known telemetry from analytics.db where available.
-    Live connected devices are NEVER ignored.
+    """Return unified device list containing active strips.
+    Only devices with status == 'active' in the devices registry (or active live strips) are returned.
+    Deleted devices are strictly excluded.
     """
-    deleted_macs = get_deleted_strips()
+    devices_registry = get_devices()
     raw_snap = CTL.snapshot() if CTL else {"devices": []}
-    # Any live strip that is currently connected to the TCP controller is always accepted
     live_devices = {
         norm_mac(d.get("mac", "")).upper(): d
         for d in raw_snap.get("devices", [])
         if d.get("mac")
     }
 
-    # Read last known state for all non-deleted strips from analytics.db
+    # Auto-register newly dialed-in physical strips that aren't in the registry yet
+    modified_reg = False
+    for live_mac, ld in live_devices.items():
+        if live_mac not in devices_registry:
+            devices_registry[live_mac] = {
+                "mac": live_mac,
+                "name": ld.get("name") or f"MTTL {live_mac[-7:]}",
+                "status": "active",
+                "admin_claimed": True,
+                "claimed_users": [],
+                "created_at": int(time.time()),
+                "deleted_at": None
+            }
+            modified_reg = True
+    if modified_reg:
+        save_devices(devices_registry)
+
+    # Read last known state for active strips from analytics.db
     history_devices = {}
     try:
         import sqlite3
@@ -239,7 +271,9 @@ def get_all_devices_snapshot():
             for row in c.fetchall():
                 m_raw, outlet, is_on, p_w, e_kwh, temp, volt, ts, rssi = row
                 m = norm_mac(m_raw or "").upper()
-                if m in deleted_macs:
+                reg = devices_registry.get(m)
+                # Ignore historical rows if device is deleted
+                if reg and reg.get("status") == "deleted":
                     continue
                 if m not in history_devices:
                     history_devices[m] = {
@@ -268,58 +302,37 @@ def get_all_devices_snapshot():
     except Exception as e:
         log(f"[devices] error loading historical readings: {e}")
 
-    # Gather all known MACs from database, config, claimed lists, and strips list
-    known_macs = set()
-    try:
-        strips_data = load_strips()
-        for s in strips_data.get("strips", []):
-            if isinstance(s, dict) and s.get("mac"):
-                clean = norm_mac(s.get("mac")).upper()
-                if clean not in deleted_macs:
-                    known_macs.add(clean)
-            elif isinstance(s, str) and s:
-                clean = norm_mac(s).upper()
-                if clean not in deleted_macs:
-                    known_macs.add(clean)
-        for m in strips_data.get("names", {}).keys():
-            clean = norm_mac(m).upper()
-            if clean not in deleted_macs:
-                known_macs.add(clean)
-        for u in strips_data.get("users", {}).values():
-            for m in u.get("strips", []):
-                clean = norm_mac(m).upper()
-                if clean not in deleted_macs:
-                    known_macs.add(clean)
-        for m in strips_data.get("voltage_guard", {}).keys():
-            clean = norm_mac(m).upper()
-            if clean not in deleted_macs:
-                known_macs.add(clean)
-        for m in strips_data.get("claimed_strips", []):
-            clean = norm_mac(m).upper()
-            if clean not in deleted_macs:
-                known_macs.add(clean)
-    except Exception:
-        pass
+    # Build final list of active MACs
+    active_macs = []
+    for m, reg in devices_registry.items():
+        if reg.get("status") == "active":
+            active_macs.append(m)
 
-    all_macs = (set(live_devices.keys()) | set(history_devices.keys()) | known_macs) - deleted_macs
     devices = []
-    for m in all_macs:
+    for m in active_macs:
+        reg = devices_registry[m]
+        disp_name = reg.get("name") or f"MTTL {m[-7:]}"
         if m in live_devices:
-            devices.append(live_devices[m])
+            d = dict(live_devices[m])
+            d["name"] = disp_name
+            d["claimed_users"] = reg.get("claimed_users", [])
+            devices.append(d)
         elif m in history_devices:
-            hd = history_devices[m]
+            hd = dict(history_devices[m])
             outs = [hd["outlets_dict"].get(n, {"n": n, "on": False, "power_w": 0.0, "energy_kwh": 0.0, "temp_c": 25}) for n in range(1, 5)]
             hd["outlets"] = outs
             hd["on"] = any(o["on"] for o in outs)
             hd["power_w"] = round(sum(o["power_w"] for o in outs), 2)
             hd["energy_kwh"] = round(sum(o["energy_kwh"] for o in outs), 3)
+            hd["name"] = disp_name
+            hd["claimed_users"] = reg.get("claimed_users", [])
             hd.pop("outlets_dict", None)
             devices.append(hd)
         else:
             outs = [{"n": n, "on": False, "power_w": 0.0, "energy_kwh": 0.0, "temp_c": 25} for n in range(1, 5)]
             devices.append({
                 "mac": m,
-                "name": f"MTTL {m[-7:]}",
+                "name": disp_name,
                 "model": "lgutap",
                 "fw": "1.0.0",
                 "ip": "",
@@ -333,7 +346,8 @@ def get_all_devices_snapshot():
                 "outlets": outs,
                 "last_seen": 0,
                 "last_seen_ago": 999999,
-                "pending": 0
+                "pending": 0,
+                "claimed_users": reg.get("claimed_users", [])
             })
     return devices
 
@@ -1597,26 +1611,32 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "admin access required"}, 403)
             return self._json({"ok": True, "users": get_users()})
         elif u.path == "/api/live":
-            # Live controller snapshot: strips that dialed in + telemetry + known offline strips
+            # Live controller snapshot: active strips only
             ctx = self._auth_ctx()
             if not ctx["authorized"]:
                 return self._json({"error": "token required"}, 401)
             
-            # If a live strip dialed in, ensure it is removed from any stale deleted_strips tombstone
-            if CTL:
-                live_macs = {norm_mac(d.get("mac", "")).upper() for d in CTL.snapshot().get("devices", []) if d.get("mac")}
-                cur_del = get_deleted_strips()
-                intersection = cur_del.intersection(live_macs)
-                if intersection:
-                    save_deleted_strips(cur_del - intersection)
-                    log(f"[live] Auto-cleared tombstone for active live strips: {intersection}")
-
+            devices_reg = get_devices()
             devices = get_all_devices_snapshot()
-            # Filter devices by caller's allowed strips
-            # Note: Unclaimed strips always show up for Admin so they can be discovered immediately!
-            if not ctx["is_admin"]:
-                allowed = set(ctx["strips"])
-                devices = [d for d in devices if norm_mac(d.get("mac", "")).upper() in allowed]
+            
+            if ctx["is_admin"]:
+                # Admin sees any active device that is admin_claimed or has claimed users
+                devices = [
+                    d for d in devices
+                    if devices_reg.get(d.get("mac", ""), {}).get("status") == "active" and (
+                        devices_reg.get(d.get("mac", ""), {}).get("admin_claimed", True) or
+                        ctx["token"] in devices_reg.get(d.get("mac", ""), {}).get("claimed_users", []) or
+                        len(devices_reg.get(d.get("mac", ""), {}).get("claimed_users", [])) > 0
+                    )
+                ]
+            else:
+                # Regular user only sees devices that are active AND where their token is in claimed_users
+                user_token = ctx["token"]
+                devices = [
+                    d for d in devices
+                    if devices_reg.get(d.get("mac", ""), {}).get("status") == "active" and
+                    user_token in devices_reg.get(d.get("mac", ""), {}).get("claimed_users", [])
+                ]
             
             snap = {"devices": devices, "server_ip": local_nets()}
             try:
@@ -2363,13 +2383,13 @@ class Handler(BaseHTTPRequestHandler):
             log(f"user created: {name} ({new_token[:14]}...) [email={email}, status={status}, max={max_strips}, exp={expires_at}]")
             return self._json({"ok": True, "token": new_token, "user": users[new_token]})
         if u.path == "/api/claim":
-            # Link a strip MAC to a user token, or register pending claim by IP.
-            # Can be called from Termux script or Web UI.
+            # Link a strip MAC to a user token or Admin.
+            # Multi-user collaborative sharing & lifecycle management.
             token_arg = (body.get("token") or self.headers.get("X-Token", "")).strip()
             target_user_token = (body.get("target_token") or "").strip()
             mac = norm_mac(body.get("mac")).upper()
 
-            # If no MAC provided, register an auto-claim expectation for the caller's IP
+            # If no MAC provided, register an auto-claim expectation for caller IP
             if not mac and body.get("expect_auto"):
                 ctx = resolve_auth_context(token_arg)
                 if not ctx["authorized"]:
@@ -2385,17 +2405,26 @@ class Handler(BaseHTTPRequestHandler):
             ctx = resolve_auth_context(token_arg)
             if not ctx["authorized"]:
                 return self._json({"error": "invalid token"}, 401)
-            
-            # Clear deleted tombstone so the strip is active again
-            deleted_macs = get_deleted_strips()
-            if mac in deleted_macs:
-                deleted_macs.remove(mac)
-                save_deleted_strips(deleted_macs)
-                log(f"[claim] strip {mac} un-deleted from tombstone list")
 
             users = get_users()
-            
-            # If admin is updating strip assignment (supports list of tokens or single token)
+            devices_reg = get_devices()
+            now = int(time.time())
+
+            # Get or initialize device record
+            dev = devices_reg.get(mac)
+            if not dev:
+                dev = {
+                    "mac": mac,
+                    "name": f"MTTL {mac[-7:]}",
+                    "status": "active",
+                    "admin_claimed": True,
+                    "claimed_users": [],
+                    "created_at": now,
+                    "deleted_at": None
+                }
+                devices_reg[mac] = dev
+
+            # Admin manual multi-token reassignment
             if ctx["is_admin"] and ("target_tokens" in body or target_user_token):
                 target_tokens = body.get("target_tokens")
                 if target_tokens is None:
@@ -2405,58 +2434,110 @@ class Handler(BaseHTTPRequestHandler):
                         target_tokens = [target_user_token]
                 
                 target_set = set(target_tokens)
+                dev["claimed_users"] = [t for t in target_set if t in users]
+                dev["status"] = "active"
+                dev["deleted_at"] = None
+                
                 for u_t, u_data in users.items():
-                    current_strips = u_data.setdefault("strips", [])
+                    c_strips = u_data.setdefault("strips", [])
                     if u_t in target_set:
-                        if mac not in current_strips:
-                            current_strips.append(mac)
+                        if mac not in c_strips:
+                            c_strips.append(mac)
                     else:
-                        if mac in current_strips:
-                            current_strips.remove(mac)
+                        if mac in c_strips:
+                            c_strips.remove(mac)
+                
                 save_users(users)
+                save_devices(devices_reg)
                 assigned_names = [users[t].get("name", "User") for t in target_set if t in users]
                 log(f"[claim] strip {mac} assignments updated by Admin: {', '.join(assigned_names) if assigned_names else 'unassigned'}")
                 return self._json({"ok": True, "mac": mac, "assigned_users": assigned_names})
-            
-            # Always register claimed strip in system claimed_strips list and default guard
-            data = load_strips()
-            c_strips = data.setdefault("claimed_strips", [])
-            if mac not in c_strips:
-                c_strips.append(mac)
-            if not any(s.get("mac") == mac for s in data.get("strips", []) if isinstance(s, dict)):
-                data.setdefault("strips", []).append({"mac": mac, "ip": ""})
-            save_strips(data)
 
-            # Ensure default voltage guard is active
-            guards = get_voltage_guards()
-            if mac not in guards:
-                guards[mac] = get_default_guard_config()
-                save_voltage_guards(guards)
+            # Check whether strip is currently active or deleted
+            is_already_active = (dev.get("status") == "active")
 
-            if ctx["is_admin"] and not ("target_tokens" in body or target_user_token):
-                # When admin claims a strip for themselves, also add it to admin user's strip list
-                user_entry = users.get(ctx["token"])
-                if user_entry:
-                    strips_list = user_entry.setdefault("strips", [])
-                    if mac not in strips_list:
-                        strips_list.append(mac)
-                        save_users(users)
-                log(f"[claim] strip {mac} claimed by Admin ({ctx['token'][:10]}...)")
-                return self._json({"ok": True, "admin": True, "mac": mac, "message": "Strip claimed for admin."})
+            if ctx["is_admin"]:
+                # Admin claiming
+                dev["admin_claimed"] = True
+                if not is_already_active:
+                    dev["status"] = "active"
+                    dev["deleted_at"] = None
+                
+                # Add to admin user's strip list
+                admin_token = ctx["token"]
+                if not admin_token or admin_token == TOKEN:
+                    # Find admin user record by is_admin or email
+                    for u_k, u_v in users.items():
+                        if u_v.get("is_admin") or u_v.get("email") == ADMIN_EMAIL:
+                            admin_token = u_k
+                            break
+                admin_entry = users.get(admin_token)
+                if admin_entry:
+                    s_list = admin_entry.setdefault("strips", [])
+                    if mac not in s_list:
+                        s_list.append(mac)
+                    if admin_token not in dev.setdefault("claimed_users", []):
+                        dev["claimed_users"].append(admin_token)
+                    save_users(users)
+                
+                # Ensure default guard
+                guards = get_voltage_guards()
+                if mac not in guards:
+                    guards[mac] = get_default_guard_config()
+                    save_voltage_guards(guards)
+
+                save_devices(devices_reg)
+                log(f"[claim] strip {mac} claimed by Admin (already_active={is_already_active})")
+                return self._json({"ok": True, "admin": True, "mac": mac, "already_active": is_already_active, "message": "Strip claimed for admin."})
             
-            user_entry = users.get(ctx["token"])
-            if not user_entry:
-                return self._json({"error": "user record not found"}, 404)
-            
-            strips_list = user_entry.setdefault("strips", [])
-            max_strips = user_entry.get("max_strips", 10)
-            if mac not in strips_list:
-                if len(strips_list) >= max_strips:
-                    return self._json({"error": f"Subscription strip limit reached ({len(strips_list)}/{max_strips}). Please upgrade your plan."}, 403)
-                strips_list.append(mac)
+            else:
+                # Regular user claiming
+                user_token = ctx["token"]
+                user_entry = users.get(user_token)
+                if not user_entry:
+                    return self._json({"error": "user record not found"}, 404)
+                
+                user_strips = user_entry.setdefault("strips", [])
+                max_strips = user_entry.get("max_strips", 10)
+                
+                if mac not in user_strips and len(user_strips) >= max_strips:
+                    return self._json({"error": f"Subscription strip limit reached ({len(user_strips)}/{max_strips})."}, 403)
+
+                if is_already_active:
+                    # Strip is already active for other users/admin:
+                    # Only add this user to claimed_users list! Do NOT remark or change status.
+                    if user_token not in dev.setdefault("claimed_users", []):
+                        dev["claimed_users"].append(user_token)
+                    if mac not in user_strips:
+                        user_strips.append(mac)
+                    log(f"[claim] strip {mac} joined by user {ctx['user_name']} (remains active for {len(dev['claimed_users'])} users)")
+                else:
+                    # Strip was previously deleted or never seen:
+                    # Reactivate strip, set admin_claimed=True, and add user
+                    dev["status"] = "active"
+                    dev["deleted_at"] = None
+                    dev["admin_claimed"] = True
+                    dev["claimed_users"] = [user_token]
+                    if mac not in user_strips:
+                        user_strips.append(mac)
+                    log(f"[claim] strip {mac} reactivated & claimed by user {ctx['user_name']}")
+
                 save_users(users)
-                log(f"[claim] strip {mac} claimed by {ctx['user_name']} ({ctx['token'][:10]}...) [{len(strips_list)}/{max_strips}]")
-            return self._json({"ok": True, "mac": mac, "user": ctx["user_name"], "strips": strips_list, "max_strips": max_strips})
+                save_devices(devices_reg)
+
+                guards = get_voltage_guards()
+                if mac not in guards:
+                    guards[mac] = get_default_guard_config()
+                    save_voltage_guards(guards)
+
+                return self._json({
+                    "ok": True,
+                    "mac": mac,
+                    "user": ctx["user_name"],
+                    "already_active": is_already_active,
+                    "strips": user_strips,
+                    "claimed_users_count": len(dev.get("claimed_users", []))
+                })
         if u.path == "/api/unclaim":
             # Direct endpoint for normal users to release a strip from their account
             token_arg = (body.get("token") or self.headers.get("X-Token", "")).strip()
@@ -3393,11 +3474,10 @@ class Handler(BaseHTTPRequestHandler):
             ip = q.get("ip", [""])[0].strip()
 
             data = load_strips()
-            # If removing by IP from manual list
             if ip and not mac:
                 if not ctx["is_admin"]:
                     return self._json({"error": "admin access required"}, 403)
-                data["strips"] = [s for s in data["strips"] if s.get("ip") != ip]
+                data["strips"] = [s for s in data.get("strips", []) if s.get("ip") != ip]
                 save_strips(data)
                 log(f"strip removed by IP {ip}")
                 return self._json({"ok": True, "removed_ip": ip})
@@ -3405,68 +3485,93 @@ class Handler(BaseHTTPRequestHandler):
             if not mac:
                 return self._json({"error": "mac or ip required"}, 400)
 
-            if not self._can_access_mac(mac):
-                return self._json({"error": "forbidden (strip not owned)"}, 403)
-
-            # 1. If non-admin user, unclaim it
+            devices_reg = get_devices()
             users = get_users()
+            now = int(time.time())
+
             if not ctx["is_admin"]:
+                # --- CASE A: Regular User unbinding ---
+                dev = devices_reg.get(mac)
+                if not dev:
+                    return self._json({"error": "device not found"}, 404)
+                
+                # Remove from user's strips list
                 user_entry = users.get(ctx["token"])
                 if user_entry and mac in user_entry.get("strips", []):
                     user_entry["strips"].remove(mac)
                     save_users(users)
-                    log(f"[user-remove] Strip {mac} unlinked from {ctx['user_name']}")
-                    return self._json({"ok": True, "unlinked": mac})
 
-            # 2. If Admin, complete wipe of strip metadata & disconnect
-            for u_tok, u_entry in users.items():
-                if "strips" in u_entry:
-                    u_entry["strips"] = [m for m in u_entry["strips"] if norm_mac(m).upper() != mac]
-            data["users"] = users
+                # Remove from device's claimed_users
+                c_users = dev.setdefault("claimed_users", [])
+                if ctx["token"] in c_users:
+                    c_users.remove(ctx["token"])
 
-            # Purge historical readings from analytics database so it does not resurrect as offline
-            try:
-                import sqlite3
-                db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "analytics.db")
-                if os.path.exists(db_path):
-                    with sqlite3.connect(db_path, timeout=5.0) as conn:
-                        conn.execute("DELETE FROM readings WHERE UPPER(mac) = ?", (mac,))
-                        conn.commit()
-                        log(f"[admin-remove] Purged historical readings for {mac} from database")
-            except Exception as ex:
-                log(f"[admin-remove] Error purging database for {mac}: {ex}")
+                # Check if anyone is left claiming this strip
+                if len(c_users) == 0 and not dev.get("admin_claimed", False):
+                    # No users left and admin does not claim it -> mark as deleted
+                    dev["status"] = "deleted"
+                    dev["deleted_at"] = now
+                    log(f"[user-remove] Strip {mac} unlinked from {ctx['user_name']}; no remaining claims -> marked DELETED")
+                else:
+                    log(f"[user-remove] Strip {mac} unlinked from {ctx['user_name']}; remaining claims: {len(c_users)} users (admin={dev.get('admin_claimed')})")
+                
+                data["devices"] = devices_reg
+                save_strips(data)
+                return self._json({"ok": True, "unlinked": mac, "remaining_users": len(c_users)})
 
-            names = data.setdefault("names", {})
-            names.pop(mac, None)
-            names.pop(mac.lower(), None)
-            data["strips"] = [s for s in data.get("strips", []) if norm_mac(s.get("mac", "")).upper() != mac]
+            else:
+                # --- CASE B: Admin authoritative delete ---
+                dev = devices_reg.get(mac)
+                if not dev:
+                    dev = {"mac": mac, "name": f"MTTL {mac[-7:]}"}
+                    devices_reg[mac] = dev
+                
+                # Authoritative purge: Mark deleted, clear admin claim and all user claims
+                dev["status"] = "deleted"
+                dev["deleted_at"] = now
+                dev["admin_claimed"] = False
+                dev["claimed_users"] = []
+                data["devices"] = devices_reg
 
-            # Remove associated voltage guards and locked outlets
-            if "voltage_guard" in data:
-                data["voltage_guard"].pop(mac, None)
-                data["voltage_guard"].pop(mac.lower(), None)
-            if "locked_outlets" in data:
-                data["locked_outlets"].pop(mac, None)
-                data["locked_outlets"].pop(mac.lower(), None)
+                # Remove from all users' strip lists
+                for u_tok, u_entry in users.items():
+                    if "strips" in u_entry and mac in u_entry["strips"]:
+                        u_entry["strips"].remove(mac)
+                data["users"] = users
 
-            # Remove associated schedules
-            scheds = get_schedules()
-            scheds = [s for s in scheds if norm_mac(s.get("mac", "")).upper() != mac]
-            data["schedules"] = scheds
+                # Purge historical readings from analytics database so it never resurrects
+                try:
+                    import sqlite3
+                    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "analytics.db")
+                    if os.path.exists(db_path):
+                        with sqlite3.connect(db_path, timeout=5.0) as conn:
+                            conn.execute("DELETE FROM readings WHERE UPPER(mac) = ?", (mac,))
+                            conn.commit()
+                            log(f"[admin-remove] Purged historical readings for {mac} from database")
+                except Exception as ex:
+                    log(f"[admin-remove] Error purging database for {mac}: {ex}")
 
-            # Remove from custom orders
-            if "strip_orders" in data:
-                for u_k in list(data["strip_orders"].keys()):
-                    data["strip_orders"][u_k] = [m for m in data["strip_orders"][u_k] if norm_mac(m).upper() != mac]
+                # Clean from names, voltage_guard, locked_outlets, schedules
+                names = data.setdefault("names", {})
+                names.pop(mac, None)
+                names.pop(mac.lower(), None)
+                if "voltage_guard" in data:
+                    data["voltage_guard"].pop(mac, None)
+                    data["voltage_guard"].pop(mac.lower(), None)
+                if "locked_outlets" in data:
+                    data["locked_outlets"].pop(mac, None)
+                    data["locked_outlets"].pop(mac.lower(), None)
+                scheds = get_schedules()
+                scheds = [s for s in scheds if norm_mac(s.get("mac", "")).upper() != mac]
+                data["schedules"] = scheds
+                save_strips(data)
 
-            save_strips(data)
+                # Disconnect from live controller if currently connected
+                if CTL:
+                    CTL.remove_device(mac)
 
-            # Remove and disconnect from live controller
-            if CTL:
-                CTL.remove_device(mac)
-
-            log(f"[admin-remove] Strip {mac} completely removed by Admin and tombstoned")
-            return self._json({"ok": True, "removed": mac})
+                log(f"[admin-remove] Strip {mac} completely DELETED and purged by Admin")
+                return self._json({"ok": True, "deleted": mac, "status": "deleted"})
 
         if u.path == "/api/schedules":
             if not self._authorized():
@@ -3591,7 +3696,26 @@ if __name__ == "__main__":
     _th.Thread(target=watcher_loop, daemon=True).start()
     _th.Thread(target=voltage_guard_loop, daemon=True).start()
     log("[voltage-guard] protection loop started (2.5s interval)")
-    _th.Thread(target=analytics.collector_loop, args=(CTL,), daemon=True).start()
+    def _filtered_collector_loop():
+        """Collector loop that skips telemetry writes for deleted strips."""
+        while True:
+            try:
+                if CTL and CTL.wait_ready(0):
+                    snap = CTL.snapshot()
+                    if snap and snap.get("devices"):
+                        devs_reg = get_devices()
+                        active_devs = [
+                            d for d in snap["devices"]
+                            if devs_reg.get(norm_mac(d.get("mac", "")).upper(), {}).get("status") != "deleted"
+                        ]
+                        if active_devs:
+                            analytics.record_snapshot(active_devs)
+                            print(f"[analytics] collected {len(active_devs)} active devices snapshot", flush=True)
+            except Exception as e:
+                print(f"[analytics] collector error: {e}", flush=True)
+            time.sleep(30)
+
+    _th.Thread(target=_filtered_collector_loop, daemon=True).start()
     log("[analytics] collector thread started (30s interval)")
     log(f"volta-local on :{PORT} — open http://<this-host>:{PORT}")
     log(f"controller listening :{DEVICE_PORT} (strips dial in; provision them with this server's IP)")
