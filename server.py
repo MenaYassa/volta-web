@@ -2394,8 +2394,15 @@ class Handler(BaseHTTPRequestHandler):
                 log(f"[claim] strip {mac} assignments updated by Admin: {', '.join(assigned_names) if assigned_names else 'unassigned'}")
                 return self._json({"ok": True, "mac": mac, "assigned_users": assigned_names})
             
-            if ctx["is_admin"]:
-                return self._json({"ok": True, "admin": True, "message": "Admin account has access to all strips."})
+            if ctx["is_admin"] and not ("target_tokens" in body or target_user_token):
+                # When admin claims a strip for themselves, add it to admin's strip list so it displays in their profile/dashboard
+                user_entry = users.get(ctx["token"])
+                if user_entry:
+                    strips_list = user_entry.setdefault("strips", [])
+                    if mac not in strips_list:
+                        strips_list.append(mac)
+                        save_users(users)
+                return self._json({"ok": True, "admin": True, "mac": mac, "message": "Strip claimed for admin."})
             
             user_entry = users.get(ctx["token"])
             if not user_entry:
