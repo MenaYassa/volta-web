@@ -63,20 +63,44 @@ def check_and_apply_auto_claim(mac, client_ip):
     
     strips_list = user_entry.setdefault("strips", [])
     max_strips = user_entry.get("max_strips", 10)
+    if mac not in strips_list and len(strips_list) >= max_strips:
+        log(f"[auto-claim-rejected] User {user_entry.get('name')} reached max strip limit ({len(strips_list)}/{max_strips}) for strip {mac}")
+        return None
+
+    # Update devices registry
+    devices_reg = get_devices()
+    dev = devices_reg.get(mac)
+    if not dev:
+        dev = {
+            "mac": mac,
+            "name": f"MTTL {mac[-7:]}",
+            "status": "active",
+            "admin_claimed": True,
+            "claimed_users": [],
+            "created_at": int(now),
+            "deleted_at": None
+        }
+        devices_reg[mac] = dev
+    
+    dev["status"] = "active"
+    dev["deleted_at"] = None
+    dev["admin_claimed"] = True
+    c_users = dev.setdefault("claimed_users", [])
+    if token not in c_users:
+        c_users.append(token)
+    save_devices(devices_reg)
+
     if mac not in strips_list:
-        if len(strips_list) >= max_strips:
-            log(f"[auto-claim-rejected] User {user_entry.get('name')} reached max strip limit ({len(strips_list)}/{max_strips}) for strip {mac}")
-            return None
         strips_list.append(mac)
         save_users(users)
         log(f"[auto-claim] Strip {mac} automatically claimed for user {user_entry.get('name')} ({token[:10]}...) [{len(strips_list)}/{max_strips}] via IP {client_ip}")
 
-        # Ensure default voltage & temperature guard is armed for this newly claimed strip
-        guards = get_voltage_guards()
-        if mac not in guards:
-            guards[mac] = get_default_guard_config()
-            save_voltage_guards(guards)
-            log(f"[voltage-guard] Armed default protection for new strip {mac}")
+    guards = get_voltage_guards()
+    if mac not in guards:
+        guards[mac] = get_default_guard_config()
+        save_voltage_guards(guards)
+        log(f"[voltage-guard] Armed default protection for new strip {mac}")
+
     return user_entry.get("name")
 
 
