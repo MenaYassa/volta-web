@@ -2539,7 +2539,7 @@ class Handler(BaseHTTPRequestHandler):
                     "claimed_users_count": len(dev.get("claimed_users", []))
                 })
         if u.path == "/api/unclaim":
-            # Direct endpoint for normal users to release a strip from their account
+            # Direct endpoint to release/unclaim a strip from an account
             token_arg = (body.get("token") or self.headers.get("X-Token", "")).strip()
             mac = norm_mac(body.get("mac", "")).upper()
             ctx = resolve_auth_context(token_arg)
@@ -2547,14 +2547,76 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "invalid token"}, 401)
             if not mac:
                 return self._json({"error": "mac required"}, 400)
+            
+            devices_reg = get_devices()
             users = get_users()
-            user_entry = users.get(ctx["token"])
-            if user_entry and mac in user_entry.get("strips", []):
-                user_entry["strips"].remove(mac)
+            now = int(time.time())
+            user_tok = ctx["token"]
+
+            if ctx["is_admin"]:
+                # Admin unclaiming / deleting
+                dev = devices_reg.get(mac)
+                if not dev:
+                    return self._json({"error": "device not found"}, 404)
+                dev["status"] = "deleted"
+                dev["deleted_at"] = now
+                dev["admin_claimed"] = False
+                dev["claimed_users"] = []
+                save_devices(devices_reg)
+
+                for u_k, u_v in users.items():
+                    if "strips" in u_v and mac in u_v["strips"]:
+                        u_v["strips"].remove(mac)
                 save_users(users)
-                log(f"[unclaim] strip {mac} unlinked from {ctx['user_name']}")
-                return self._json({"ok": True, "unlinked": mac})
-            return self._json({"error": "strip not linked to user"}, 404)
+
+                try:
+                    import sqlite3
+                    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "analytics.db")
+                    if os.path.exists(db_path):
+                        with sqlite3.connect(db_path, timeout=5.0) as conn:
+                            conn.execute("DELETE FROM readings WHERE UPPER(mac) = ?", (mac,))
+                            conn.commit()
+                except Exception:
+                    pass
+
+                if CTL:
+                    CTL.remove_device(mac)
+
+                log(f"[admin-unclaim] Strip {mac} completely DELETED by Admin")
+                return self._json({"ok": True, "unlinked": mac, "deleted": True})
+
+            else:
+                # Regular user unclaiming
+                user_entry = users.get(user_tok)
+                dev = devices_reg.get(mac)
+                
+                was_in_user = user_entry and mac in user_entry.get("strips", [])
+                was_in_dev = dev and user_tok in dev.get("claimed_users", [])
+
+                if not was_in_user and not was_in_dev:
+                    return self._json({"error": "strip not linked to user"}, 404)
+
+                if user_entry and mac in user_entry.get("strips", []):
+                    user_entry["strips"].remove(mac)
+                    save_users(users)
+
+                remaining_claims = 0
+                if dev:
+                    c_users = dev.setdefault("claimed_users", [])
+                    if user_tok in c_users:
+                        c_users.remove(user_tok)
+                    remaining_claims = len(c_users)
+
+                    # If no users left and admin does not claim it -> mark deleted
+                    if remaining_claims == 0 and not dev.get("admin_claimed", False):
+                        dev["status"] = "deleted"
+                        dev["deleted_at"] = now
+                        log(f"[user-unclaim] Strip {mac} unlinked from {ctx['user_name']}; no remaining claims -> marked DELETED")
+                    else:
+                        log(f"[user-unclaim] Strip {mac} unlinked from {ctx['user_name']}; remaining claims: {remaining_claims} users")
+                    save_devices(devices_reg)
+
+                return self._json({"ok": True, "unlinked": mac, "remaining_users": remaining_claims})
         if u.path == "/api/rename":
             # Friendly names (server-side, keyed by MAC, survive reboots).
             # Body: {mac, name?} or {mac, outlet:1-4, outlet_name?} or {mac, name?, outlets: {1:"..", 2:"..", ..}}
@@ -3452,20 +3514,61 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "revoked": tok})
             return self._json({"error": "user token not found"}, 404)
         if u.path == "/api/claim":
-            # Unlink a strip MAC from user
+            # Forward DELETE /api/claim to the unclaim handler logic
             token_arg = (q.get("token", [""])[0] or self.headers.get("X-Token", "")).strip()
             mac = norm_mac(q.get("mac", [""])[0]).upper()
             ctx = resolve_auth_context(token_arg)
             if not ctx["authorized"]:
                 return self._json({"error": "invalid token"}, 401)
+            if not mac:
+                return self._json({"error": "mac required"}, 400)
+            
+            devices_reg = get_devices()
             users = get_users()
-            user_entry = users.get(ctx["token"])
-            if user_entry and mac in user_entry.get("strips", []):
-                user_entry["strips"].remove(mac)
+            now = int(time.time())
+            user_tok = ctx["token"]
+
+            if ctx["is_admin"]:
+                dev = devices_reg.get(mac)
+                if not dev:
+                    return self._json({"error": "device not found"}, 404)
+                dev["status"] = "deleted"
+                dev["deleted_at"] = now
+                dev["admin_claimed"] = False
+                dev["claimed_users"] = []
+                save_devices(devices_reg)
+                for u_k, u_v in users.items():
+                    if "strips" in u_v and mac in u_v["strips"]:
+                        u_v["strips"].remove(mac)
                 save_users(users)
-                log(f"[unclaim] strip {mac} unlinked from {ctx['user_name']}")
-                return self._json({"ok": True, "unlinked": mac})
-            return self._json({"error": "strip not linked to user"}, 404)
+                if CTL:
+                    CTL.remove_device(mac)
+                log(f"[admin-unclaim] Strip {mac} completely DELETED by Admin")
+                return self._json({"ok": True, "unlinked": mac, "deleted": True})
+            else:
+                user_entry = users.get(user_tok)
+                dev = devices_reg.get(mac)
+                was_in_user = user_entry and mac in user_entry.get("strips", [])
+                was_in_dev = dev and user_tok in dev.get("claimed_users", [])
+                if not was_in_user and not was_in_dev:
+                    return self._json({"error": "strip not linked to user"}, 404)
+                if user_entry and mac in user_entry.get("strips", []):
+                    user_entry["strips"].remove(mac)
+                    save_users(users)
+                remaining_claims = 0
+                if dev:
+                    c_users = dev.setdefault("claimed_users", [])
+                    if user_tok in c_users:
+                        c_users.remove(user_tok)
+                    remaining_claims = len(c_users)
+                    if remaining_claims == 0 and not dev.get("admin_claimed", False):
+                        dev["status"] = "deleted"
+                        dev["deleted_at"] = now
+                        log(f"[user-unclaim] Strip {mac} unlinked from {ctx['user_name']}; no remaining claims -> marked DELETED")
+                    else:
+                        log(f"[user-unclaim] Strip {mac} unlinked from {ctx['user_name']}; remaining claims: {remaining_claims} users")
+                    save_devices(devices_reg)
+                return self._json({"ok": True, "unlinked": mac, "remaining_users": remaining_claims})
         if u.path in ("/api/strips", "/api/strip"):
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
