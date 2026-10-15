@@ -210,14 +210,15 @@ def save_deleted_strips(deleted_set):
 def get_all_devices_snapshot():
     """Return unified device list containing live connected strips plus known/claimed offline strips.
     Offline devices are populated with their last known telemetry from analytics.db where available.
-    Strips explicitly deleted by Admin are ignored.
+    Live connected devices are NEVER ignored.
     """
     deleted_macs = get_deleted_strips()
     raw_snap = CTL.snapshot() if CTL else {"devices": []}
+    # Any live strip that is currently connected to the TCP controller is always accepted
     live_devices = {
         norm_mac(d.get("mac", "")).upper(): d
         for d in raw_snap.get("devices", [])
-        if d.get("mac") and norm_mac(d.get("mac", "")).upper() not in deleted_macs
+        if d.get("mac")
     }
 
     # Read last known state for all non-deleted strips from analytics.db
@@ -1587,6 +1588,16 @@ class Handler(BaseHTTPRequestHandler):
             ctx = self._auth_ctx()
             if not ctx["authorized"]:
                 return self._json({"error": "token required"}, 401)
+            
+            # If a live strip dialed in, ensure it is removed from any stale deleted_strips tombstone
+            if CTL:
+                live_macs = {norm_mac(d.get("mac", "")).upper() for d in CTL.snapshot().get("devices", []) if d.get("mac")}
+                cur_del = get_deleted_strips()
+                intersection = cur_del.intersection(live_macs)
+                if intersection:
+                    save_deleted_strips(cur_del - intersection)
+                    log(f"[live] Auto-cleared tombstone for active live strips: {intersection}")
+
             devices = get_all_devices_snapshot()
             # Filter devices by caller's allowed strips
             # Note: Unclaimed strips always show up for Admin so they can be discovered immediately!
@@ -3384,10 +3395,17 @@ class Handler(BaseHTTPRequestHandler):
                     u_entry["strips"] = [m for m in u_entry["strips"] if norm_mac(m).upper() != mac]
             data["users"] = users
 
-            # Record in deleted_strips tombstone so historical readings never resurrect it
-            deleted_macs = set(norm_mac(m).upper() for m in data.get("deleted_strips", []))
-            deleted_macs.add(mac)
-            data["deleted_strips"] = sorted(list(deleted_macs))
+            # Purge historical readings from analytics database so it does not resurrect as offline
+            try:
+                import sqlite3
+                db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "analytics.db")
+                if os.path.exists(db_path):
+                    with sqlite3.connect(db_path, timeout=5.0) as conn:
+                        conn.execute("DELETE FROM readings WHERE UPPER(mac) = ?", (mac,))
+                        conn.commit()
+                        log(f"[admin-remove] Purged historical readings for {mac} from database")
+            except Exception as ex:
+                log(f"[admin-remove] Error purging database for {mac}: {ex}")
 
             names = data.setdefault("names", {})
             names.pop(mac, None)
@@ -3532,7 +3550,7 @@ if __name__ == "__main__":
         on_event=log,
         on_switch=on_outlet_switch,
         on_connect=check_and_apply_auto_claim,
-        is_mac_allowed=lambda m: norm_mac(m).upper() not in get_deleted_strips()
+        is_mac_allowed=None  # Accept all incoming physical strip connections unconditionally
     )
     CTL.start()
     CTL.wait_ready(10)
