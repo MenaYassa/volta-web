@@ -2580,7 +2580,7 @@ class Handler(BaseHTTPRequestHandler):
                     pass
 
                 if CTL:
-                    CTL.remove_device(mac)
+                    pass  # keep physical TCP connection alive
 
                 log(f"[admin-unclaim] Strip {mac} completely DELETED by Admin")
                 return self._json({"ok": True, "unlinked": mac, "deleted": True})
@@ -3542,7 +3542,7 @@ class Handler(BaseHTTPRequestHandler):
                         u_v["strips"].remove(mac)
                 save_users(users)
                 if CTL:
-                    CTL.remove_device(mac)
+                    pass  # keep physical TCP connection alive
                 log(f"[admin-unclaim] Strip {mac} completely DELETED by Admin")
                 return self._json({"ok": True, "unlinked": mac, "deleted": True})
             else:
@@ -3671,7 +3671,7 @@ class Handler(BaseHTTPRequestHandler):
 
                 # Disconnect from live controller if currently connected
                 if CTL:
-                    CTL.remove_device(mac)
+                    pass  # keep physical TCP connection alive
 
                 log(f"[admin-remove] Strip {mac} completely DELETED and purged by Admin")
                 return self._json({"ok": True, "deleted": mac, "status": "deleted"})
