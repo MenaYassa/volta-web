@@ -1650,16 +1650,26 @@ class Handler(BaseHTTPRequestHandler):
                         admin_token = u_k
                         break
 
+            # If ?scope=all or ?all=1 or ?manage=1, Admin gets ALL active strips across the entire system
+            # Otherwise on main control dashboard, Admin only sees strips assigned to Admin!
+            show_all_admin = bool(q.get("all", [""])[0] in ("1", "true") or q.get("scope", [""])[0] == "all" or q.get("manage", [""])[0] == "1")
+
             if ctx["is_admin"]:
-                # Admin control dashboard ONLY displays strips explicitly assigned to Admin!
-                # Unassigned strips remain in Management/Setup and will not clutter the main control page.
-                devices = [
-                    d for d in devices
-                    if devices_reg.get(d.get("mac", ""), {}).get("status") == "active" and (
-                        admin_token in devices_reg.get(d.get("mac", ""), {}).get("claimed_users", []) or
-                        (devices_reg.get(d.get("mac", ""), {}).get("admin_claimed", False) and len(devices_reg.get(d.get("mac", ""), {}).get("claimed_users", [])) == 0)
-                    )
-                ]
+                if show_all_admin:
+                    # Management / Strips Page / User Strips Modal: Admin sees ALL active strips
+                    devices = [
+                        d for d in devices
+                        if devices_reg.get(d.get("mac", ""), {}).get("status") == "active"
+                    ]
+                else:
+                    # Main Control Dashboard: Admin ONLY sees strips assigned to Admin!
+                    devices = [
+                        d for d in devices
+                        if devices_reg.get(d.get("mac", ""), {}).get("status") == "active" and (
+                            admin_token in devices_reg.get(d.get("mac", ""), {}).get("claimed_users", []) or
+                            (devices_reg.get(d.get("mac", ""), {}).get("admin_claimed", False) and len(devices_reg.get(d.get("mac", ""), {}).get("claimed_users", [])) == 0)
+                        )
+                    ]
             else:
                 # Regular user only sees devices that are active AND where their token is in claimed_users
                 user_token = ctx["token"]

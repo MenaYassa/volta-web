@@ -4368,7 +4368,7 @@ async function openUserStripsModal(token){
   if($("musTitle"))$("musTitle").textContent = `Assigned Strips · ${u.name||"User"}`;
   if($("musDesc"))$("musDesc").textContent = `Select which strips ${u.name||"this user"} is permitted to view and control.`;
   
-  const liveData = await ensureLive();
+  let liveData; try { liveData = _currentUserIsAdmin ? await apit("/api/live?scope=all") : await ensureLive(); } catch(e) { liveData = await ensureLive(); }
   const devs = (liveData && liveData.devices) || [];
   const names = (liveData && liveData.names) || {};
   const allMacs = [...new Set([...devs.map(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toUpperCase()), ...Object.keys(names).map(m=>m.toUpperCase())])].filter(Boolean);
@@ -4636,7 +4636,7 @@ async function ensureLive(){if(_last)return _last;try{_last=await apit("/api/liv
 
 async function renderManage(){
   const box=$("manage");if(!box)return;
-  const s=await ensureLive();
+  let s; try { s = _currentUserIsAdmin ? await apit("/api/live?scope=all") : await ensureLive(); } catch(e) { s = await ensureLive(); }
   if(!s){box.innerHTML="<p class='err'>Set the token in Settings first.</p>";return;}
   
   // Ensure we have current user mappings for owner badges
