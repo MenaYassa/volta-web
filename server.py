@@ -67,8 +67,36 @@ def check_and_apply_auto_claim(mac, client_ip):
         log(f"[auto-claim-rejected] User {user_entry.get('name')} reached max strip limit ({len(strips_list)}/{max_strips}) for strip {mac}")
         return None
 
-    # Update devices registry
+    # Update devices registry & reconcile suffix typos
     devices_reg = get_devices()
+    suffix_6 = mac[-6:]  # Last 6 hex characters of the physical MAC
+
+    # Check if there is an offline placeholder with the same last 6 characters (e.g. prefix typo)
+    for existing_mac, existing_dev in list(devices_reg.items()):
+        if existing_mac != mac and existing_mac.endswith(suffix_6):
+            if existing_dev.get("status") == "active":
+                # Check if the existing one is offline
+                existing_users = existing_dev.get("claimed_users", [])
+                if token in existing_users or len(existing_users) > 0:
+                    log(f"[auto-claim-reconcile] Reconciling typo MAC {existing_mac} -> actual hardware MAC {mac}")
+                    # Migrate display name if customized
+                    if existing_dev.get("name") and not existing_dev["name"].startswith("MTTL "):
+                        existing_name = existing_dev["name"]
+                        names_data = load_strips().get("names", {})
+                        if existing_mac.lower() in names_data:
+                            names_data[mac.lower()] = names_data.pop(existing_mac.lower())
+                            save_strips({"names": names_data})
+                    # Soft-delete the typo ghost record
+                    existing_dev["status"] = "deleted"
+                    existing_dev["deleted_at"] = int(now)
+                    existing_dev["claimed_users"] = []
+                    # Remove typo MAC from user strip lists
+                    if existing_mac in strips_list:
+                        strips_list.remove(existing_mac)
+                    for u_k, u_v in users.items():
+                        if "strips" in u_v and existing_mac in u_v["strips"]:
+                            u_v["strips"].remove(existing_mac)
+
     dev = devices_reg.get(mac)
     if not dev:
         dev = {
