@@ -3794,22 +3794,19 @@ async function live(){
         const activeUnlockedOutlets = unlockedOutletsList.filter(o => o.on).length;
         const totalUnlockedOutlets = unlockedOutletsList.length;
 
-        // Master Power Button state & visual styling:
-        // Evaluates unlocked controllable outlets so locked-ON outlets don't deadlock the master switch!
-        const allUnlockedAreOn = d.online && totalUnlockedOutlets > 0 && activeUnlockedOutlets === totalUnlockedOutlets;
-        const allUnlockedAreOff = totalUnlockedOutlets === 0 || activeUnlockedOutlets === 0;
-
+        // Master Power Button Visual Styling:
+        // Evaluates total active physical outlets (including locked ones) so the visual state matches reality:
+        // - GREEN (all-on): When all 4 outlets on the strip are ON.
+        // - RED (all-off): When all 4 outlets on the strip are completely OFF.
+        // - ORANGE/AMBER (partial-on): When 1, 2, or 3 outlets are ON.
         let masterBtnClass = "all-off";
-        let masterBtnTitle = "Power Strip Master Switch: All switchable outlets OFF. Click to turn ON.";
-        if (allUnlockedAreOn) {
+        let masterBtnTitle = "Master Switch: All outlets OFF. Click to turn ON.";
+        if (d.online && totalOutlets > 0 && activeOutlets === totalOutlets) {
           masterBtnClass = "all-on";
-          masterBtnTitle = "Power Strip Master Switch: All switchable outlets ON. Click to turn OFF.";
-        } else if (activeUnlockedOutlets > 0) {
+          masterBtnTitle = "Master Switch: All outlets ON. Click to turn switchable OFF.";
+        } else if (activeOutlets > 0) {
           masterBtnClass = "partial-on";
-          masterBtnTitle = `Power Strip Master Switch: ${activeUnlockedOutlets} of ${totalUnlockedOutlets} switchable outlets ON. Click to turn OFF.`;
-        } else if (totalUnlockedOutlets === 0) {
-          masterBtnClass = "all-off";
-          masterBtnTitle = "All outlets are locked 🔒";
+          masterBtnTitle = `Master Switch: ${activeOutlets} of ${totalOutlets} outlets ON. Click to toggle.`;
         }
 
         const vDisplay = d.voltage_v ? `${d.voltage_v} V` : (d.voltage ? `${d.voltage} V` : "—");
