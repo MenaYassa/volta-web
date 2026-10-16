@@ -2871,7 +2871,7 @@ class Handler(BaseHTTPRequestHandler):
             mac = norm_mac(body.get("mac") or "").upper()
             if not mac:
                 return self._json({"error": "mac required"}, 400)
-            if not self._can_access_strip(mac):
+            if not self._can_access_mac(mac):
                 return self._json({"error": "forbidden: strip not assigned to your account"}, 403)
             ok, err = CTL.reboot(mac)
             if not ok:
