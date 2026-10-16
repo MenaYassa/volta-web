@@ -482,7 +482,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   margin: 10px 0 12px;
   box-shadow: inset 0 1px 3px rgba(0,0,0,.04), 0 2px 6px rgba(0,0,0,.02);
   width: 100%;
@@ -490,6 +490,79 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   box-sizing: border-box;
   overflow: hidden;
   transition: background .2s, border-color .2s;
+}
+
+.phys-master-wrap{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+  padding-right: 10px;
+  border-right: 1.5px solid var(--line);
+  text-align: center;
+}
+:root[data-theme="dark"] .phys-master-wrap{
+  border-right-color: rgba(255,255,255,.1);
+}
+
+.phys-master-btn{
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all .2s;
+  color: #64748b;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+.phys-master-btn:hover{transform: scale(1.08);}
+:root[data-theme="dark"] .phys-master-btn{
+  background: #090d16;
+  border-color: #334155;
+  color: #64748b;
+}
+
+.phys-master-btn.all-on{
+  border-color: #16a34a;
+  color: #fff;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 0 12px rgba(34,197,94,.5), inset 0 0 6px rgba(255,255,255,.3);
+}
+:root[data-theme="dark"] .phys-master-btn.all-on{
+  border-color: #22c55e;
+  background: radial-gradient(circle, #166534 0%, #052e16 100%);
+  box-shadow: 0 0 12px rgba(34,197,94,.55), inset 0 0 6px rgba(34,197,94,.4);
+}
+
+.phys-master-btn.partial-on{
+  border-color: #f59e0b;
+  color: #fff;
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+  box-shadow: 0 0 10px rgba(245,158,11,.45), inset 0 0 6px rgba(255,255,255,.3);
+}
+:root[data-theme="dark"] .phys-master-btn.partial-on{
+  border-color: #f59e0b;
+  background: radial-gradient(circle, #b45309 0%, #78350f 100%);
+  box-shadow: 0 0 10px rgba(245,158,11,.5), inset 0 0 6px rgba(245,158,11,.4);
+}
+
+.phys-master-btn.all-off{
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239,68,68,.08);
+}
+:root[data-theme="dark"] .phys-master-btn.all-off{
+  border-color: #ef4444;
+  color: #f87171;
+  background: rgba(239,68,68,.12);
 }
 
 :root[data-theme="dark"] .strip-physical{
@@ -624,7 +697,9 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   .strip{padding:12px 12px;overflow:hidden}
   .strip-head b{font-size:16px}
   .strip-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-  .strip-physical{padding:10px 8px 12px;gap:6px}
+  .strip-physical{padding:10px 6px 12px;gap:6px}
+  .phys-master-wrap{padding-right:6px}
+  .phys-master-btn{width:30px;height:30px;font-size:13px}
   .strip-phys-sockets{gap:4px}
   .phys-socket{width:28px;height:28px;font-size:10px}
   .phys-socket-name{font-size:9px;margin-top:3px}
@@ -3713,18 +3788,18 @@ async function live(){
           stripDotClass = "dot";
         }
 
-        // ALL ON & ALL OFF button coloring:
-        // - allon: green background when all outlets are ON
-        // - alloff: red background when all outlets are OFF
+        // Master Power Button state & visual styling:
         const allAreOn = d.online && totalOutlets > 0 && activeOutlets === totalOutlets;
         const allAreOff = totalOutlets > 0 && activeOutlets === 0;
-
-        const allOnStyle = allAreOn
-          ? "background:#22c55e;color:#fff;border-color:#22c55e;font-weight:700"
-          : "";
-        const allOffStyle = allAreOff
-          ? "background:#ef4444;color:#fff;border-color:#ef4444;font-weight:700"
-          : "";
+        let masterBtnClass = "all-off";
+        let masterBtnTitle = "Power Strip Master Switch: All OFF. Click to turn all outlets ON.";
+        if (allAreOn) {
+          masterBtnClass = "all-on";
+          masterBtnTitle = "Power Strip Master Switch: All ON. Click to turn all outlets OFF.";
+        } else if (activeOutlets > 0) {
+          masterBtnClass = "partial-on";
+          masterBtnTitle = `Power Strip Master Switch: ${activeOutlets} of ${totalOutlets} ON. Click to toggle.`;
+        }
 
         const vDisplay = d.voltage_v ? `${d.voltage_v} V` : (d.voltage ? `${d.voltage} V` : "—");
         const pDisplay = (d.power_w !== undefined && d.power_w !== null) ? `${d.power_w} W` : "—";
@@ -3773,14 +3848,16 @@ async function live(){
             <span style="flex:1"></span>
             <div style="display:flex;gap:6px;align-items:center">
               <button class="ghost sm strip-reboot" title="Restart physical strip (up:reboot:0)" style="padding:2px 8px;font-size:12px;opacity:.8">🔄</button>
-              <button class="ghost sm allon" style="${allOnStyle}">ALL ON</button>
-              <button class="ghost sm alloff" style="${allOffStyle}">ALL OFF</button>
               <button class="ghost sm strip-del" title="Remove strip" style="color:var(--red);padding:2px 8px;font-size:12px;opacity:.7">🗑</button>
             </div>
           </div>
 
           <!-- SFN Physical Power Strip Visual Enclosure -->
           <div class="strip-physical">
+            <div class="phys-master-wrap">
+              <div class="phys-master-btn ${masterBtnClass}" title="${masterBtnTitle}">⏻</div>
+              <div class="phys-socket-name" style="font-weight:700">Main</div>
+            </div>
             <div class="strip-phys-sockets">
               ${stripSocketsHtml}
             </div>
@@ -3857,8 +3934,14 @@ async function live(){
           }
         };
 
-        c.querySelector(".allon").onclick = () => setAll(true);
-        c.querySelector(".alloff").onclick = () => setAll(false);
+        const masterBtn = c.querySelector(".phys-master-btn");
+        if (masterBtn) {
+          masterBtn.onclick = () => {
+            // If any outlets are ON, master switch turns all OFF. If all are OFF, turns all ON.
+            const turnOn = activeOutlets === 0;
+            setAll(turnOn);
+          };
+        }
 
         const rebootBtn = c.querySelector(".strip-reboot");
         if (rebootBtn) {
