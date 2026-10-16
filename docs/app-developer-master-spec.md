@@ -206,9 +206,27 @@ To protect sensitive appliances (refrigerators, servers, 3D printers, routers) f
    - Calling `POST /api/onoff` on a locked outlet triggers HTTP `409 Conflict`:
      `{"error": "outlet 2 is locked against switching"}`.
 
-### 2.4 Selective Batch Switching (`ALL ON` / `ALL OFF`)
-- Batch buttons must **never switch locked outlets**.
-- When user taps `ALL ON` or `ALL OFF`:
+### 2.4 Physical Strip Enclosure & Master Power Button (`⏻`)
+The dashboard visual enclosure accurately mirrors the physical MTTL smart strip:
+1. **Master Power Button (`⏻`)**:
+   - Located on the far-left of the enclosure, beside the 4 socket buttons and separated by a subtle divider.
+   - **Visual Feedback**:
+     - **Green (`all-on`)**: When all controllable (unlocked) outlets are ON.
+     - **Amber (`partial-on`)**: When some controllable outlets are ON and some are OFF.
+     - **Red/Muted (`all-off`)**: When all controllable outlets are OFF.
+   - **One-Tap Master Toggle**:
+     - Evaluates **unlocked (switchable)** outlets so locked-ON outlets do not deadlock the master switch.
+     - If any switchable outlet is ON $\rightarrow$ clicking master turns all switchable outlets OFF.
+     - If all switchable outlets are OFF $\rightarrow$ clicking master turns all switchable outlets ON.
+     - Never flips locked outlets (`🔒`).
+2. **Physical Socket Buttons & Lock Badges**:
+   - Outlets 1–4 are displayed as circular tactile buttons (`⚡`).
+   - Tapping an outlet socket button directly toggles that channel.
+   - When locked, a compact `🔒` badge anchors to the socket button, and its border turns into a dashed warning style with safety prompt guard.
+
+### 2.5 Selective Batch Switching
+- Master toggle and batch commands must **never switch locked outlets**.
+- When user invokes batch toggle:
   1. Filter out locked outlets: `unlocked = outlets.filter(o => !o.locked)`.
   2. If all outlets are locked, abort and notify: `"All outlets on this strip are locked 🔒."`
   3. Send `POST /api/onoff` targeting only unlocked channels:
@@ -224,17 +242,18 @@ To protect sensitive appliances (refrigerators, servers, 3D printers, routers) f
      }
      ```
 
-### 2.5 Visual Language & Status HUD
+### 2.6 Visual Language & Status HUD
 Maintain 1:1 visual continuity with the web dashboard:
 - **Strip Header Status LED Dot**:
   - `Offline`: Solid Red (`#EF4444`).
   - `Online (0 outlets ON)`: Muted Gray (`#94A3B8`).
   - `Online (1–3 outlets ON)`: Vibrant Light Green (`#4ADE80`).
   - `Online (All 4 outlets ON)`: Shiny Glowing Green (`#22C55E` with subtle drop-shadow).
-- **Batch & Utility Buttons**:
-  - `ALL ON`: Filled Solid Green (`#22C55E`) when all outlets are ON; otherwise ghost button.
-  - `ALL OFF`: Filled Solid Red (`#EF4444`) when all outlets are OFF; otherwise ghost button.
+- **Physical Master Power Button**:
+  - Highlights according to switchable outlet state (Green / Amber / Red-Muted).
+- **Header Utilities**:
   - `🔄 Reboot`: Header utility button sending `POST /api/reboot` with prompt confirmation.
+  - `🗑 Delete / Unclaim`: Header trash button to release or remove strip.
 - **Outlet Specs Row**:
   - Always render formatted specs consistently:
     `[STATE] • [POWER W] • [CURRENT A] • [ENERGY kWh] • [TEMP °C]`

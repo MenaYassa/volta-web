@@ -13,7 +13,8 @@ No cloud subscriptions. No Korean phone numbers. No vendor lock-in.
 - **Full Electrical Telemetry**: Live power (W), cumulative energy (kWh), grid voltage (V), internal temperature (°C), and Wi-Fi signal (dBm).
 - **Time-Series Analytics**: Interactive charts for aggregate house load, per-strip power, voltage fluctuations, temperature, and top energy-consuming outlets.
 - **Dual Hardware Safety Guards**: Configurable Voltage Guard (sag/surge cutoff with automatic state restoration) and Temperature Guard (overheat cutoff with manual safety reset).
-- **Accidental Switch Locks**: Server-persisted outlet locks (`🔒`) that protect critical equipment from accidental switching and exclude them from batch `ALL ON` and `ALL OFF` operations.
+- **Physical Strip Visual Enclosure & Master Power Button**: Realistic 4-socket visual power strip enclosure with embedded Master Switch (`⏻`), dynamic green/amber/red LED states, and direct outlet toggle shortcuts.
+- **Accidental Switch Locks**: Server-persisted outlet locks (`🔒`) that protect critical equipment from accidental switching, visually badged on both physical socket indicators and detailed cards, and cleanly decoupled from master batch operations.
 - **Custom Drag-and-Drop Organization**: Reorder power strips on desktop and mobile with automatic per-user cloud persistence.
 - **Google Sign-In & Multi-Tenant User Isolation**: Native Google authentication, 1-strip free lifetime tier, scoped user accounts with restricted device visibility, subscription quotas, and multi-user device assignment.
 - **Native Amazon Alexa Smart Home**: Control outlets and monitor power, voltage, and temperature via voice through Echo and Alexa apps.

@@ -151,12 +151,38 @@ Each outlet in `GET /api/live` and `GET /api/devices` includes its lock status, 
 
 ---
 
-## 3. Selective Batch Switching (`ALL ON` / `ALL OFF`)
+## 3. Physical Visual Strip Enclosure & Master Power Button (`⏻`)
 
-The `ALL ON` and `ALL OFF` buttons must **never** toggle locked outlets.
+The card design features a realistic physical power strip enclosure with 4 visual sockets and an integrated Master Power button.
 
-### 3.1 Updated `POST /api/onoff` Contract
-`POST /api/onoff` now supports an explicit `channels` list:
+### 3.1 Master Power Button (`⏻`)
+Instead of cluttering the top header with text buttons (`ALL ON` / `ALL OFF`), the master switch is embedded directly inside the physical visual strip:
+- **Location**: Anchored on the left of the enclosure, divided from Outlets 1–4 with a clean vertical separator.
+- **Dynamic LED States**:
+  - **Glowing Green (`all-on`)**: When all switchable (unlocked) outlets are ON.
+  - **Warm Amber (`partial-on`)**: When some switchable outlets are ON and some are OFF.
+  - **Red / Muted (`all-off`)**: When all switchable outlets are OFF.
+- **Smart Toggle Logic**:
+  - Calculates state based strictly on **unlocked (switchable)** outlets to prevent deadlock when critical appliances are locked ON.
+  - If any switchable outlet is ON &rarr; Tapping master switches all switchable outlets OFF.
+  - If all switchable outlets are OFF &rarr; Tapping master switches all switchable outlets ON.
+
+### 3.2 Visual Socket Indicators & Padlock Badges
+- Each socket circle (`⚡`) serves as a direct tap-to-toggle target.
+- When an outlet is locked (`locked == true`):
+  - A small `🔒` badge anchors to the top-right corner of that circular button.
+  - The socket border shifts to a dashed outline.
+  - The outlet label appends `🔒`.
+  - Tapping it alerts the user that it is safety-locked rather than switching the relay.
+
+---
+
+## 4. Selective Batch Switching (`ALL ON` / `ALL OFF`)
+
+Batch commands must **never** toggle locked outlets.
+
+### 4.1 Updated `POST /api/onoff` Contract
+`POST /api/onoff` supports an explicit `channels` list:
 
 ```http
 POST /api/onoff
@@ -170,8 +196,8 @@ Content-Type: application/json
 }
 ```
 
-### 3.2 Mobile Logic for ALL ON / ALL OFF
-When the user taps `ALL ON` or `ALL OFF`:
+### 4.2 Mobile Logic for Master / Batch Switching
+When the user taps the master power button:
 1. Collect all available outlet numbers for the strip (`[1, 2, 3, 4]`).
 2. Filter out outlets where `locked == true`.
 3. If **all outlets are locked**, abort and show a Snackbar/Toast:
@@ -182,32 +208,25 @@ When the user taps `ALL ON` or `ALL OFF`:
 
 ---
 
-## 4. Visual Status Language & Telemetry HUD
+## 5. Visual Status Language & Telemetry HUD
 
 To ensure seamless visual continuity between the Web UI and the native mobile app, adhere to these styling specifications:
 
-### 4.1 Strip Header Status Dot
+### 5.1 Strip Header Status Dot
 Located directly to the left of the Strip Name:
 - **Offline**: Solid Red (`#EF4444`).
 - **Online (0 outlets ON)**: Muted Gray (`#94A3B8`).
 - **Online (1–3 outlets ON)**: Vibrant Light Green (`#4ADE80`).
 - **Online (All 4 outlets ON)**: Shiny Glowing Green (`#22C55E` with box/drop shadow `0 0 6px #22C55E`).
 
-### 4.2 ALL ON / ALL OFF Button Accents
-- **ALL ON Button**:
-  - Highlights in Solid Green (`#22C55E`, white bold text) when all outlets on the strip are currently `ON`.
-  - Otherwise rendered as a subtle outline/ghost button.
-- **ALL OFF Button**:
-  - Highlights in Solid Red (`#EF4444`, white bold text) when all outlets on the strip are currently `OFF`.
-  - Otherwise rendered as a subtle outline/ghost button.
-
-### 4.3 Outlet Card Symmetry & Lock Alignment
+### 5.2 Header Utilities & Outlet Cards
+- Header utility buttons: `🔄 Reboot` (with confirmation) and `🗑 Delete / Unclaim`.
 - In 2-column or list cards, place the padlock toggle icon (`🔒`/`🔓`) at the **far right** of the outlet title row.
 - Dim the card opacity slightly when an outlet is in a switching/busy state (`isBusy = true`).
 
 ---
 
-## 5. Navigation & Role Permissions
+## 6. Navigation & Role Permissions
 
 ### 5.1 Strips Management Tab
 - **Admin Users (`whoami.is_admin == true`)**: Full access to the "Strips" provisioning and claim management tab.
