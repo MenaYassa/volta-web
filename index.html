@@ -540,6 +540,30 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 
 .phys-socket:hover{transform:scale(1.08)}
 
+.phys-socket-lock{
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  background: var(--card);
+  border: 1px solid rgba(239,68,68,.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.phys-socket.is-locked{
+  border-style: dashed;
+}
+
+
 .phys-socket-name{
   font-size: 10px;
   color: var(--mut);
@@ -3712,11 +3736,16 @@ async function live(){
         const stripSocketsHtml = [1, 2, 3, 4].map(num => {
           const out = (d.outlets || []).find(o => o.n === num);
           const isOn = Boolean(out && out.on);
+          const isLocked = isOutletLocked(d.mac, num);
           const outLabel = (out && out.nick) ? out.nick : `Outlet ${num}`;
+          const lockTitle = isLocked ? " [LOCKED 🔒]" : "";
           return `
             <div class="phys-socket-wrap">
-              <div class="phys-socket ${isOn ? "on" : ""}" data-socket="${num}" title="${outLabel}: ${isOn ? 'ON' : 'OFF'}. Click to toggle.">⚡</div>
-              <div class="phys-socket-name" data-socket="${num}" title="${outLabel}">${outLabel}</div>
+              <div class="phys-socket ${isOn ? "on" : ""} ${isLocked ? "is-locked" : ""}" data-socket="${num}" title="${outLabel}: ${isOn ? 'ON' : 'OFF'}${lockTitle}. Click to toggle.">
+                ⚡
+                ${isLocked ? `<span class="phys-socket-lock" title="Locked">🔒</span>` : ""}
+              </div>
+              <div class="phys-socket-name" data-socket="${num}" title="${outLabel}">${outLabel}${isLocked ? " 🔒" : ""}</div>
             </div>
           `;
         }).join("");
