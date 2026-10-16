@@ -27,7 +27,7 @@ import threading
 import time
 
 DEVICE_PORT = 10086
-POLL_SECONDS = 8.0
+POLL_SECONDS = 15.0
 DIAG_EVERY = 3
 
 BOOTINFO_RE = re.compile(
@@ -142,7 +142,7 @@ class Session:
         self.writer.write((cmd + "\r\n").encode("ascii"))
         await self.writer.drain()
 
-    async def _refresh(self, timeout=7.0):
+    async def _refresh(self, timeout=10.0):
         self.got_getinfo.clear()
         await self.send("up:getinfo:all")
         try:
@@ -151,7 +151,7 @@ class Session:
         except asyncio.TimeoutError:
             return False
 
-    async def refresh(self, timeout=7.0):
+    async def refresh(self, timeout=10.0):
         async with self.lock:
             return await self._refresh(timeout)
 

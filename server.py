@@ -1643,14 +1643,21 @@ class Handler(BaseHTTPRequestHandler):
             devices_reg = get_devices()
             devices = get_all_devices_snapshot()
             
+            admin_token = ctx["token"]
+            if ctx["is_admin"] and (not admin_token or admin_token == TOKEN):
+                for u_k, u_v in get_users().items():
+                    if u_v.get("is_admin") or u_v.get("email") == ADMIN_EMAIL:
+                        admin_token = u_k
+                        break
+
             if ctx["is_admin"]:
-                # Admin sees any active device that is admin_claimed or has claimed users
+                # Admin control dashboard ONLY displays strips explicitly assigned to Admin!
+                # Unassigned strips remain in Management/Setup and will not clutter the main control page.
                 devices = [
                     d for d in devices
                     if devices_reg.get(d.get("mac", ""), {}).get("status") == "active" and (
-                        devices_reg.get(d.get("mac", ""), {}).get("admin_claimed", True) or
-                        ctx["token"] in devices_reg.get(d.get("mac", ""), {}).get("claimed_users", []) or
-                        len(devices_reg.get(d.get("mac", ""), {}).get("claimed_users", [])) > 0
+                        admin_token in devices_reg.get(d.get("mac", ""), {}).get("claimed_users", []) or
+                        (devices_reg.get(d.get("mac", ""), {}).get("admin_claimed", False) and len(devices_reg.get(d.get("mac", ""), {}).get("claimed_users", [])) == 0)
                     )
                 ]
             else:
