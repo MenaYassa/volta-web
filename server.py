@@ -2012,6 +2012,11 @@ class Handler(BaseHTTPRequestHandler):
             if not ctx["is_admin"]:
                 allowed = set(ctx["strips"])
                 scheds = [s for s in scheds if norm_mac(s.get("mac", "")).upper() in allowed]
+            home_id = q.get("home_id", [""])[0]
+            if home_id and home_id != "__all__":
+                all_devs = get_devices()
+                home_macs = set(m for m, d in all_devs.items() if d.get("home_id") == home_id)
+                scheds = [s for s in scheds if norm_mac(s.get("mac", "")).upper() in home_macs]
             self._json({"schedules": scheds})
         elif u.path == "/api/timers":
             ctx = self._auth_ctx()
@@ -2021,6 +2026,11 @@ class Handler(BaseHTTPRequestHandler):
             if not ctx["is_admin"]:
                 allowed = set(ctx["strips"])
                 timers = [t for t in timers if norm_mac(t.get("mac", "")).upper() in allowed]
+            home_id = q.get("home_id", [""])[0]
+            if home_id and home_id != "__all__":
+                all_devs = get_devices()
+                home_macs = set(m for m, d in all_devs.items() if d.get("home_id") == home_id)
+                timers = [t for t in timers if norm_mac(t.get("mac", "")).upper() in home_macs]
             self._json({"timers": timers})
         elif u.path == "/api/voltage-guard":
             ctx = self._auth_ctx()

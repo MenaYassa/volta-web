@@ -1790,6 +1790,14 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
         <div style="font-size:15px;font-weight:700;color:var(--ink)" id="topbarActiveTitle">🎛️ Power &amp; Outlets Control</div>
       </div>
       <div class="topbar-right">
+        <!-- Topbar Homes Switcher Pill -->
+        <div id="topbarHomeNav" style="display:inline-flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:24px;padding:3px 10px;transition:all .2s">
+          <span style="font-size:13px">🏠</span>
+          <select id="selActiveHome" style="border:none;background:transparent;font-weight:700;font-size:12px;color:var(--ink);cursor:pointer;outline:none;padding-right:2px;max-width:160px;text-overflow:ellipsis">
+            <option value="__all__">All Homes</option>
+          </select>
+          <button id="btnManageHomes" class="ghost sm" title="Manage Homes" style="font-size:11px;padding:2px 8px;border-radius:14px;border:none;background:var(--card)">⚙️</button>
+        </div>
         <span class="small tag mono" id="liveCount" style="font-size:11px"></span>
       </div>
     </header>
@@ -1895,16 +1903,6 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
       <span class="sub">Dual Safety Active</span>
     </div>
   </div>
-</div>
-<!-- Homes / House Filter Bar -->
-<div class="row" style="margin-bottom:12px;gap:8px;align-items:center;flex-wrap:wrap">
-  <div style="display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:4px 12px">
-    <span style="font-size:14px">🏠</span>
-    <select id="selActiveHome" style="border:none;background:transparent;font-weight:700;font-size:13px;color:var(--ink);cursor:pointer;outline:none;padding-right:4px">
-      <option value="__all__">All Homes</option>
-    </select>
-  </div>
-  <button id="btnManageHomes" class="ghost sm" style="font-size:12px;padding:4px 10px;border-radius:20px">+ Manage Homes</button>
 </div>
 
 <div class="row" style="margin-bottom:12px;justify-content:space-between;align-items:center">
@@ -3107,6 +3105,7 @@ function updateAuthGateState(signedIn){
   if(!signedIn && planCard) planCard.style.display = "none";
 
   if(!signedIn && liveCount) liveCount.textContent = "";
+  if($("topbarHomeNav")) $("topbarHomeNav").style.display = signedIn ? "inline-flex" : "none";
   if(!signedIn) initGoogleAuth();
 }
 
@@ -4574,6 +4573,15 @@ on("selActiveHome", "change", async (e) => {
   _activeHomeId = e.target.value;
   localStorage.setItem("volta_active_home", _activeHomeId);
   await live();
+  if($("pane-analytics") && $("pane-analytics").classList.contains("on")) {
+    if(typeof loadAnalytics === "function") await loadAnalytics();
+  }
+  if($("pane-sched") && $("pane-sched").classList.contains("on")) {
+    if(typeof loadSched === "function") await loadSched();
+    if($("timerPane") && $("timerPane").style.display !== "none") {
+      if(typeof renderTimers === "function") await renderTimers();
+    }
+  }
   if(typeof loadRangeKpis === "function") loadRangeKpis();
 });
 
@@ -5360,17 +5368,25 @@ function fillSchedMacs(){
   const sel=$("scMac"),tsel=$("tmMac");if(!sel)return;
   const st=_last||{},devs=(st.devices||[]),names=(st.names||{});
   const cur=sel.value,tcur=tsel?tsel.value:"";
-  const macs=[...new Set([...devs.map(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()),...Object.keys(names)])].filter(Boolean);
-  const opts=macs.length?"":`<option value=''>— no strips yet —</option>`;
+  
+  // Filter devices to currently selected home if not __all__
+  const scopedDevs = (_activeHomeId && _activeHomeId !== "__all__")
+    ? devs.filter(d => d.home_id === _activeHomeId)
+    : devs;
+
+  const macs=[...new Set(scopedDevs.map(d=>(d.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()))].filter(Boolean);
+  const opts=macs.length?"":`<option value=''>— no strips in selected home —</option>`;
   sel.innerHTML=opts;if(tsel)tsel.innerHTML=opts;
   for(const mac of macs){
-    const d=devs.find(x=>(x.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()===mac);
+    const d=scopedDevs.find(x=>(x.mac||"").replace(/[^0-9a-f]/gi,"").toLowerCase()===mac);
     const nm=(names[mac]||{}).name||(d&&d.name!==d.mac?d.name:"")||mac.toUpperCase();
     for(const s of [sel,tsel]){if(!s)continue;
       const o=document.createElement("option");o.value=mac.toUpperCase();o.textContent=nm;s.appendChild(o);}
   }
   if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;
+  else if(sel.options.length) sel.selectedIndex=0;
   if(tsel&&tcur&&[...tsel.options].some(o=>o.value===tcur))tsel.value=tcur;
+  else if(tsel&&tsel.options.length) tsel.selectedIndex=0;
 }
 
 function nmOfMac(mac){
@@ -5536,7 +5552,7 @@ async function loadSched(){
   const box=$("schedList");if(!box)return;
   box.innerHTML="<p class='small'>Loading schedules…</p>";
   try{
-    const r=await apit("/api/schedules");
+    const r=await apit(`/api/schedules?home_id=${encodeURIComponent(_activeHomeId||"__all__")}`);
     renderSched(r.schedules||[]);
   } catch(e){
     box.innerHTML=`<p class='err'>${e.message}</p>`;
@@ -5637,7 +5653,7 @@ async function renderTimers(){
   const box=$("timerList");if(!box)return;
   box.innerHTML="<p class='small'>Loading timers…</p>";
   try{
-    const r=await apit("/api/timers");
+    const r=await apit(`/api/timers?home_id=${encodeURIComponent(_activeHomeId||"__all__")}`);
     const list=(r.timers||[]);
     const active=list.filter(t=>t.enabled).length;
     if($("timerBadge"))$("timerBadge").textContent=active;
@@ -6123,7 +6139,10 @@ function startAnalyticsTicker(){
 }
 function stopAnalyticsTicker(){if(aTicker){clearInterval(aTicker);aTicker=null;}}
 function updateHero(st){
-  const devs=(st&&st.devices)||[];
+  const allDevs=(st&&st.devices)||[];
+  const devs = (_activeHomeId && _activeHomeId !== "__all__")
+    ? allDevs.filter(d => d.home_id === _activeHomeId)
+    : allDevs;
   const online=devs.filter(d=>d.online);
   const scoped=devs.filter(d=>aMac!=="__all__"?(d.mac===aMac):true);
   const scopedOnline=scoped.filter(d=>d.online);
@@ -6146,7 +6165,10 @@ function updateHero(st){
 }
 async function loadAnalytics(){  try{
     const st=await ensureLive();
-    const devs=(st&&st.devices)||[];
+    const allDevs=(st&&st.devices)||[];
+    const devs = (_activeHomeId && _activeHomeId !== "__all__")
+      ? allDevs.filter(d => d.home_id === _activeHomeId)
+      : allDevs;
     const sel=$("aStrip");if(!sel)return;
     const opts=[`<option value="__all__">🌐 All strips (combined)</option>`];
     devs.forEach(d=>{
@@ -6155,7 +6177,10 @@ async function loadAnalytics(){  try{
       opts.push(`<option value="${m}">${names.name||d.name||m}</option>`);
     });
     sel.innerHTML=opts.join("");
-    if(!aMac)aMac="__all__";
+    // If current selected strip is not in the scoped home, reset to __all__
+    if(!aMac || (aMac !== "__all__" && !devs.some(d => d.mac === aMac))) {
+      aMac="__all__";
+    }
     sel.value=aMac;
     updateOutletDropdown(st);
     await loadLeaderboard();
@@ -6215,7 +6240,10 @@ async function loadRangeKpis(){
 }
 async function loadOverview(st){
   try{
-    const devs=(st&&st.devices)||[];
+    const allDevs=(st&&st.devices)||[];
+    const devs = (_activeHomeId && _activeHomeId !== "__all__")
+      ? allDevs.filter(d => d.home_id === _activeHomeId)
+      : allDevs;
     const scoped=aMac==="__all__"?devs:devs.filter(d=>d.mac===aMac);
     const scopedOnline=scoped.filter(d=>d.online);
     const totalW=scoped.reduce((s,d)=>s+(d.total_power_w??d.power_w??(d.outlets||[]).reduce((a,o)=>a+(o.power_w||0),0)),0);
@@ -6368,7 +6396,11 @@ async function loadCharts(){
       // aggregate stats across strips
       let kwh=0,samples=0,vmin=null,vmax=null,vsum=0,vcnt=0,pkW=0;
       let tmin=null,tmax=null,tsum=0,tcnt=0;
-      for(const d of (st.devices||[])){
+      const allDevs = (st.devices||[]);
+      const scopedDevs = (_activeHomeId && _activeHomeId !== "__all__")
+        ? allDevs.filter(d => d.home_id === _activeHomeId)
+        : allDevs;
+      for(const d of scopedDevs){
         try{const s=(await apit("/api/analytics/strip",{mac:d.mac,start_ts:start,end_ts:now})).stats||{};
         kwh+=(s.energy_delta_kwh||0);samples+=(s.samples||0);pkW=Math.max(pkW,s.peak_power_w||0);
         if(s.min_voltage_v>0&&(vmin==null||s.min_voltage_v<vmin))vmin=s.min_voltage_v;
