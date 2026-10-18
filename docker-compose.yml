@@ -14,6 +14,8 @@ services:
       - ./analytics.db:/app/analytics.db
       - ./index.html:/app/index.html
       - ./server.py:/app/server.py
+      - ./controller.py:/app/controller.py
+      - ./db.py:/app/db.py
       - ./sw.js:/app/sw.js
     deploy:
       resources:

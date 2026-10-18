@@ -14,6 +14,7 @@ import os
 import secrets
 import socket
 import analytics
+import db
 import time
 import urllib.parse
 import urllib.request
@@ -368,6 +369,7 @@ def get_all_devices_snapshot():
             d = dict(live_devices[m])
             d["name"] = disp_name
             d["claimed_users"] = reg.get("claimed_users", [])
+            d["home_id"] = reg.get("home_id")
             devices.append(d)
         elif m in history_devices:
             hd = dict(history_devices[m])
@@ -378,6 +380,7 @@ def get_all_devices_snapshot():
             hd["energy_kwh"] = round(sum(o["energy_kwh"] for o in outs), 3)
             hd["name"] = disp_name
             hd["claimed_users"] = reg.get("claimed_users", [])
+            hd["home_id"] = reg.get("home_id")
             hd.pop("outlets_dict", None)
             devices.append(hd)
         else:
@@ -399,7 +402,8 @@ def get_all_devices_snapshot():
                 "last_seen": 0,
                 "last_seen_ago": 999999,
                 "pending": 0,
-                "claimed_users": reg.get("claimed_users", [])
+                "claimed_users": reg.get("claimed_users", []),
+                "home_id": reg.get("home_id")
             })
     return devices
 
@@ -2155,6 +2159,27 @@ class Handler(BaseHTTPRequestHandler):
             q = urllib.parse.parse_qs(u.query)
             ip = q.get("ip", [""])[0]
             self._json(diff_states(load_strips().get("hunt", {}).get(ip, [])))
+        elif u.path == "/api/homes":
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            ctx = self._auth_ctx()
+            user_id = ctx["token"] if not ctx["is_admin"] else None
+            homes = db.db.list_homes(user_id=user_id)
+            # Count strips per home
+            devs = db.db.list_devices()
+            counts = {}
+            for d in devs:
+                hid = d.get("home_id") or "unassigned"
+                counts[hid] = counts.get(hid, 0) + 1
+            for h in homes:
+                h["device_count"] = counts.get(h["id"], 0)
+                if isinstance(h.get("created_at"), time.struct_time):
+                    h["created_at"] = str(h["created_at"])
+                elif hasattr(h.get("created_at"), "isoformat"):
+                    h["created_at"] = h["created_at"].isoformat()
+                if hasattr(h.get("updated_at"), "isoformat"):
+                    h["updated_at"] = h["updated_at"].isoformat()
+            return self._json({"ok": True, "homes": homes})
         elif u.path == "/api/analytics/info":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
@@ -2776,6 +2801,69 @@ class Handler(BaseHTTPRequestHandler):
             save_locked_outlets(all_locked)
             log(f"[outlet-lock] strip {mac} outlet {outlet} locked={make_locked} (all={current_list})")
             return self._json({"ok": True, "mac": mac, "outlet": outlet, "locked": make_locked, "locked_outlets": current_list})
+        if u.path == "/api/homes":
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            ctx = self._auth_ctx()
+            name = (body.get("name") or "").strip()
+            if not name:
+                return self._json({"error": "name is required"}, 400)
+            home_id = body.get("id") or f"home_{uuid.uuid4().hex[:12]}"
+            icon = body.get("icon") or "home"
+            user_id = ctx["token"] if not ctx["is_admin"] else None
+            h = db.db.create_home(home_id, name, user_id=user_id, icon=icon)
+            if h and hasattr(h.get("created_at"), "isoformat"):
+                h["created_at"] = h["created_at"].isoformat()
+            if h and hasattr(h.get("updated_at"), "isoformat"):
+                h["updated_at"] = h["updated_at"].isoformat()
+            log(f"[homes] created/updated home {home_id} ('{name}') by {ctx['user_name']}")
+            return self._json({"ok": True, "home": h})
+
+        if u.path == "/api/homes/update":
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            home_id = body.get("id")
+            if not home_id:
+                return self._json({"error": "home id required"}, 400)
+            name = body.get("name")
+            icon = body.get("icon")
+            sort_order = body.get("sort_order")
+            h = db.db.update_home(home_id, name=name, icon=icon, sort_order=sort_order)
+            if h and hasattr(h.get("created_at"), "isoformat"):
+                h["created_at"] = h["created_at"].isoformat()
+            if h and hasattr(h.get("updated_at"), "isoformat"):
+                h["updated_at"] = h["updated_at"].isoformat()
+            return self._json({"ok": True, "home": h})
+
+        if u.path == "/api/homes/delete":
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            home_id = body.get("id")
+            if not home_id:
+                return self._json({"error": "home id required"}, 400)
+            db.db.delete_home(home_id)
+            log(f"[homes] deleted home {home_id}")
+            return self._json({"ok": True, "deleted": home_id})
+
+        if u.path == "/api/homes/assign":
+            if not self._authorized():
+                return self._json({"error": "token required"}, 401)
+            mac = norm_mac(body.get("mac"))
+            if not mac:
+                return self._json({"error": "mac required"}, 400)
+            if not self._can_access_mac(mac):
+                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            home_id = body.get("home_id")
+            db.db.assign_device_home(mac, home_id)
+            # Also mirror in strips.json devices
+            clean_mac = mac.upper()
+            all_devs = get_devices()
+            if clean_mac in all_devs:
+                all_devs[clean_mac]["home_id"] = home_id
+                save_devices(all_devs)
+            log(f"[homes] assigned strip {clean_mac} to home {home_id}")
+            return self._json({"ok": True, "mac": clean_mac, "home_id": home_id})
+
         if u.path in ("/api/order", "/api/strip/order"):
             # Reorder strip cards for current user
             # Body: { "order": ["MAC1", "MAC2", ...] }
@@ -3151,6 +3239,11 @@ class Handler(BaseHTTPRequestHandler):
             end = int(body.get("end_ts", 0))
             downsample = body.get("downsample")
             user_macs = None if ctx["is_admin"] else ctx["strips"]
+            home_id = body.get("home_id")
+            if home_id and home_id != "__all__":
+                all_devs = get_devices()
+                home_macs = [m for m, d in all_devs.items() if d.get("home_id") == home_id]
+                user_macs = home_macs if user_macs is None else [m for m in user_macs if m in home_macs]
             rows = analytics.query_all_strips_power(start, end, downsample, macs=user_macs)
             return self._json({"ok": True, "readings": rows})
         if u.path == "/api/analytics/leaderboard":
@@ -3161,6 +3254,11 @@ class Handler(BaseHTTPRequestHandler):
             end = int(body.get("end_ts", 0))
             limit = int(body.get("limit", 10))
             user_macs = None if ctx["is_admin"] else ctx["strips"]
+            home_id = body.get("home_id")
+            if home_id and home_id != "__all__":
+                all_devs = get_devices()
+                home_macs = [m for m, d in all_devs.items() if d.get("home_id") == home_id]
+                user_macs = home_macs if user_macs is None else [m for m in user_macs if m in home_macs]
             board = analytics.outlet_leaderboard(start, end, limit, macs=user_macs)
             return self._json({"ok": True, "leaderboard": board})
         if u.path in ("/api/analytics/summary", "/api/analytics/kpis"):
@@ -3171,6 +3269,11 @@ class Handler(BaseHTTPRequestHandler):
             end = int(body.get("end_ts", 0))
             mac = body.get("mac", "__all__")
             user_macs = None if ctx["is_admin"] else ctx["strips"]
+            home_id = body.get("home_id")
+            if home_id and home_id != "__all__":
+                all_devs = get_devices()
+                home_macs = [m for m, d in all_devs.items() if d.get("home_id") == home_id]
+                user_macs = home_macs if user_macs is None else [m for m in user_macs if m in home_macs]
             summary = analytics.summary_stats(start, end, mac=mac, macs=user_macs)
             cfg = get_settings()
             cost_per_kwh = float(cfg.get("cost_per_kwh") or 2.18)

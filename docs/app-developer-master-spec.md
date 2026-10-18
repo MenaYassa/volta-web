@@ -251,6 +251,13 @@ Maintain 1:1 visual continuity with the web dashboard:
   - `Online (All 4 outlets ON)`: Shiny Glowing Green (`#22C55E` with subtle drop-shadow).
 - **Physical Master Power Button**:
   - Highlights according to switchable outlet state (Green / Amber / Red-Muted).
+- **Strip Long-Press Shortcut Drawer / Context Menu**:
+  - Triggered on mobile by a `450ms` press-and-hold on the strip enclosure card (with optional haptic vibration feedback `40ms`).
+  - Presents quick actions without cluttering the main screen:
+    - `🏠 Home & Properties`: View and reassign the strip to a specific Home / House (`POST /api/homes/assign`).
+    - `ℹ️ Hardware Info & Diagnostics`: Model, Firmware version, IP address, Wi-Fi RSSI (dBm), and Grid Voltage.
+    - `🛡️ Safety Guard Settings`: Directly opens the Voltage & Temperature Guard configuration.
+    - `🔄 Reboot Physical Strip`: Quick hardware restart trigger (`POST /api/reboot`).
 - **Header Utilities**:
   - `🔄 Reboot`: Header utility button sending `POST /api/reboot` with prompt confirmation.
   - `🗑 Delete / Unclaim`: Header trash button to release or remove strip.
@@ -456,6 +463,11 @@ Add a card under **Settings → Smart Home & Voice Assistants**:
 | `/api/voltage-guard` | `POST` | Bearer | `{"mac": "...", "min_v": 195, ...}` | Configures Voltage & Thermal Safety Guards |
 | `/api/voltage-guard/reset`| `POST` | Bearer | `{"mac": "..."}` | Manually resets latching thermal overheat trip |
 | `/api/reboot` | `POST` | Bearer | `{"mac": "..."}` | Sends hardware restart command (`up:reboot:0`) to strip |
+| `/api/homes` | `GET` | Bearer | - | Lists homes/houses owned by user with assigned device counts |
+| `/api/homes` | `POST` | Bearer | `{"name": "...", "icon": "home"}` | Creates or updates a home/house entity |
+| `/api/homes/update` | `POST` | Bearer | `{"id": "...", "name": "...", "icon": "..."}` | Updates home name, icon, or sorting order |
+| `/api/homes/delete` | `POST` | Bearer | `{"id": "..."}` | Deletes home and unbinds associated strips |
+| `/api/homes/assign` | `POST` | Bearer | `{"mac": "...", "home_id": "..."}` | Assigns or reassigns a strip to a specific home |
 | `/api/health` | `GET` | Public | - | Returns `server_ip` destination host for SoftAP pairing |
 | `/api/geo/search` | `GET` | Bearer | `?q=<CITY>` | Geocodes city for solar schedule calculations |
 | `/api/geo/sun` | `GET` | Bearer | `?lat=...&lon=...` | Returns calculated NOAA sunrise/sunset times |

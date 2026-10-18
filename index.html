@@ -1896,6 +1896,17 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
     </div>
   </div>
 </div>
+<!-- Homes / House Filter Bar -->
+<div class="row" style="margin-bottom:12px;gap:8px;align-items:center;flex-wrap:wrap">
+  <div style="display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:4px 12px">
+    <span style="font-size:14px">🏠</span>
+    <select id="selActiveHome" style="border:none;background:transparent;font-weight:700;font-size:13px;color:var(--ink);cursor:pointer;outline:none;padding-right:4px">
+      <option value="__all__">All Homes</option>
+    </select>
+  </div>
+  <button id="btnManageHomes" class="ghost sm" style="font-size:12px;padding:4px 10px;border-radius:20px">+ Manage Homes</button>
+</div>
+
 <div class="row" style="margin-bottom:12px;justify-content:space-between;align-items:center">
   <div style="display:flex;gap:8px;align-items:center">
     <button id="btnLiveRefresh" class="ghost sm" style="font-size:12px">↻ Refresh</button>
@@ -2859,6 +2870,106 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
   </div>
 </div>
 
+<!-- Modal: Strip Long-Press Shortcut Menu -->
+<div id="modalStripShortcut" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;border-radius:18px;overflow:hidden">
+    <div class="modal-head" style="padding:14px 18px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">⚡</span>
+        <div>
+          <h3 id="mssStripName" style="margin:0;font-size:15px;font-weight:700">Power Strip</h3>
+          <span id="mssStripMac" class="small mono" style="color:var(--mut)">—</span>
+        </div>
+      </div>
+      <button class="ghost sm" id="mssClose" style="border-radius:50%;width:30px;height:30px;padding:0;min-height:0;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px">
+      <!-- Shortcut Action Buttons List -->
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button id="mssBtnProps" class="ghost" style="display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px;text-align:left">
+          <span style="font-size:18px">🏠</span>
+          <div style="flex:1">
+            <div style="font-weight:700">Home &amp; Properties</div>
+            <div class="small" style="color:var(--mut)" id="mssHomeSub">Assigned: My Home</div>
+          </div>
+          <span>›</span>
+        </button>
+
+        <button id="mssBtnDiagnostics" class="ghost" style="display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px;text-align:left">
+          <span style="font-size:18px">ℹ️</span>
+          <div style="flex:1">
+            <div style="font-weight:700">Hardware Info &amp; Diagnostics</div>
+            <div class="small" style="color:var(--mut)">Model, Firmware, Wi-Fi RSSI</div>
+          </div>
+          <span>›</span>
+        </button>
+
+        <button id="mssBtnGuard" class="ghost" style="display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px;text-align:left">
+          <span style="font-size:18px">🛡️</span>
+          <div style="flex:1">
+            <div style="font-weight:700">Safety &amp; Voltage Guard</div>
+            <div class="small" style="color:var(--mut)">Overvoltage &amp; Overheat thresholds</div>
+          </div>
+          <span>›</span>
+        </button>
+
+        <button id="mssBtnReboot" class="ghost" style="display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px;text-align:left;color:var(--ink)">
+          <span style="font-size:18px">🔄</span>
+          <div style="flex:1">
+            <div style="font-weight:700">Reboot Physical Strip</div>
+            <div class="small" style="color:var(--mut)">Restart MCU (up:reboot:0)</div>
+          </div>
+          <span>›</span>
+        </button>
+      </div>
+
+      <!-- Live Diagnostics Section (Collapsed by default or toggled) -->
+      <div id="mssDiagnosticsPane" style="display:none;margin-top:14px;padding:12px;background:var(--bg);border-radius:12px;border:1px solid var(--line)">
+        <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin-bottom:8px;color:var(--mut)">Hardware Diagnostics</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
+          <div>IP Address: <b id="mssDiagIp" class="mono">—</b></div>
+          <div>Firmware: <b id="mssDiagFw" class="mono">—</b></div>
+          <div>Wi-Fi Signal: <b id="mssDiagRssi">—</b></div>
+          <div>Voltage: <b id="mssDiagVolt">—</b></div>
+        </div>
+      </div>
+
+      <!-- Properties / Home Assignment Section -->
+      <div id="mssPropsPane" style="display:none;margin-top:14px;padding:12px;background:var(--bg);border-radius:12px;border:1px solid var(--line)">
+        <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin-bottom:8px;color:var(--mut)">Assign Home / House</div>
+        <div class="field" style="margin-bottom:10px">
+          <label style="font-size:12px;font-weight:600">Select Home</label>
+          <select id="mssPropsHomeSel" style="width:100%;margin-top:4px"></select>
+        </div>
+        <button id="mssPropsSaveBtn" class="sm" style="width:100%">Save Home Assignment</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Manage Homes -->
+<div id="modalManageHomes" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head">
+      <h3 style="margin:0">🏠 Manage Homes &amp; Houses</h3>
+      <button class="ghost sm" id="mmhClose" style="border-radius:50%;width:30px;height:30px;padding:0;min-height:0;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px">
+      <p class="desc" style="margin-top:0">Create and organize multiple houses or locations to filter strips and isolate power statistics.</p>
+      
+      <div id="mmhList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+
+      <div style="border-top:1px solid var(--line);padding-top:14px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">+ Add New Home</div>
+        <div style="display:flex;gap:8px">
+          <input id="mmhNewName" type="text" placeholder="e.g. Summer Villa, Office" style="flex:1">
+          <button id="mmhAddBtn" class="sm">Create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Sign In / Google Auth -->
 <div id="modalAuth" class="modal-overlay">
   <div class="modal-box" style="max-width:400px;text-align:center">
@@ -3703,7 +3814,10 @@ async function live(){
   if(_liveBusy || _isDraggingStrip)return;_liveBusy=true;
   try{
     const s=await apit("/api/live");_last=s;
-    const devs=s.devices||[];
+    const allDevs=s.devices||[];
+    const devs = (_activeHomeId && _activeHomeId !== "__all__")
+      ? allDevs.filter(d => d.home_id === _activeHomeId)
+      : allDevs;
     const online=devs.filter(d=>d.online);
 
     // Sync in-memory locked outlets directly from live server snapshot
@@ -4013,6 +4127,37 @@ async function live(){
             expBtn.title = currentlyOpen ? "Show outlet switches" : "Hide outlet switches";
             _expandedStrips[cleanMac] = !currentlyOpen;
           };
+        }
+
+        // Long-press and Right-click context menu on strip enclosure
+        let lpTimer = null;
+        let isLongPress = false;
+        const physCard = c.querySelector(".strip-physical");
+        if(physCard){
+          physCard.style.cursor = "pointer";
+          const startLp = (e) => {
+            // If click originated on master button or individual sockets, don't trigger strip shortcut
+            if(e.target.closest(".phys-socket, .phys-master-btn, .phys-socket-name")) return;
+            isLongPress = false;
+            lpTimer = setTimeout(() => {
+              isLongPress = true;
+              openStripShortcutMenu(d);
+            }, 450);
+          };
+          const endLp = (e) => {
+            if(lpTimer){ clearTimeout(lpTimer); lpTimer = null; }
+          };
+          physCard.addEventListener("touchstart", startLp, { passive: true });
+          physCard.addEventListener("touchend", endLp);
+          physCard.addEventListener("touchcancel", endLp);
+          physCard.addEventListener("mousedown", startLp);
+          physCard.addEventListener("mouseup", endLp);
+          physCard.addEventListener("mouseleave", endLp);
+          physCard.addEventListener("contextmenu", (e) => {
+            if(e.target.closest(".phys-socket, .phys-master-btn, .phys-socket-name")) return;
+            e.preventDefault();
+            openStripShortcutMenu(d);
+          });
         }
 
         // Quick click on physical socket indicator or name toggles that outlet
@@ -4394,6 +4539,184 @@ async function resetGuard(typeLabel) {
 
 on("mvgResetBtn", "click", () => resetGuard("Voltage Guard"));
 on("mvgTempResetBtn", "click", () => resetGuard("Temperature Guard"));
+/* ---- Homes & Long-Press Shortcut Modal Logic ---- */
+let _userHomes = [];
+let _activeHomeId = localStorage.getItem("volta_active_home") || "__all__";
+let _activeShortcutDevice = null;
+
+async function loadHomes(){
+  if(!tok()) return;
+  try {
+    const res = await apit("/api/homes");
+    if(res && res.ok){
+      _userHomes = res.homes || [];
+      renderHomeSelector();
+    }
+  } catch(e) {
+    console.error("Failed to load homes:", e);
+  }
+}
+
+function renderHomeSelector(){
+  const sel = $("selActiveHome");
+  if(!sel) return;
+  let html = `<option value="__all__">🏠 All Homes</option>`;
+  for(const h of _userHomes){
+    html += `<option value="${esc(h.id)}" ${h.id === _activeHomeId ? "selected" : ""}>🏠 ${esc(h.name)} (${h.device_count || 0})</option>`;
+  }
+  sel.innerHTML = html;
+  if(sel.value !== _activeHomeId) {
+    sel.value = _activeHomeId;
+  }
+}
+
+on("selActiveHome", "change", async (e) => {
+  _activeHomeId = e.target.value;
+  localStorage.setItem("volta_active_home", _activeHomeId);
+  await live();
+  if(typeof loadRangeKpis === "function") loadRangeKpis();
+});
+
+on("btnManageHomes", "click", () => {
+  renderManageHomesList();
+  $("modalManageHomes").classList.add("open");
+});
+
+on("mmhClose", "click", () => $("modalManageHomes").classList.remove("open"));
+
+function renderManageHomesList(){
+  const list = $("mmhList");
+  if(!list) return;
+  if(!_userHomes.length){
+    list.innerHTML = `<div class="small" style="color:var(--mut)">No homes created yet.</div>`;
+    return;
+  }
+  list.innerHTML = _userHomes.map(h => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:10px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">🏠</span>
+        <div>
+          <div style="font-weight:700;font-size:13px">${esc(h.name)}</div>
+          <div class="small" style="color:var(--mut)">${h.device_count || 0} strips assigned</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${h.id !== "default-home" ? `<button class="ghost sm mmh-del-btn" data-id="${esc(h.id)}" style="color:var(--red);padding:2px 8px;font-size:12px">Delete</button>` : `<span class="small" style="color:var(--mut)">Default</span>`}
+      </div>
+    </div>
+  `).join("");
+
+  list.querySelectorAll(".mmh-del-btn").forEach(btn => {
+    btn.onclick = async () => {
+      const hid = btn.getAttribute("data-id");
+      if(!confirm("Delete this home? Any assigned strips will be set to unassigned.")) return;
+      try {
+        await apit("/api/homes/delete", { id: hid });
+        await loadHomes();
+        renderManageHomesList();
+        if(_activeHomeId === hid) {
+          _activeHomeId = "__all__";
+          localStorage.setItem("volta_active_home", "__all__");
+        }
+        await live();
+      } catch(err){
+        alert("Failed to delete home: " + err.message);
+      }
+    };
+  });
+}
+
+on("mmhAddBtn", "click", async () => {
+  const input = $("mmhNewName");
+  const name = (input.value || "").trim();
+  if(!name) return;
+  try {
+    await apit("/api/homes", { name: name });
+    input.value = "";
+    await loadHomes();
+    renderManageHomesList();
+  } catch(err){
+    alert("Failed to create home: " + err.message);
+  }
+});
+
+function openStripShortcutMenu(d){
+  _activeShortcutDevice = d;
+  if(navigator.vibrate) navigator.vibrate(40);
+  $("mssStripName").textContent = d.name || "MTTL Power Strip";
+  $("mssStripMac").textContent = d.mac || "";
+
+  const assignedHome = _userHomes.find(h => h.id === d.home_id);
+  $("mssHomeSub").textContent = assignedHome ? `Assigned: ${assignedHome.name}` : "Assigned: Unassigned / Default";
+
+  // Reset sub-panes
+  $("mssDiagnosticsPane").style.display = "none";
+  $("mssPropsPane").style.display = "none";
+
+  // Populate Diagnostics
+  $("mssDiagIp").textContent = d.ip || "—";
+  $("mssDiagFw").textContent = d.fw || "1.0.0";
+  $("mssDiagRssi").textContent = d.rssi ? `${d.rssi} dBm` : "—";
+  $("mssDiagVolt").textContent = d.voltage_v ? `${d.voltage_v} V` : (d.voltage ? `${d.voltage} V` : "220 V");
+
+  // Populate Home assignment dropdown
+  const sel = $("mssPropsHomeSel");
+  if(sel){
+    let opts = `<option value="">(None / Unassigned)</option>`;
+    for(const h of _userHomes){
+      opts += `<option value="${esc(h.id)}" ${h.id === d.home_id ? "selected" : ""}>🏠 ${esc(h.name)}</option>`;
+    }
+    sel.innerHTML = opts;
+  }
+
+  $("modalStripShortcut").classList.add("open");
+}
+
+on("mssClose", "click", () => $("modalStripShortcut").classList.remove("open"));
+
+on("mssBtnDiagnostics", "click", () => {
+  const p = $("mssDiagnosticsPane");
+  p.style.display = p.style.display === "none" ? "block" : "none";
+});
+
+on("mssBtnProps", "click", () => {
+  const p = $("mssPropsPane");
+  p.style.display = p.style.display === "none" ? "block" : "none";
+});
+
+on("mssPropsSaveBtn", "click", async () => {
+  if(!_activeShortcutDevice) return;
+  const newHomeId = $("mssPropsHomeSel").value || null;
+  try {
+    await apit("/api/homes/assign", { mac: _activeShortcutDevice.mac, home_id: newHomeId });
+    _activeShortcutDevice.home_id = newHomeId;
+    $("modalStripShortcut").classList.remove("open");
+    await loadHomes();
+    await live();
+  } catch(err){
+    alert("Failed to assign home: " + err.message);
+  }
+});
+
+on("mssBtnGuard", "click", () => {
+  if(!_activeShortcutDevice) return;
+  $("modalStripShortcut").classList.remove("open");
+  openVoltageGuardModal(_activeShortcutDevice);
+});
+
+on("mssBtnReboot", "click", async () => {
+  if(!_activeShortcutDevice) return;
+  if(!confirm(`Reboot physical strip ${_activeShortcutDevice.name} (${_activeShortcutDevice.mac})?`)) return;
+  try {
+    $("modalStripShortcut").classList.remove("open");
+    await apit("/api/reboot", { mac: _activeShortcutDevice.mac });
+    alert("Reboot command sent (up:reboot:0)!");
+    await live();
+  } catch(err){
+    alert("Failed to reboot: " + err.message);
+  }
+});
+
 /* ---- Edit User Modal (Admin only) ---- */
 let _activeEditingAccountToken = null;
 
@@ -5874,7 +6197,7 @@ async function loadRangeKpis(){
   try{
     const now=Math.floor(Date.now()/1000);
     const start=now-(RANGE_SEC[aRange]||86400);
-    const r=await apit("/api/analytics/summary",{mac:aMac,start_ts:start,end_ts:now,range:aRange});
+    const r=await apit("/api/analytics/summary",{mac:aMac,start_ts:start,end_ts:now,range:aRange,home_id:_activeHomeId});
     const s=(r&&r.summary)||{};
     const totalKwh=s.energy_kwh||0;
     const avgW=s.avg_power_w||0;
@@ -5929,7 +6252,7 @@ on("lbBtn1y","click",()=>lbSetRange($("lbBtn1y"),"1y"));
 async function loadLeaderboard(){
   try{
     const now=Math.floor(Date.now()/1000),start=now-(RANGE_SEC[lbRange]||86400);
-    const r=await apit("/api/analytics/leaderboard",{start_ts:start,end_ts:now,limit:5});
+    const r=await apit("/api/analytics/leaderboard",{start_ts:start,end_ts:now,limit:5,home_id:_activeHomeId});
     const st=await ensureLive();
     const settings=await apit("/api/settings");
     const cost_kwh=settings.cost_per_kwh||2.18;
@@ -6029,7 +6352,7 @@ async function loadCharts(){
     const stripLabel=mac=>{const n=names[(mac||"").toLowerCase().replace(/:/g,"")]||{};return n.name||("Strip "+(mac||"").slice(-5));};
     // MODE 1: all strips combined
     if(aMac==="__all__"){
-      const r=await apit("/api/analytics/all-strips",{start_ts:start,end_ts:now,downsample:ds});
+      const r=await apit("/api/analytics/all-strips",{start_ts:start,end_ts:now,downsample:ds,home_id:_activeHomeId});
       const rows=r.readings||[];
       if(!rows.length){if($("aChartMsg"))$("aChartMsg").textContent="No data yet — wait 30s";return;}
       const pv=pivot(rows,"mac","power_w");
@@ -6127,6 +6450,7 @@ async function init(){
   try{const n=await api("/api/nets");if($("nets"))$("nets").value=(n.nets[0]||"192.168.1.0/24");}catch{}
   await checkSrv();
   if(tok()){
+    await loadHomes();
     await reload();
     await live();
     await renderManage();
