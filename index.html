@@ -423,6 +423,47 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .sched-hero{background:linear-gradient(135deg,#064e3b 0%,#0f766e 60%,#047857 100%);border-radius:16px;padding:18px 20px;color:#fff;margin-bottom:14px;box-shadow:0 4px 12px rgba(6,78,59,.15)}
 .timer-hero{background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 60%,#2563eb 100%);border-radius:16px;padding:18px 20px;color:#fff;margin-bottom:14px;box-shadow:0 4px 12px rgba(30,58,138,.15)}
 /* dark mode: auto + manual override */
+select {
+  color-scheme: light;
+}
+:root[data-theme="dark"] select,
+:root:not([data-theme="light"]) select {
+  color-scheme: dark;
+}
+select option {
+  background: var(--card);
+  color: var(--ink);
+}
+:root[data-theme="dark"] select option {
+  background: #131c31;
+  color: #e2e8f0;
+}
+#topbarHomeNav {
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+#topbarHomeNav select {
+  background: transparent !important;
+  color: var(--ink);
+}
+#topbarHomeNav select option {
+  background: var(--card);
+  color: var(--ink);
+}
+:root[data-theme="dark"] #topbarHomeNav select option {
+  background: #131c31;
+  color: #e2e8f0;
+}
+#topbarHomeNav button#btnManageHomes {
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+:root[data-theme="dark"] #topbarHomeNav button#btnManageHomes {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: rgba(255,255,255,.1);
+}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none} :root:not([data-theme="light"]) input,:root:not([data-theme="light"]) select{background:#0f1830;color:#e2e8f0;border-color:#24314f} :root:not([data-theme="light"]) button.ghost,:root:not([data-theme="light"]) button.danger{background:#0f1830;color:#e2e8f0} :root:not([data-theme="light"]) .ov .stat,:root:not([data-theme="light"]) .strip,:root:not([data-theme="light"]) details.adv{background:#131c31} :root:not([data-theme="light"]) .tag{background:#0f1830;color:#94a3b8} :root:not([data-theme="light"]) .sw{background:#334155} :root:not([data-theme="light"]) .s-stat,:root:not([data-theme="light"]) .outlet-card{background:rgba(255,255,255,.03)} :root:not([data-theme="light"]) .outlet-card.on{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.35)}}
 :root[data-theme="dark"]{--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none}
 :root[data-theme="dark"] input,:root[data-theme="dark"] select{background:#0f1830;color:#e2e8f0;border-color:#24314f}
