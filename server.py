@@ -2163,14 +2163,22 @@ class Handler(BaseHTTPRequestHandler):
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
             ctx = self._auth_ctx()
-            user_id = ctx["token"] if not ctx["is_admin"] else None
+            # Strictly identify user by their token or email
+            user_id = ctx.get("email") or ctx["token"]
+            # Auto-ensure default home named after user's first name if none exists
+            db.db.ensure_default_home(user_id, user_name=ctx.get("user_name", "User"))
             homes = db.db.list_homes(user_id=user_id)
-            # Count strips per home
-            devs = db.db.list_devices()
+            
+            # Count strips per home for strips owned by this user
+            all_devs = get_devices()
+            user_strips = ctx["strips"]
             counts = {}
-            for d in devs:
-                hid = d.get("home_id") or "unassigned"
-                counts[hid] = counts.get(hid, 0) + 1
+            for m, d in all_devs.items():
+                if user_strips is not None and m.upper() not in user_strips:
+                    continue
+                hid = d.get("home_id")
+                if hid:
+                    counts[hid] = counts.get(hid, 0) + 1
             for h in homes:
                 h["device_count"] = counts.get(h["id"], 0)
                 if isinstance(h.get("created_at"), time.struct_time):
@@ -2810,25 +2818,27 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "name is required"}, 400)
             home_id = body.get("id") or f"home_{uuid.uuid4().hex[:12]}"
             icon = body.get("icon") or "home"
-            user_id = ctx["token"] if not ctx["is_admin"] else None
+            user_id = ctx.get("email") or ctx["token"]
             h = db.db.create_home(home_id, name, user_id=user_id, icon=icon)
             if h and hasattr(h.get("created_at"), "isoformat"):
                 h["created_at"] = h["created_at"].isoformat()
             if h and hasattr(h.get("updated_at"), "isoformat"):
                 h["updated_at"] = h["updated_at"].isoformat()
-            log(f"[homes] created/updated home {home_id} ('{name}') by {ctx['user_name']}")
+            log(f"[homes] created home {home_id} ('{name}') for user {user_id}")
             return self._json({"ok": True, "home": h})
 
         if u.path == "/api/homes/update":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
+            ctx = self._auth_ctx()
+            user_id = ctx.get("email") or ctx["token"]
             home_id = body.get("id")
             if not home_id:
                 return self._json({"error": "home id required"}, 400)
             name = body.get("name")
             icon = body.get("icon")
             sort_order = body.get("sort_order")
-            h = db.db.update_home(home_id, name=name, icon=icon, sort_order=sort_order)
+            h = db.db.update_home(home_id, user_id=user_id, name=name, icon=icon, sort_order=sort_order)
             if h and hasattr(h.get("created_at"), "isoformat"):
                 h["created_at"] = h["created_at"].isoformat()
             if h and hasattr(h.get("updated_at"), "isoformat"):
@@ -2838,11 +2848,13 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/homes/delete":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
+            ctx = self._auth_ctx()
+            user_id = ctx.get("email") or ctx["token"]
             home_id = body.get("id")
             if not home_id:
                 return self._json({"error": "home id required"}, 400)
-            db.db.delete_home(home_id)
-            log(f"[homes] deleted home {home_id}")
+            db.db.delete_home(home_id, user_id=user_id)
+            log(f"[homes] deleted home {home_id} by user {user_id}")
             return self._json({"ok": True, "deleted": home_id})
 
         if u.path == "/api/homes/assign":

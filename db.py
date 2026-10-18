@@ -70,27 +70,51 @@ class Database:
     # -------------------------------------------------------------
     # Homes Management
     # -------------------------------------------------------------
-    def list_homes(self, user_id=None):
-        if user_id:
-            return self.fetch_all(
-                "SELECT * FROM homes WHERE user_id = %s OR user_id IS NULL ORDER BY sort_order, created_at",
-                (user_id,)
-            )
-        return self.fetch_all("SELECT * FROM homes ORDER BY sort_order, created_at")
+    def list_homes(self, user_id):
+        if not user_id:
+            return []
+        return self.fetch_all(
+            "SELECT * FROM homes WHERE user_id = %s ORDER BY sort_order, created_at",
+            (user_id,)
+        )
 
-    def get_home(self, home_id):
+    def get_home(self, home_id, user_id=None):
+        if user_id:
+            return self.fetch_one("SELECT * FROM homes WHERE id = %s AND user_id = %s", (home_id, user_id))
         return self.fetch_one("SELECT * FROM homes WHERE id = %s", (home_id,))
 
-    def create_home(self, home_id, name, user_id=None, icon="home", is_default=False):
+    def get_user_default_home(self, user_id):
+        if not user_id:
+            return None
+        return self.fetch_one("SELECT * FROM homes WHERE user_id = %s AND is_default = TRUE LIMIT 1", (user_id,))
+
+    def ensure_default_home(self, user_id, user_name="User"):
+        if not user_id:
+            return None
+        existing = self.fetch_one("SELECT * FROM homes WHERE user_id = %s LIMIT 1", (user_id,))
+        if existing:
+            return existing
+        # Parse first name from user_name (e.g. "Morkos Medhat" -> "Morkos's Home")
+        first_name = (user_name or "My").split()[0].strip()
+        home_name = f"{first_name}'s Home" if first_name.lower() != "my" else "My Home"
+        import uuid
+        home_id = f"home_{uuid.uuid4().hex[:12]}"
+        return self.create_home(home_id, home_name, user_id=user_id, icon="home", is_default=True)
+
+    def create_home(self, home_id, name, user_id, icon="home", is_default=False):
+        if not user_id:
+            raise ValueError("user_id is required to create a home")
         self.execute(
             """INSERT INTO homes (id, user_id, name, icon, is_default, created_at, updated_at)
                VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
                ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, icon = EXCLUDED.icon, updated_at = NOW()""",
             (home_id, user_id, name, icon, is_default)
         )
-        return self.get_home(home_id)
+        return self.get_home(home_id, user_id=user_id)
 
-    def update_home(self, home_id, name=None, icon=None, sort_order=None):
+    def update_home(self, home_id, user_id, name=None, icon=None, sort_order=None):
+        if not user_id:
+            return None
         fields = []
         params = []
         if name is not None:
@@ -103,17 +127,22 @@ class Database:
             fields.append("sort_order = %s")
             params.append(sort_order)
         if not fields:
-            return self.get_home(home_id)
+            return self.get_home(home_id, user_id=user_id)
         fields.append("updated_at = NOW()")
-        params.append(home_id)
-        sql = f"UPDATE homes SET {', '.join(fields)} WHERE id = %s"
+        params.extend([home_id, user_id])
+        sql = f"UPDATE homes SET {', '.join(fields)} WHERE id = %s AND user_id = %s"
         self.execute(sql, tuple(params))
-        return self.get_home(home_id)
+        return self.get_home(home_id, user_id=user_id)
 
-    def delete_home(self, home_id):
-        # Set home_id = NULL for associated devices first, then delete home
-        self.execute("UPDATE devices SET home_id = NULL WHERE home_id = %s", (home_id,))
-        return self.execute("DELETE FROM homes WHERE id = %s", (home_id,))
+    def delete_home(self, home_id, user_id):
+        if not user_id:
+            return 0
+        # Set home_id = NULL for associated devices first, then delete home strictly for this user
+        self.execute(
+            "UPDATE devices SET home_id = NULL WHERE home_id = %s AND home_id IN (SELECT id FROM homes WHERE user_id = %s)",
+            (home_id, user_id)
+        )
+        return self.execute("DELETE FROM homes WHERE id = %s AND user_id = %s", (home_id, user_id))
 
     # -------------------------------------------------------------
     # Devices & Outlets
