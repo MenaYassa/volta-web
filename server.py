@@ -130,6 +130,18 @@ def check_and_apply_auto_claim(mac, client_ip):
         save_voltage_guards(guards)
         log(f"[voltage-guard] Armed default protection for new strip {mac}")
 
+    # Auto-assign newly claimed strip to user's default home (if not already assigned)
+    try:
+        user_id = user_entry.get("email") or token
+        def_home = db.db.ensure_default_home(user_id, user_name=user_entry.get("name", "User"))
+        if def_home and not dev.get("home_id"):
+            dev["home_id"] = def_home["id"]
+            save_devices(devices_reg)
+            db.db.assign_device_home(mac, def_home["id"])
+            log(f"[homes] auto-assigned strip {mac} to default home {def_home['id']} ('{def_home.get('name')}')")
+    except Exception as e:
+        log(f"[homes] auto-claim home assign error: {e}")
+
     return user_entry.get("name")
 
 
@@ -2588,6 +2600,17 @@ class Handler(BaseHTTPRequestHandler):
                     guards[mac] = get_default_guard_config()
                     save_voltage_guards(guards)
 
+                # Auto-assign newly claimed strip to user's default home (if not already assigned)
+                try:
+                    user_id = ctx.get("email") or ctx["token"]
+                    def_home = db.db.ensure_default_home(user_id, user_name=ctx.get("user_name", "User"))
+                    if def_home and not dev.get("home_id"):
+                        dev["home_id"] = def_home["id"]
+                        db.db.assign_device_home(mac, def_home["id"])
+                        log(f"[homes] auto-assigned strip {mac} to default home {def_home['id']} ('{def_home.get('name')}')")
+                except Exception as e:
+                    log(f"[homes] claim home assign error: {e}")
+
                 save_devices(devices_reg)
                 log(f"[claim] strip {mac} claimed by Admin (already_active={is_already_active})")
                 return self._json({"ok": True, "admin": True, "mac": mac, "already_active": is_already_active, "message": "Strip claimed for admin."})
@@ -2631,6 +2654,18 @@ class Handler(BaseHTTPRequestHandler):
                 if mac not in guards:
                     guards[mac] = get_default_guard_config()
                     save_voltage_guards(guards)
+
+                # Auto-assign newly claimed strip to user's default home (if not already assigned)
+                try:
+                    user_id = ctx.get("email") or ctx["token"]
+                    def_home = db.db.ensure_default_home(user_id, user_name=ctx.get("user_name", "User"))
+                    if def_home and not dev.get("home_id"):
+                        dev["home_id"] = def_home["id"]
+                        save_devices(devices_reg)
+                        db.db.assign_device_home(mac, def_home["id"])
+                        log(f"[homes] auto-assigned strip {mac} to default home {def_home['id']} ('{def_home.get('name')}')")
+                except Exception as e:
+                    log(f"[homes] claim home assign error: {e}")
 
                 return self._json({
                     "ok": True,
