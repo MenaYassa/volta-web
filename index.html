@@ -734,6 +734,37 @@ select option {
 .strip-phys-summary span.dots .d-off{color:#94a3b8}
 :root[data-theme="dark"] .strip-phys-summary span.dots .d-off{color:#475569}
 
+/* Strip Card Quota Lock & Read-Only Excess State */
+.strip.is-excess-locked {
+  border-color: #f59e0b !important;
+  background: var(--card);
+  position: relative;
+}
+.strip.is-excess-locked .strip-physical .phys-socket,
+.strip.is-excess-locked .strip-physical .phys-master-btn,
+.strip.is-excess-locked .sw {
+  cursor: not-allowed !important;
+  filter: grayscale(0.5);
+  opacity: 0.65;
+}
+.excess-locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+}
+:root[data-theme="dark"] .excess-locked-badge {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
 @media(max-width:560px){
   .strip{padding:12px 12px;overflow:hidden}
   .strip-head b{font-size:16px}
@@ -3424,10 +3455,34 @@ async function checkSrv(){
             }
           }
 
-          // Check subscription expiry warning (less than 30 days remaining)
+          // Check downgrade grace period or subscription expiry warning
           const banner = $("subNoticeBanner");
           if(banner){
-            if(!who.is_admin && who.expires_at){
+            if(!who.is_admin && who.in_grace_period && who.downgrade_grace_until){
+              const nowSec = Math.floor(Date.now() / 1000);
+              const daysLeft = Math.max(1, Math.ceil((who.downgrade_grace_until - nowSec) / 86400));
+              banner.style.display = "block";
+              banner.style.background = "#fef3c7";
+              banner.style.borderColor = "#fde68a";
+              banner.style.color = "#92400e";
+              const title = $("subNoticeTitle");
+              const desc = $("subNoticeDesc");
+              const badge = $("subNoticeBadge");
+              if(title) title.textContent = "Subscription Plan Downgraded — Grace Period Active";
+              if(badge) { badge.className = "tag warn"; badge.textContent = `${daysLeft}d grace left`; }
+              if(desc) desc.innerHTML = `Your plan quota is now <b>${who.max_strips} strips</b> (currently using ${who.strips.length}). Drag to reorder strips in Control to prioritize your top ${who.max_strips} active strips before excess strips enter Read-Only lock.`;
+            } else if(!who.is_admin && (who.locked_strips||[]).length > 0){
+              banner.style.display = "block";
+              banner.style.background = "#fee2e2";
+              banner.style.borderColor = "#fecaca";
+              banner.style.color = "#991b1b";
+              const title = $("subNoticeTitle");
+              const desc = $("subNoticeDesc");
+              const badge = $("subNoticeBadge");
+              if(title) title.textContent = "Quota Exceeded — Read-Only Locked Strips";
+              if(badge) { badge.className = "tag bad"; badge.textContent = `${who.locked_strips.length} Locked`; }
+              if(desc) desc.innerHTML = `Your plan quota covers <b>${who.max_strips} active strips</b>. The remaining <b>${who.locked_strips.length} strip(s)</b> are locked in Read-Only mode. Drag your desired strips to the top or unclaim excess strips to unlock controls.`;
+            } else if(!who.is_admin && who.expires_at){
               const nowSec = Math.floor(Date.now() / 1000);
               const daysLeft = Math.ceil((who.expires_at - nowSec) / 86400);
               if(daysLeft <= 30){
@@ -3901,10 +3956,12 @@ async function live(){
     if(el){
       el.innerHTML=devs.length?"":"<div class='card'><h3>No strips yet</h3><p class='desc'>Provision one strip and it dials in here by itself. Go to <b>Setup → Provision a strip</b>.</p></div>";
       for(const d of devs){
-        const c=document.createElement("div");c.className="card strip"+(d.online?"":" off");
+        const isExcessLocked = Boolean(d.excess_locked);
+        const c=document.createElement("div");c.className="card strip"+(d.online?"":" off")+(isExcessLocked?" is-excess-locked":"");
         c.setAttribute("data-mac", (d.mac||"").toUpperCase());
         const seen=d.online?"live now":("last seen "+ago(d.last_seen_ago));
         const pend=d.pending?` <span class="tag warn">⏳ ${d.pending} queued</span>`:"";
+        const lockExcessBadge = isExcessLocked ? `<span class="excess-locked-badge" title="Strip is in Read-Only mode because account active strip quota is reached. Telemetry is streaming, but switching and controls are locked.">🔒 Plan Read-Only</span>` : "";
         const vg = d.voltage_guard || {};
         let vgTag = "";
         if (vg.temp_tripped) {
@@ -4004,6 +4061,7 @@ async function live(){
             </div>
             <span class="tag ${d.online?"ok":"bad"}"><span class="dot ${d.online?"ok":"bad"}" style="width:7px;height:7px;display:inline-block;margin-right:5px;vertical-align:middle"></span>${d.online?"Online":"Offline"}</span>
             <span class="tag mono">${d.mac}</span>
+            ${lockExcessBadge}
             ${vgTag}
             ${pend}
             <span style="flex:1"></span>
@@ -4067,6 +4125,10 @@ async function live(){
         const msg = c.querySelector(".msg");
 
         const setAll = async (on) => {
+          if (isExcessLocked) {
+            alert(`This strip is locked in Read-Only mode due to plan quota. Upgrade plan or drag strip into active capacity to enable controls.`);
+            return;
+          }
           // Exclude outlets that are locked against accidental switching
           const allOutlets = (d.outlets || []).map(o => o.n);
           const unlockedChannels = allOutlets.filter(n => !isOutletLocked(d.mac, n));
@@ -4109,6 +4171,10 @@ async function live(){
         const rebootBtn = c.querySelector(".strip-reboot");
         if (rebootBtn) {
           rebootBtn.onclick = async () => {
+            if (isExcessLocked) {
+              alert(`Cannot reboot: strip is in Read-Only mode due to subscription plan quota.`);
+              return;
+            }
             const stripName = d.name || d.mac;
             if (!confirm(`Reboot physical strip "${stripName}" (${d.mac})?\n\nIt will briefly disconnect, re-negotiate Wi-Fi, and reconnect.`)) return;
             msg.textContent = "Sending reboot command…";
@@ -4202,6 +4268,10 @@ async function live(){
         // Quick click on physical socket indicator or name toggles that outlet
         c.querySelectorAll(".phys-socket, .phys-socket-name").forEach(ps => {
           ps.onclick = async () => {
+            if (isExcessLocked) {
+              alert(`Cannot switch: this strip is in Read-Only mode due to plan quota.`);
+              return;
+            }
             const socketNum = parseInt(ps.getAttribute("data-socket"), 10);
             const targetOut = (d.outlets || []).find(o => o.n === socketNum);
             if (!targetOut) return;
@@ -4299,6 +4369,10 @@ async function live(){
           };
 
           sw.onclick = async () => {
+            if (isExcessLocked) {
+              alert(`Cannot toggle: this strip is in Read-Only mode due to subscription plan quota. Please upgrade or prioritize your active strips.`);
+              return;
+            }
             if (isOutletLocked(d.mac, o.n)) {
               alert(`Outlet ${o.n} (${o.nick || "Outlet " + o.n}) is locked to prevent accidental switching. Tap the 🔒 icon to unlock first.`);
               return;
@@ -5047,7 +5121,13 @@ async function openStripOwnerModal(mac){
         };
         const nameSpan = document.createElement("span");
         nameSpan.style.flex = "1";
-        nameSpan.innerHTML = `<b>${esc(u.name||"User")}</b> <span style="font-size:11px;color:var(--mut)">(${(u.strips||[]).length} strips)</span>`;
+        const maxStrips = u.max_strips || 10;
+        const currStrips = (u.strips||[]).length;
+        const isQuotaFull = !chk.checked && currStrips >= maxStrips;
+        nameSpan.innerHTML = `<b>${esc(u.name||"User")}</b> <span style="font-size:11px;color:${isQuotaFull?'var(--red)':'var(--mut)'}">(${currStrips}/${maxStrips} strips${isQuotaFull?' · Quota Full':''})</span>`;
+        if(isQuotaFull){
+          chk.title = "User has reached their subscription strip quota";
+        }
         row.appendChild(chk);
         row.appendChild(nameSpan);
         list.appendChild(row);
@@ -5108,6 +5188,22 @@ on("msuSave","click",async()=>{
       closeStripOwnerModal();
       await loadUsers();
       await renderManage();
+    }else if(r.quota_exceeded){
+      if(confirm((r.error||"Quota exceeded for one or more users.") + "\n\nDo you want to override and force assignment?")){
+        const fRes = await apit("/api/claim",{
+          mac: _activeEditingStripMac,
+          target_tokens: selected,
+          force: true,
+          token: tok()
+        });
+        if(fRes.ok){
+          closeStripOwnerModal();
+          await loadUsers();
+          await renderManage();
+        } else {
+          alert("Force assignment failed: " + (fRes.error||"unknown error"));
+        }
+      }
     }else{
       alert("Failed to assign strip: " + (r.error||"unknown error"));
     }

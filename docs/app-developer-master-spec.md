@@ -91,7 +91,23 @@ Response:
 }
 ```
 
-#### Subscription Quotas & Account Expiry Rules:
+#### Subscription Quotas, Downgrade Grace Periods & Excess Lock:
+- **Downgrade Grace Period:**
+  - When an admin decreases a user's `max_strips` below their currently active strip count, a **7-day soft grace period** is automatically granted (`in_grace_period: true`, `downgrade_grace_until: <unix_timestamp>`, `grace_seconds_left: <int>`).
+  - During grace period, all strips remain controllable so the user can reorder strips (via `POST /api/order`) or unclaim excess strips.
+- **Read-Only / Locked Excess State (`PLAN_EXCESS_LOCKED`):**
+  - Once grace expires (or if strips exceed quota without grace), strips past index `max_strips` in the user's custom order enter **Read-Only Excess Mode**.
+  - `GET /api/live` flags these strips with `"excess_locked": true`.
+  - Telemetry and analytics continue streaming normally, but any control calls (`POST /api/onoff`, `POST /api/switch`, `POST /api/schedules`, `POST /api/timers`, `POST /api/reboot`, `POST /api/voltage-guard`) return HTTP `403 Forbidden`:
+    ```json
+    {
+      "error": "Strip is in Read-Only state due to subscription plan quota. Please upgrade or choose active strips.",
+      "code": "PLAN_EXCESS_LOCKED"
+    }
+    ```
+- **Shared Family Strip Quotas:**
+  - Strips shared with family members consume that member's `max_strips` quota.
+  - In `POST /api/claim`, if a recipient has already reached their `max_strips`, assignment fails with HTTP `403` (`"quota_exceeded": true`). Admins can override with `"force": true`.
 - If `status == "expired"` or `status == "canceled"`:
   - Backend returns HTTP `401 Unauthorized` with `{"subscription_expired": true}`.
   - App must present a persistent **Account Locked / Expired** screen blocking strip control with a button to contact support/admin.

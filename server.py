@@ -260,6 +260,108 @@ def save_strip_orders(orders_dict):
     save_strips(data)
 
 
+def compute_user_quota_info(user_token_or_obj):
+    """Calculate quota, grace period, and active vs excess (locked) strips for a user.
+    Returns:
+      {
+        "max_strips": int,
+        "strips": list,
+        "active_strips": list,
+        "locked_strips": list,
+        "in_grace_period": bool,
+        "grace_until": int or None,
+        "seconds_left": int,
+        "excess_count": int
+      }
+    """
+    if isinstance(user_token_or_obj, dict):
+        user_obj = user_token_or_obj
+        user_token = None
+    else:
+        user_token = user_token_or_obj
+        user_obj = get_users().get(user_token, {}) if user_token else {}
+
+    raw_strips = [norm_mac(m).upper() for m in user_obj.get("strips", []) if m]
+    max_s = max(1, int(user_obj.get("max_strips", 10) or 10))
+    grace_until = user_obj.get("downgrade_grace_until")
+    now_ts = int(time.time())
+
+    in_grace = bool(grace_until and now_ts < grace_until)
+    sec_left = max(0, int(grace_until - now_ts)) if grace_until else 0
+
+    # Determine strip preference order
+    orders = get_strip_orders()
+    saved_pref = []
+    if user_token and user_token in orders:
+        saved_pref = [norm_mac(m).upper() for m in orders[user_token] if norm_mac(m)]
+    elif "strip_order" in user_obj and isinstance(user_obj["strip_order"], list):
+        saved_pref = [norm_mac(m).upper() for m in user_obj["strip_order"] if norm_mac(m)]
+
+    # Sort strips by user preference, unranked preserved in original order
+    seen = set()
+    ordered = []
+    for m in saved_pref:
+        if m in raw_strips and m not in seen:
+            ordered.append(m)
+            seen.add(m)
+    for m in raw_strips:
+        if m not in seen:
+            ordered.append(m)
+            seen.add(m)
+
+    if in_grace or len(ordered) <= max_s:
+        active_list = ordered
+        locked_list = []
+    else:
+        active_list = ordered[:max_s]
+        locked_list = ordered[max_s:]
+
+    excess_cnt = max(0, len(ordered) - max_s)
+    return {
+        "max_strips": max_s,
+        "strips": ordered,
+        "active_strips": active_list,
+        "locked_strips": locked_list,
+        "in_grace_period": in_grace,
+        "grace_until": grace_until,
+        "seconds_left": sec_left,
+        "excess_count": excess_cnt
+    }
+
+
+def is_mac_locked_by_downgrade(mac, user_token=None):
+    """Check if a MAC is currently locked due to plan downgrade excess.
+    If user_token is provided, checks for that specific user.
+    If user_token is None, checks across all claiming users (if every owner has it locked, it is locked in background).
+    """
+    clean_mac = norm_mac(mac).upper()
+    users = get_users()
+    if user_token:
+        u_data = users.get(user_token)
+        if not u_data:
+            return False
+        q_info = compute_user_quota_info(u_data)
+        return clean_mac in q_info["locked_strips"]
+
+    # Check owners of this device
+    dev = get_device(clean_mac)
+    if not dev:
+        return False
+    if dev.get("admin_claimed"):
+        return False
+    owners = dev.get("claimed_users", [])
+    if not owners:
+        return False
+    # If ANY owner has this strip active/unlocked, background scheduler/automations may still run for it
+    for o_tok in owners:
+        o_data = users.get(o_tok)
+        if o_data:
+            q_info = compute_user_quota_info(o_data)
+            if clean_mac not in q_info["locked_strips"]:
+                return False
+    return True
+
+
 
 def get_devices():
     """Return dict of devices from strips.json keyed by normalized uppercase MAC."""
@@ -471,6 +573,7 @@ def resolve_auth_context(token_str):
                 }
 
             user_strips = [str(m).upper().replace(":", "") for m in info.get("strips", [])]
+            quota_info = compute_user_quota_info(info)
             return {
                 "authorized": True,
                 "is_admin": False,
@@ -479,7 +582,13 @@ def resolve_auth_context(token_str):
                 "email": info.get("email", ""),
                 "picture": info.get("picture", ""),
                 "strips": user_strips,
-                "max_strips": info.get("max_strips", 10),
+                "active_strips": quota_info["active_strips"],
+                "locked_strips": quota_info["locked_strips"],
+                "in_grace_period": quota_info["in_grace_period"],
+                "downgrade_grace_until": quota_info["grace_until"],
+                "grace_seconds_left": quota_info["seconds_left"],
+                "excess_count": quota_info["excess_count"],
+                "max_strips": quota_info["max_strips"],
                 "expires_at": expires_at,
                 "status": status
             }
@@ -989,6 +1098,8 @@ def scheduler_loop():
                 for s in scheds:
                     if not s.get("enabled"):
                         continue
+                    if is_mac_locked_by_downgrade(s.get("mac", "")):
+                        continue
                     st_settings = get_settings()
                     default_tz = st_settings.get("timezone", "Africa/Cairo")
                     try:
@@ -1028,6 +1139,9 @@ def timer_loop():
                 dirty = False
                 for t in timers:
                     if not t.get("enabled", True):
+                        continue
+                    mac = t.get("mac", "")
+                    if is_mac_locked_by_downgrade(mac):
                         continue
                     try:
                         if t.get("mode", "countdown") == "countdown":
@@ -1332,7 +1446,7 @@ class Handler(BaseHTTPRequestHandler):
         return self._auth_ctx()["is_admin"]
 
     def _can_access_mac(self, mac):
-        """Check if caller is permitted to read or control this MAC."""
+        """Check if caller is permitted to read or view this MAC."""
         ctx = self._auth_ctx()
         if not ctx["authorized"]:
             return False
@@ -1340,6 +1454,23 @@ class Handler(BaseHTTPRequestHandler):
             return True
         clean_mac = norm_mac(mac).upper()
         return clean_mac in ctx["strips"]
+
+    def _can_control_mac(self, mac):
+        """Check if caller can control (switch, reboot, timer, schedule) this MAC.
+        Returns (allowed: bool, reason: str or None, code: str or None).
+        """
+        ctx = self._auth_ctx()
+        if not ctx["authorized"]:
+            return False, "token required", "UNAUTHORIZED"
+        if ctx["is_admin"]:
+            return True, None, None
+        clean_mac = norm_mac(mac).upper()
+        if clean_mac not in ctx["strips"]:
+            return False, "forbidden (strip not owned)", "FORBIDDEN"
+        locked_list = ctx.get("locked_strips") or []
+        if clean_mac in locked_list:
+            return False, "Strip is in Read-Only state due to subscription plan quota. Please upgrade or choose active strips.", "PLAN_EXCESS_LOCKED"
+        return True, None, None
 
     def do_HEAD(self):  # noqa: N802
         u = urllib.parse.urlparse(self.path)
@@ -1670,6 +1801,12 @@ class Handler(BaseHTTPRequestHandler):
                 "email": ctx.get("email", ""),
                 "picture": ctx.get("picture", ""),
                 "strips": ctx["strips"],
+                "active_strips": ctx.get("active_strips", ctx["strips"]),
+                "locked_strips": ctx.get("locked_strips", []),
+                "in_grace_period": ctx.get("in_grace_period", False),
+                "downgrade_grace_until": ctx.get("downgrade_grace_until"),
+                "grace_seconds_left": ctx.get("grace_seconds_left", 0),
+                "excess_count": ctx.get("excess_count", 0),
                 "max_strips": ctx.get("max_strips"),
                 "expires_at": ctx.get("expires_at"),
                 "status": ctx.get("status", "active")
@@ -1757,6 +1894,11 @@ class Handler(BaseHTTPRequestHandler):
                     for o in d.get("outlets", []):
                         o["locked"] = bool(o.get("n") in strip_locked)
 
+                    # Mark if strip is locked in read-only excess mode for current user
+                    user_locked_strips = ctx.get("locked_strips") or []
+                    d["excess_locked"] = bool(clean_m in user_locked_strips)
+                    d["in_grace_period"] = bool(ctx.get("in_grace_period", False))
+
                     g_info = get_voltage_guards().get(clean_m, get_default_guard_config())
                     d["voltage_guard"] = {
                         "enabled": bool(g_info.get("enabled", True)),
@@ -1808,6 +1950,7 @@ class Handler(BaseHTTPRequestHandler):
                             "locked": bool(o.get("n") in strip_locked)
                         })
                     guard_info = get_voltage_guards().get(clean_m.upper(), get_default_guard_config())
+                    user_locked_strips = ctx.get("locked_strips") or []
                     formatted.append({
                         "mac": d.get("mac"),
                         "name": strip_name,
@@ -1815,6 +1958,8 @@ class Handler(BaseHTTPRequestHandler):
                         "fw": d.get("fw", "1.0.0"),
                         "ip": d.get("ip", ""),
                         "online": bool(d.get("online")),
+                        "excess_locked": bool(clean_m.upper() in user_locked_strips),
+                        "in_grace_period": bool(ctx.get("in_grace_period", False)),
                         "voltage_v": d.get("voltage_v") or 220.0,
                         "rssi": d.get("rssi") or -65,
                         "last_seen": d.get("last_seen", time.time()),
@@ -2452,7 +2597,18 @@ class Handler(BaseHTTPRequestHandler):
                     user_obj["strips"] = [norm_mac(m).upper() for m in body.get("strips", []) if m]
                 if "max_strips" in body:
                     try:
-                        user_obj["max_strips"] = max(1, int(body.get("max_strips", 10)))
+                        new_max = max(1, int(body.get("max_strips", 10)))
+                        old_max = int(user_obj.get("max_strips", 10) or 10)
+                        curr_strips_cnt = len(user_obj.get("strips", []))
+                        # If reducing capacity below current number of claimed strips, initiate 7-day grace period
+                        if new_max < old_max and curr_strips_cnt > new_max:
+                            grace_days = max(1, int(body.get("grace_days", 7) or 7))
+                            user_obj["downgrade_grace_until"] = int(time.time()) + (grace_days * 86400)
+                            log(f"[downgrade] user {user_obj.get('name')} max_strips decreased ({old_max} -> {new_max}); {grace_days}d grace period until {user_obj['downgrade_grace_until']}")
+                        elif new_max >= curr_strips_cnt:
+                            # Quota covers all strips now, clear downgrade grace
+                            user_obj.pop("downgrade_grace_until", None)
+                        user_obj["max_strips"] = new_max
                     except (ValueError, TypeError):
                         pass
                 if "status" in body:
@@ -2558,6 +2714,26 @@ class Handler(BaseHTTPRequestHandler):
                         target_tokens = [target_user_token]
                 
                 target_set = set(target_tokens)
+
+                # Validate recipient strip quota:
+                # Disallow assigning strip to a user if their quota is exceeded (unless force=True)
+                force_assign = bool(body.get("force"))
+                quota_errors = []
+                for t in target_set:
+                    if t in users:
+                        u_rec = users[t]
+                        u_strips = u_rec.get("strips", [])
+                        u_max = u_rec.get("max_strips", 10)
+                        if mac not in u_strips and len(u_strips) >= u_max:
+                            quota_errors.append(f"{u_rec.get('name', 'User')} reached quota ({len(u_strips)}/{u_max})")
+
+                if quota_errors and not force_assign:
+                    return self._json({
+                        "error": "Quota limit reached for: " + ", ".join(quota_errors) + ". Upgrade plan or select fewer users.",
+                        "quota_exceeded": True,
+                        "details": quota_errors
+                    }, 403)
+
                 dev["claimed_users"] = [t for t in target_set if t in users]
                 dev["status"] = "active"
                 dev["deleted_at"] = None
@@ -2820,8 +2996,9 @@ class Handler(BaseHTTPRequestHandler):
             mac = norm_mac(body.get("mac", "")).upper()
             if not mac:
                 return self._json({"error": "mac required"}, 400)
-            if not self._can_access_mac(mac):
-                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            can_ctrl, ctrl_err, err_code = self._can_control_mac(mac)
+            if not can_ctrl:
+                return self._json({"error": ctrl_err, "code": err_code or "FORBIDDEN"}, 403)
             try:
                 outlet = int(body.get("outlet", 0))
             except (TypeError, ValueError):
@@ -2948,8 +3125,9 @@ class Handler(BaseHTTPRequestHandler):
             on = bool(body.get("on") or body.get("state") == "on" or body.get("state") is True)
             if not mac or outlet not in (0, 1, 2, 3, 4):
                 return self._json({"error": "need mac + outlet 0-4"}, 400)
-            if not self._can_access_mac(mac):
-                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            can_ctrl, ctrl_err, err_code = self._can_control_mac(mac)
+            if not can_ctrl:
+                return self._json({"error": ctrl_err, "code": err_code or "FORBIDDEN"}, 403)
             data = load_strips()
             hit = next((s for s in data["strips"]
                         if norm_mac(s.get("mac", "")) == mac or s.get("ip") == body.get("mac")), None)
@@ -3016,8 +3194,9 @@ class Handler(BaseHTTPRequestHandler):
             mac = norm_mac(body.get("mac") or "").upper()
             if not mac:
                 return self._json({"error": "mac required"}, 400)
-            if not self._can_access_mac(mac):
-                return self._json({"error": "forbidden: strip not assigned to your account"}, 403)
+            can_ctrl, ctrl_err, err_code = self._can_control_mac(mac)
+            if not can_ctrl:
+                return self._json({"error": ctrl_err, "code": err_code or "FORBIDDEN"}, 403)
             ok, err = CTL.reboot(mac)
             if not ok:
                 return self._json({"error": err or "device offline"}, 502)
@@ -3030,8 +3209,9 @@ class Handler(BaseHTTPRequestHandler):
             sched, err = validate_schedule(body)
             if err:
                 return self._json({"error": err}, 400)
-            if not self._can_access_mac(sched["mac"]):
-                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            can_ctrl, ctrl_err, err_code = self._can_control_mac(sched["mac"])
+            if not can_ctrl:
+                return self._json({"error": ctrl_err, "code": err_code or "FORBIDDEN"}, 403)
             scheds = get_schedules()
             for i, s in enumerate(scheds):
                 if s.get("id") == sched["id"]:
@@ -3053,8 +3233,9 @@ class Handler(BaseHTTPRequestHandler):
             mac = norm_mac(body.get("mac", "")).upper()
             if not mac:
                 return self._json({"error": "mac is required"}, 400)
-            if not self._can_access_mac(mac):
-                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            can_ctrl, ctrl_err, err_code = self._can_control_mac(mac)
+            if not can_ctrl:
+                return self._json({"error": ctrl_err, "code": err_code or "FORBIDDEN"}, 403)
             
             try:
                 min_v = float(body.get("min_v", 195.0))
@@ -3087,8 +3268,11 @@ class Handler(BaseHTTPRequestHandler):
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
             mac = norm_mac(body.get("mac", "")).upper()
-            if not mac or not self._can_access_mac(mac):
-                return self._json({"error": "forbidden (strip not owned or missing mac)"}, 403)
+            if not mac:
+                return self._json({"error": "mac is required"}, 400)
+            can_ctrl, ctrl_err, err_code = self._can_control_mac(mac)
+            if not can_ctrl:
+                return self._json({"error": ctrl_err, "code": err_code or "FORBIDDEN"}, 403)
             
             guards = get_voltage_guards()
             if mac in guards:
@@ -3115,8 +3299,9 @@ class Handler(BaseHTTPRequestHandler):
             outlet = int(body.get("outlet", 0) or 0)
             if not mac or not (0 <= outlet <= 4):
                 return self._json({"error": "need mac + outlet 0-4"}, 400)
-            if not self._can_access_mac(mac):
-                return self._json({"error": "forbidden (strip not owned)"}, 403)
+            can_ctrl, ctrl_err, err_code = self._can_control_mac(mac)
+            if not can_ctrl:
+                return self._json({"error": ctrl_err, "code": err_code or "FORBIDDEN"}, 403)
             try:
                 on_sec = max(5, int(body.get("on_sec", 0) or 0))
                 off_sec = max(5, int(body.get("off_sec", 0) or 0))

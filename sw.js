@@ -1,5 +1,5 @@
-/* Volta shell cache: updated to v2 with network-first for HTML */
-const CACHE = "volta-v20";
+/* Volta shell cache: updated to v21 with downgrade grace and excess lock support */
+const CACHE = "volta-v21";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
