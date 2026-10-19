@@ -134,11 +134,9 @@ def check_and_apply_auto_claim(mac, client_ip):
     try:
         user_id = user_entry.get("email") or token
         def_home = db.db.ensure_default_home(user_id, user_name=user_entry.get("name", "User"))
-        if def_home and not dev.get("home_id"):
-            dev["home_id"] = def_home["id"]
-            save_devices(devices_reg)
-            db.db.assign_device_home(mac, def_home["id"])
-            log(f"[homes] auto-assigned strip {mac} to default home {def_home['id']} ('{def_home.get('name')}')")
+        if def_home and not get_user_strip_home(user_id, mac):
+            set_user_strip_home(user_id, mac, def_home["id"])
+            log(f"[homes] auto-assigned strip {mac} to default home {def_home['id']} ('{def_home.get('name')}') for user {user_id}")
     except Exception as e:
         log(f"[homes] auto-claim home assign error: {e}")
 
@@ -258,6 +256,43 @@ def save_strip_orders(orders_dict):
     data = load_strips()
     data["strip_orders"] = orders_dict
     save_strips(data)
+
+
+def get_user_home_devices():
+    """Return dictionary of per-user home device mappings: { 'user_id': { 'MAC': 'home_id' } }."""
+    return load_strips().get("user_home_devices", {})
+
+
+def save_user_home_devices(mapping_dict):
+    data = load_strips()
+    data["user_home_devices"] = mapping_dict
+    save_strips(data)
+
+
+def get_user_strip_home(user_id, mac):
+    """Get the assigned home_id for a strip for a specific user.
+    Falls back to the device's global home_id if no per-user override exists.
+    """
+    clean_mac = norm_mac(mac).upper()
+    if user_id:
+        user_map = get_user_home_devices().get(user_id, {})
+        if clean_mac in user_map:
+            return user_map[clean_mac]
+    dev = get_device(clean_mac)
+    return dev.get("home_id") if dev else None
+
+
+def set_user_strip_home(user_id, mac, home_id):
+    """Set the assigned home_id for a strip for a specific user."""
+    clean_mac = norm_mac(mac).upper()
+    all_maps = get_user_home_devices()
+    if user_id not in all_maps:
+        all_maps[user_id] = {}
+    if home_id:
+        all_maps[user_id][clean_mac] = home_id
+    else:
+        all_maps[user_id].pop(clean_mac, None)
+    save_user_home_devices(all_maps)
 
 
 def compute_user_quota_info(user_token_or_obj):
@@ -1899,6 +1934,10 @@ class Handler(BaseHTTPRequestHandler):
                     d["excess_locked"] = bool(clean_m in user_locked_strips)
                     d["in_grace_period"] = bool(ctx.get("in_grace_period", False))
 
+                    # User-scoped home assignment
+                    current_uid = ctx.get("email") or ctx["token"]
+                    d["home_id"] = get_user_strip_home(current_uid, clean_m)
+
                     g_info = get_voltage_guards().get(clean_m, get_default_guard_config())
                     d["voltage_guard"] = {
                         "enabled": bool(g_info.get("enabled", True)),
@@ -2160,7 +2199,8 @@ class Handler(BaseHTTPRequestHandler):
             home_id = q.get("home_id", [""])[0]
             if home_id and home_id != "__all__":
                 all_devs = get_devices()
-                home_macs = set(m for m, d in all_devs.items() if d.get("home_id") == home_id)
+                curr_uid = ctx.get("email") or ctx["token"]
+                home_macs = set(m for m, d in all_devs.items() if get_user_strip_home(curr_uid, m) == home_id)
                 scheds = [s for s in scheds if norm_mac(s.get("mac", "")).upper() in home_macs]
             self._json({"schedules": scheds})
         elif u.path == "/api/timers":
@@ -2174,7 +2214,8 @@ class Handler(BaseHTTPRequestHandler):
             home_id = q.get("home_id", [""])[0]
             if home_id and home_id != "__all__":
                 all_devs = get_devices()
-                home_macs = set(m for m, d in all_devs.items() if d.get("home_id") == home_id)
+                curr_uid = ctx.get("email") or ctx["token"]
+                home_macs = set(m for m, d in all_devs.items() if get_user_strip_home(curr_uid, m) == home_id)
                 timers = [t for t in timers if norm_mac(t.get("mac", "")).upper() in home_macs]
             self._json({"timers": timers})
         elif u.path == "/api/voltage-guard":
@@ -2343,7 +2384,7 @@ class Handler(BaseHTTPRequestHandler):
             for m, d in all_devs.items():
                 if user_strips is not None and m.upper() not in user_strips:
                     continue
-                hid = d.get("home_id")
+                hid = get_user_strip_home(user_id, m)
                 if hid:
                     counts[hid] = counts.get(hid, 0) + 1
             for h in homes:
@@ -2790,10 +2831,9 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     user_id = ctx.get("email") or ctx["token"]
                     def_home = db.db.ensure_default_home(user_id, user_name=ctx.get("user_name", "User"))
-                    if def_home and not dev.get("home_id"):
-                        dev["home_id"] = def_home["id"]
-                        db.db.assign_device_home(mac, def_home["id"])
-                        log(f"[homes] auto-assigned strip {mac} to default home {def_home['id']} ('{def_home.get('name')}')")
+                    if def_home and not get_user_strip_home(user_id, mac):
+                        set_user_strip_home(user_id, mac, def_home["id"])
+                        log(f"[homes] auto-assigned strip {mac} to default home {def_home['id']} ('{def_home.get('name')}') for user {user_id}")
                 except Exception as e:
                     log(f"[homes] claim home assign error: {e}")
 
@@ -2845,11 +2885,9 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     user_id = ctx.get("email") or ctx["token"]
                     def_home = db.db.ensure_default_home(user_id, user_name=ctx.get("user_name", "User"))
-                    if def_home and not dev.get("home_id"):
-                        dev["home_id"] = def_home["id"]
-                        save_devices(devices_reg)
-                        db.db.assign_device_home(mac, def_home["id"])
-                        log(f"[homes] auto-assigned strip {mac} to default home {def_home['id']} ('{def_home.get('name')}')")
+                    if def_home and not get_user_strip_home(user_id, mac):
+                        set_user_strip_home(user_id, mac, def_home["id"])
+                        log(f"[homes] auto-assigned strip {mac} to default home {def_home['id']} ('{def_home.get('name')}') for user {user_id}")
                 except Exception as e:
                     log(f"[homes] claim home assign error: {e}")
 
@@ -3082,20 +3120,18 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/homes/assign":
             if not self._authorized():
                 return self._json({"error": "token required"}, 401)
+            ctx = self._auth_ctx()
             mac = norm_mac(body.get("mac"))
             if not mac:
                 return self._json({"error": "mac required"}, 400)
             if not self._can_access_mac(mac):
                 return self._json({"error": "forbidden (strip not owned)"}, 403)
             home_id = body.get("home_id")
-            db.db.assign_device_home(mac, home_id)
-            # Also mirror in strips.json devices
             clean_mac = mac.upper()
-            all_devs = get_devices()
-            if clean_mac in all_devs:
-                all_devs[clean_mac]["home_id"] = home_id
-                save_devices(all_devs)
-            log(f"[homes] assigned strip {clean_mac} to home {home_id}")
+            user_id = ctx.get("email") or ctx["token"]
+            set_user_strip_home(user_id, clean_mac, home_id)
+            db.db.assign_device_home(clean_mac, home_id)
+            log(f"[homes] assigned strip {clean_mac} to home {home_id} for user {user_id}")
             return self._json({"ok": True, "mac": clean_mac, "home_id": home_id})
 
         if u.path in ("/api/order", "/api/strip/order"):
@@ -3484,7 +3520,8 @@ class Handler(BaseHTTPRequestHandler):
             home_id = body.get("home_id")
             if home_id and home_id != "__all__":
                 all_devs = get_devices()
-                home_macs = [m for m, d in all_devs.items() if d.get("home_id") == home_id]
+                curr_uid = ctx.get("email") or ctx["token"]
+                home_macs = [m for m, d in all_devs.items() if get_user_strip_home(curr_uid, m) == home_id]
                 user_macs = home_macs if user_macs is None else [m for m in user_macs if m in home_macs]
             rows = analytics.query_all_strips_power(start, end, downsample, macs=user_macs)
             return self._json({"ok": True, "readings": rows})
@@ -3499,7 +3536,8 @@ class Handler(BaseHTTPRequestHandler):
             home_id = body.get("home_id")
             if home_id and home_id != "__all__":
                 all_devs = get_devices()
-                home_macs = [m for m, d in all_devs.items() if d.get("home_id") == home_id]
+                curr_uid = ctx.get("email") or ctx["token"]
+                home_macs = [m for m, d in all_devs.items() if get_user_strip_home(curr_uid, m) == home_id]
                 user_macs = home_macs if user_macs is None else [m for m in user_macs if m in home_macs]
             board = analytics.outlet_leaderboard(start, end, limit, macs=user_macs)
             return self._json({"ok": True, "leaderboard": board})
@@ -3514,7 +3552,8 @@ class Handler(BaseHTTPRequestHandler):
             home_id = body.get("home_id")
             if home_id and home_id != "__all__":
                 all_devs = get_devices()
-                home_macs = [m for m, d in all_devs.items() if d.get("home_id") == home_id]
+                curr_uid = ctx.get("email") or ctx["token"]
+                home_macs = [m for m, d in all_devs.items() if get_user_strip_home(curr_uid, m) == home_id]
                 user_macs = home_macs if user_macs is None else [m for m in user_macs if m in home_macs]
             summary = analytics.summary_stats(start, end, mac=mac, macs=user_macs)
             cfg = get_settings()
