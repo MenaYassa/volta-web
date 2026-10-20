@@ -5,7 +5,7 @@
       <stop offset="60%" stop-color="#0f172a"/>
       <stop offset="100%" stop-color="#1e293b"/>
     </linearGradient>
-    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="cyanGrad" gradientUnits="userSpaceOnUse" x1="120" y1="76" x2="390" y2="390">
       <stop offset="0%" stop-color="#38bdf8"/>
       <stop offset="100%" stop-color="#0ea5e9"/>
     </linearGradient>
@@ -14,8 +14,8 @@
   <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
   <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="#38bdf8" stroke-width="4" stroke-opacity="0.3"/>
   <!-- Glowing Power Emblem -->
-  <!-- Outer Ring with Top Opening -->
-  <path d="M 256,120 A 136,136 0 1,0 352.17,160.17" fill="none" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
+  <!-- Outer Ring with Symmetrical Top Opening -->
+  <path d="M 159.83,160.17 A 136,136 0 1,0 352.17,160.17" fill="none" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
   <!-- Central Vertical Switch Blade -->
   <line x1="256" y1="76" x2="256" y2="236" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
 </svg>

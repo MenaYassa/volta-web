@@ -1,5 +1,5 @@
-/* Volta shell cache: updated to v25 with direct svg icon rendering */
-const CACHE = "volta-v25";
+/* Volta shell cache: updated to v26 with power emblem vertical blade fix */
+const CACHE = "volta-v26";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
