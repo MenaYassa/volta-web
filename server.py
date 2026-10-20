@@ -2334,14 +2334,36 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
-        elif u.path in ("/icon.svg", "/favicon.ico", "/icon-192.png", "/icon-512.png"):
+        elif u.path == "/favicon.ico":
+            try:
+                body = open("favicon.ico", "rb").read()
+            except OSError:
+                body = open("icon.svg", "rb").read()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/x-icon")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif u.path in ("/favicon.png", "/icon-192.png", "/icon-512.png"):
+            try:
+                body = open("favicon.png", "rb").read()
+            except OSError:
+                body = open("icon.svg", "rb").read()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif u.path == "/icon.svg":
             try:
                 body = open("icon.svg", "rb").read()
             except OSError:
                 return self._json({"error": "no icon"}, 404)
             self.send_response(200)
             self.send_header("Content-Type", "image/svg+xml")
-            self.send_header("Cache-Control", "no-cache, max-age=0")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)

@@ -17,6 +17,10 @@ services:
       - ./controller.py:/app/controller.py
       - ./db.py:/app/db.py
       - ./sw.js:/app/sw.js
+      - ./icon.svg:/app/icon.svg
+      - ./favicon.ico:/app/favicon.ico
+      - ./favicon.png:/app/favicon.png
+      - ./manifest.webmanifest:/app/manifest.webmanifest
     deploy:
       resources:
         limits:

@@ -1,5 +1,5 @@
-/* Volta shell cache: updated to v21 with downgrade grace and excess lock support */
-const CACHE = "volta-v21";
+/* Volta shell cache: updated to v22 with rebranded cyan power emblem */
+const CACHE = "volta-v22";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
