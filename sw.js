@@ -1,5 +1,5 @@
-/* Volta shell cache: updated to v28 with centered collapsed sidebar logo */
-const CACHE = "volta-v28";
+/* Volta shell cache: updated to v29 with centered plug tab and user tile */
+const CACHE = "volta-v29";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });

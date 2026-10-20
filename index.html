@@ -1494,25 +1494,34 @@ select option {
 }
 
 .app-sidebar.collapsed .sidebar-nav {
-  padding: 10px 6px;
+  padding: 10px 0;
   align-items: center;
 }
 
 .app-sidebar.collapsed .sidebar-nav .tab {
-  justify-content: center;
-  align-items: center;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
   width: 44px;
   height: 44px;
   min-height: 44px;
-  padding: 0;
+  max-width: 44px;
+  padding: 0 !important;
   margin: 0 auto;
   border-radius: 12px;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .app-sidebar.collapsed .tab-icon {
-  width: auto;
-  margin: 0;
-  font-size: 18px;
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  line-height: 1;
 }
 
 .app-sidebar.collapsed .sidebar-footer {
@@ -1531,9 +1540,20 @@ select option {
 .app-sidebar.collapsed .sidebar-user-tile {
   width: 44px;
   height: 44px;
+  min-height: 44px;
   justify-content: center;
   align-items: center;
   padding: 0;
+  margin: 0 auto;
+  border: none;
+  background: transparent;
+  display: flex !important;
+}
+
+.app-sidebar.collapsed .sidebar-user-tile .user-avatar-img,
+.app-sidebar.collapsed .sidebar-user-tile .user-avatar-placeholder {
+  width: 32px;
+  height: 32px;
   margin: 0 auto;
 }
 
@@ -1661,13 +1681,6 @@ select option {
   color: #16a34a;
   font-weight: 600;
   display: block;
-}
-
-.app-sidebar.collapsed .sidebar-user-tile {
-  justify-content: center;
-  padding: 6px;
-  border: none;
-  background: transparent;
 }
 
 .app-sidebar.collapsed .sidebar-user-tile .user-info,
