@@ -2334,13 +2334,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
-        elif u.path in ("/icon.svg", "/icon-192.png", "/icon-512.png"):
+        elif u.path in ("/icon.svg", "/favicon.ico", "/icon-192.png", "/icon-512.png"):
             try:
                 body = open("icon.svg", "rb").read()
             except OSError:
                 return self._json({"error": "no icon"}, 404)
             self.send_response(200)
             self.send_header("Content-Type", "image/svg+xml")
+            self.send_header("Cache-Control", "no-cache, max-age=0")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)

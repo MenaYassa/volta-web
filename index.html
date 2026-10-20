@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="shortcut icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
@@ -178,23 +179,29 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 }
 
 .analytics-icon-badge {
-  font-size: 30px;
   width: 52px;
   height: 52px;
-  border-radius: 14px;
-  background: rgba(37,99,235,.1);
-  color: var(--blue);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56,189,248,0.22) 0%, rgba(2,132,199,0.06) 65%, transparent 100%), #0b1329;
+  border: 1px solid rgba(56,189,248,0.38);
+  color: #38bdf8;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(37,99,235,.2);
+  box-shadow: 0 0 20px rgba(56,189,248,0.35), inset 0 0 10px rgba(56,189,248,0.2);
   flex-shrink: 0;
 }
 
+.analytics-icon-badge svg {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 0 5px #38bdf8);
+}
+
 :root[data-theme="dark"] .analytics-icon-badge {
-  background: rgba(59,130,246,.2);
-  border-color: rgba(59,130,246,.3);
-  color: #fff;
+  background: radial-gradient(circle, rgba(56,189,248,0.25) 0%, rgba(2,132,199,0.08) 65%, transparent 100%), #0b1329;
+  border-color: rgba(56,189,248,0.45);
+  box-shadow: 0 0 24px rgba(56,189,248,0.45), inset 0 0 12px rgba(56,189,248,0.25);
 }
 
 .analytics-label {
@@ -2119,7 +2126,12 @@ select option {
 <!-- Analytics Hero Card -->
 <div class="analytics-hero">
   <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-    <div class="analytics-icon-badge">⚡</div>
+    <div class="analytics-icon-badge" title="Volta Telemetry Engine">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+        <line x1="12" y1="2" x2="12" y2="12"></line>
+      </svg>
+    </div>
     <div style="flex:1;min-width:180px">
       <div class="analytics-label">Active Total Load</div>
       <div class="analytics-power" id="aHeroPower">— <span style="font-size:18px;font-weight:600">W</span></div>
