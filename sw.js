@@ -1,5 +1,5 @@
-/* Volta shell cache: updated to v26 with power emblem vertical blade fix */
-const CACHE = "volta-v26";
+/* Volta shell cache: updated to v27 with exact asymmetrical power emblem */
+const CACHE = "volta-v27";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });

@@ -14,8 +14,8 @@
   <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
   <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="#38bdf8" stroke-width="4" stroke-opacity="0.3"/>
   <!-- Glowing Power Emblem -->
-  <!-- Outer Ring with Symmetrical Top Opening -->
-  <path d="M 159.83,160.17 A 136,136 0 1,0 352.17,160.17" fill="none" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
-  <!-- Central Vertical Switch Blade -->
+  <!-- Outer Ring with Top Opening aligned to vertical line -->
+  <path d="M 256,120 A 136,136 0 1,0 352.17,160.17" fill="none" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
+  <!-- Central Vertical Switch Blade aligned to the left of the opening -->
   <line x1="256" y1="76" x2="256" y2="236" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
 </svg>
