@@ -182,27 +182,29 @@ footer{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
 .analytics-icon-badge {
   width: 52px;
   height: 52px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(56,189,248,0.22) 0%, rgba(2,132,199,0.06) 65%, transparent 100%), #0b1329;
-  border: 1px solid rgba(56,189,248,0.38);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0b132b 0%, #0f172a 60%, #1e293b 100%);
+  border: 1px solid rgba(56,189,248,0.3);
   color: #38bdf8;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 20px rgba(56,189,248,0.35), inset 0 0 10px rgba(56,189,248,0.2);
+  box-shadow: 0 4px 16px rgba(11,19,43,0.4), inset 0 0 1px 1px rgba(56,189,248,0.25);
   flex-shrink: 0;
+  padding: 6px;
+  overflow: hidden;
 }
 
 .analytics-icon-badge svg {
-  width: 28px;
-  height: 28px;
-  filter: drop-shadow(0 0 5px #38bdf8);
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 :root[data-theme="dark"] .analytics-icon-badge {
-  background: radial-gradient(circle, rgba(56,189,248,0.25) 0%, rgba(2,132,199,0.08) 65%, transparent 100%), #0b1329;
-  border-color: rgba(56,189,248,0.45);
-  box-shadow: 0 0 24px rgba(56,189,248,0.45), inset 0 0 12px rgba(56,189,248,0.25);
+  background: linear-gradient(135deg, #0b132b 0%, #0f172a 60%, #1e293b 100%);
+  border-color: rgba(56,189,248,0.4);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 0 1px 1px rgba(56,189,248,0.3);
 }
 
 .analytics-label {
@@ -1154,22 +1156,24 @@ select option {
 .sidebar-logo-icon {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(56,189,248,0.22) 0%, rgba(2,132,199,0.06) 65%, transparent 100%), #0b1329;
-  border: 1px solid rgba(56,189,248,0.35);
+  border-radius: 9px;
+  background: linear-gradient(135deg, #0b132b 0%, #0f172a 60%, #1e293b 100%);
+  border: 1px solid rgba(56,189,248,0.3);
   color: #38bdf8;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 16px rgba(56,189,248,0.38), inset 0 0 8px rgba(56,189,248,0.2);
+  box-shadow: 0 4px 14px rgba(11,19,43,0.5), inset 0 0 1px 1px rgba(56,189,248,0.25);
   flex-shrink: 0;
   transition: all .25s ease;
+  overflow: hidden;
+  padding: 4px;
 }
 
 .sidebar-logo-icon svg {
-  width: 20px;
-  height: 20px;
-  filter: drop-shadow(0 0 4px #38bdf8);
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .sidebar-brand-meta {
@@ -2034,6 +2038,21 @@ select option {
 </style>
 </head>
 <body>
+<!-- SVG Definitions for App Logo & Power Emblem -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b132b"/>
+      <stop offset="60%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+</svg>
+
 <!-- Sidebar Overlay for Mobile -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -2043,9 +2062,9 @@ select option {
     <div class="sidebar-brand">
       <div class="sidebar-logo">
         <div class="sidebar-logo-icon" title="Volta Smart Gateway">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-            <line x1="12" y1="2" x2="12" y2="12"></line>
+          <svg viewBox="0 0 512 512" fill="none">
+            <path d="M 256,120 A 136,136 0 1,0 352.17,160.17" stroke="url(#cyanGrad)" stroke-width="40" stroke-linecap="round"/>
+            <line x1="256" y1="76" x2="256" y2="236" stroke="url(#cyanGrad)" stroke-width="40" stroke-linecap="round"/>
           </svg>
         </div>
         <div class="sidebar-brand-meta">
@@ -2204,10 +2223,10 @@ select option {
 <!-- ============ SIGNED-OUT AUTH GATE ============ -->
 <div id="authGateView" style="display:none">
   <div class="auth-gate-card">
-    <div class="auth-gate-icon" style="background:radial-gradient(circle, rgba(56,189,248,0.2) 0%, rgba(2,132,199,0.05) 70%, transparent 100%), #0b1329;border:1px solid rgba(56,189,248,0.35);color:#38bdf8;box-shadow:0 0 20px rgba(56,189,248,0.35);border-radius:50%">
-      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="filter:drop-shadow(0 0 6px #38bdf8)">
-        <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-        <line x1="12" y1="2" x2="12" y2="12"></line>
+    <div class="auth-gate-icon" style="width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg, #0b132b 0%, #0f172a 60%, #1e293b 100%);border:1px solid rgba(56,189,248,0.3);box-shadow:0 6px 24px rgba(11,19,43,0.4), inset 0 0 1px 1px rgba(56,189,248,0.25);padding:8px">
+      <svg viewBox="0 0 512 512" fill="none" width="100%" height="100%">
+        <path d="M 256,120 A 136,136 0 1,0 352.17,160.17" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
+        <line x1="256" y1="76" x2="256" y2="236" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
       </svg>
     </div>
     <div class="auth-gate-title">Welcome to Volta</div>
@@ -2313,9 +2332,9 @@ select option {
 <div class="analytics-hero">
   <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
     <div class="analytics-icon-badge" title="Volta Telemetry Engine">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-        <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-        <line x1="12" y1="2" x2="12" y2="12"></line>
+      <svg viewBox="0 0 512 512" fill="none">
+        <path d="M 256,120 A 136,136 0 1,0 352.17,160.17" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
+        <line x1="256" y1="76" x2="256" y2="236" stroke="url(#cyanGrad)" stroke-width="36" stroke-linecap="round"/>
       </svg>
     </div>
     <div style="flex:1;min-width:180px">

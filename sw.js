@@ -1,5 +1,5 @@
-/* Volta shell cache: updated to v23 with consolidated homes dropdown */
-const CACHE = "volta-v23";
+/* Volta shell cache: updated to v24 with unified app squircle logo emblem */
+const CACHE = "volta-v24";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
