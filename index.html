@@ -1319,12 +1319,43 @@ select option {
 }
 
 .app-sidebar.collapsed .sidebar-brand {
+  position: relative;
   justify-content: center;
-  padding: 12px 8px;
+  padding: 12px 0;
+  height: var(--header-h);
 }
 
 .app-sidebar.collapsed .sidebar-brand .sidebar-logo {
   display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.app-sidebar.collapsed .sidebar-toggle-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px !important;
+  height: 22px !important;
+  background: rgba(15, 23, 42, 0.85) !important;
+  backdrop-filter: blur(4px);
+  border-radius: 6px !important;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+  z-index: 10;
+}
+
+.app-sidebar.collapsed:hover .sidebar-toggle-btn,
+.app-sidebar.collapsed .sidebar-brand:hover .sidebar-toggle-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.app-sidebar.collapsed .sidebar-toggle-btn:hover {
+  transform: translateY(-50%) scale(1.1);
 }
 
 /* Sidebar Plan Card */

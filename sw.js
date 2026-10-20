@@ -1,5 +1,5 @@
-/* Volta shell cache: updated to v27 with exact asymmetrical power emblem */
-const CACHE = "volta-v27";
+/* Volta shell cache: updated to v28 with centered collapsed sidebar logo */
+const CACHE = "volta-v28";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
