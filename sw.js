@@ -1,5 +1,5 @@
-/* Volta shell cache: updated to v24 with unified app squircle logo emblem */
-const CACHE = "volta-v24";
+/* Volta shell cache: updated to v25 with direct svg icon rendering */
+const CACHE = "volta-v25";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
