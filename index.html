@@ -446,31 +446,204 @@ select option {
   background: #131c31;
   color: #e2e8f0;
 }
-#topbarHomeNav {
+/* Consolidated Modern Home Switcher Pill & Dropdown */
+.home-switcher-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.home-switcher-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   background: var(--bg);
   border: 1px solid var(--line);
-}
-#topbarHomeNav select {
-  background: transparent !important;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  transition: all .18s ease;
+  user-select: none;
+  max-width: 220px;
 }
-#topbarHomeNav select option {
+
+.home-switcher-btn:hover {
   background: var(--card);
-  color: var(--ink);
+  border-color: rgba(56,189,248,0.4);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
-:root[data-theme="dark"] #topbarHomeNav select option {
-  background: #131c31;
-  color: #e2e8f0;
+
+.home-switcher-btn .home-badge-icon {
+  font-size: 14px;
+  line-height: 1;
 }
-#topbarHomeNav button#btnManageHomes {
+
+.home-switcher-btn .home-active-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+
+.home-switcher-btn .home-active-count {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(56,189,248,0.15);
+  color: #0284c7;
+}
+
+:root[data-theme="dark"] .home-switcher-btn .home-active-count {
+  background: rgba(56,189,248,0.22);
+  color: #38bdf8;
+}
+
+.home-switcher-btn .home-caret {
+  width: 13px;
+  height: 13px;
+  color: var(--mut);
+  transition: transform .18s ease;
+  flex-shrink: 0;
+}
+
+.home-switcher-wrap.open .home-switcher-btn .home-caret {
+  transform: rotate(180deg);
+}
+
+.home-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
   background: var(--card);
-  color: var(--ink);
   border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.05);
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+  animation: menuFadeIn .14s ease-out;
 }
-:root[data-theme="dark"] #topbarHomeNav button#btnManageHomes {
-  background: #1e293b;
-  color: #e2e8f0;
-  border-color: rgba(255,255,255,.1);
+
+:root[data-theme="dark"] .home-menu-dropdown {
+  background: #111a2e;
+  border-color: rgba(255,255,255,0.1);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+}
+
+.home-switcher-wrap.open .home-menu-dropdown {
+  display: flex;
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.home-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background .12s ease;
+}
+
+.home-menu-item:hover {
+  background: rgba(56,189,248,0.1);
+  color: #0284c7;
+}
+
+:root[data-theme="dark"] .home-menu-item:hover {
+  background: rgba(56,189,248,0.15);
+  color: #38bdf8;
+}
+
+.home-menu-item.active {
+  background: rgba(56,189,248,0.14);
+  color: #0284c7;
+  font-weight: 700;
+}
+
+:root[data-theme="dark"] .home-menu-item.active {
+  background: rgba(56,189,248,0.2);
+  color: #38bdf8;
+}
+
+.home-menu-item .home-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.home-menu-item .home-item-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-menu-item .home-item-count {
+  font-size: 11px;
+  color: var(--mut);
+  background: rgba(0,0,0,0.04);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+:root[data-theme="dark"] .home-menu-item .home-item-count {
+  background: rgba(255,255,255,0.06);
+}
+
+.home-menu-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
+}
+
+:root[data-theme="dark"] .home-menu-divider {
+  background: rgba(255,255,255,0.08);
+}
+
+.home-menu-manage-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mut);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  transition: all .12s ease;
+}
+
+.home-menu-manage-btn:hover {
+  background: rgba(0,0,0,0.03);
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .home-menu-manage-btn:hover {
+  background: rgba(255,255,255,0.04);
+  color: #f1f5f9;
 }
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none} :root:not([data-theme="light"]) input,:root:not([data-theme="light"]) select{background:#0f1830;color:#e2e8f0;border-color:#24314f} :root:not([data-theme="light"]) button.ghost,:root:not([data-theme="light"]) button.danger{background:#0f1830;color:#e2e8f0} :root:not([data-theme="light"]) .ov .stat,:root:not([data-theme="light"]) .strip,:root:not([data-theme="light"]) details.adv{background:#131c31} :root:not([data-theme="light"]) .tag{background:#0f1830;color:#94a3b8} :root:not([data-theme="light"]) .sw{background:#334155} :root:not([data-theme="light"]) .s-stat,:root:not([data-theme="light"]) .outlet-card{background:rgba(255,255,255,.03)} :root:not([data-theme="light"]) .outlet-card.on{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.35)}}
 :root[data-theme="dark"]{--bg:#0b1220;--card:#131c31;--ink:#e2e8f0;--mut:#94a3b8;--line:#24314f;--shadow:none}
@@ -1991,12 +2164,24 @@ select option {
         <div style="font-size:15px;font-weight:700;color:var(--ink)" id="topbarActiveTitle">🎛️ Power &amp; Outlets Control</div>
       </div>
       <div class="topbar-right">
-        <!-- Topbar Homes Switcher Pill -->
-        <div id="topbarHomeNav" style="display:inline-flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:24px;padding:3px 10px;transition:all .2s">
-          <select id="selActiveHome" style="border:none;background:transparent;font-weight:700;font-size:12px;color:var(--ink);cursor:pointer;outline:none;padding-right:2px;max-width:160px;text-overflow:ellipsis">
-            <option value="__all__">🏠 All Homes</option>
-          </select>
-          <button id="btnManageHomes" class="ghost sm" title="Manage Homes" style="font-size:11px;padding:2px 8px;border-radius:14px;border:none;background:var(--card)">⚙️</button>
+        <!-- Consolidated Topbar Homes Switcher Pill -->
+        <div id="topbarHomeNav" class="home-switcher-wrap">
+          <button class="home-switcher-btn" id="btnHomeDropdown" title="Switch active home location" aria-expanded="false" type="button">
+            <span class="home-badge-icon" id="topbarHomeIcon">🏠</span>
+            <span class="home-active-text" id="topbarHomeText">All Homes</span>
+            <span class="home-active-count" id="topbarHomeCount" style="display:none">0</span>
+            <svg class="home-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="home-menu-dropdown" id="homeMenuDropdown">
+            <div id="homeMenuItems" style="display:flex;flex-direction:column;gap:2px"></div>
+            <div class="home-menu-divider"></div>
+            <button class="home-menu-manage-btn" id="btnManageHomesMenu" type="button">
+              <span>⚙️</span>
+              <span>Manage Homes &amp; Properties</span>
+            </button>
+          </div>
         </div>
         <span class="small tag mono" id="liveCount" style="font-size:11px"></span>
       </div>
@@ -3287,7 +3472,7 @@ initSidebar();
 const api=async(p,b,signal)=>{const r=await fetch(p,{method:b?"POST":"GET",headers:{"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined,signal});const j=await r.json();if(!r.ok)throw new Error(j.error||("HTTP "+r.status));return j;};
 const tok=()=>($("token")&&$("token").value||"").trim();
 if($("token"))$("token").value=localStorage.getItem("volta_token")||localStorage.getItem("voltra_token")||"";
-on("token","change",()=>{try{localStorage.setItem("volta_token",$("token").value.trim());}catch{}if($("tokMsg"))$("tokMsg").textContent=$("token").value.trim()?"✓ remembered on this device":"";live();checkSrv();});
+on("token","change",async ()=>{try{localStorage.setItem("volta_token",$("token").value.trim());}catch{}if($("tokMsg"))$("tokMsg").textContent=$("token").value.trim()?"✓ remembered on this device":"";await checkSrv();await loadHomes();await live();});
 function updateAuthGateState(signedIn){
   const gate = $("authGateView");
   const panes = $("appPanesView");
@@ -3327,6 +3512,10 @@ function logoutUser(){
   }catch{}
   if($("tokMsg"))$("tokMsg").textContent="signed out";
   _currentUserIsAdmin = false;
+  _currentUserInfo = null;
+  _userHomes = [];
+  _activeHomeId = "__all__";
+  renderHomeSelector();
   if($("tabUsers"))$("tabUsers").style.display="none";
   if($("tabStrips"))$("tabStrips").style.display="none";
   if($("userHeaderProfile"))$("userHeaderProfile").style.display="none";
@@ -3377,10 +3566,11 @@ async function handleGoogleCredentialResponse(response){
       try{localStorage.setItem("volta_token", res.token);}catch{}
       if(msg) msg.textContent = "✓ Success! Welcome, " + (res.user.name||"User");
       if(gateMsg) gateMsg.textContent = "✓ Success! Welcome, " + (res.user.name||"User");
-      setTimeout(()=>{
+      setTimeout(async ()=>{
         closeAuthModal();
-        checkSrv();
-        live();
+        await checkSrv();
+        await loadHomes();
+        await live();
       }, 600);
     }else{
       if(msg) msg.textContent = "✕ " + (res.error || "Google login failed");
@@ -3455,10 +3645,11 @@ on("btnModalTokLogin","click",()=>{
   if($("token")) $("token").value = val;
   try{localStorage.setItem("volta_token", val);}catch{}
   if(msg) msg.textContent = "✓ Token saved!";
-  setTimeout(()=>{
+  setTimeout(async ()=>{
     closeAuthModal();
-    checkSrv();
-    live();
+    await checkSrv();
+    await loadHomes();
+    await live();
   }, 400);
 });
 const apit=async(p,b,opt)=>{const h={"Content-Type":"application/json"};if(tok())h["X-Token"]=tok();
@@ -3552,6 +3743,7 @@ async function checkSrv(){
         const who=await apit("/api/auth/whoami");
         if(who.authorized){
           _currentUserIsAdmin = Boolean(who.is_admin);
+          _currentUserInfo = who;
           updateAuthGateState(true);
           if($("tabUsers"))$("tabUsers").style.display = who.is_admin ? "block" : "none";
           if($("tabStrips"))$("tabStrips").style.display = who.is_admin ? "block" : "none";
@@ -3710,6 +3902,7 @@ async function checkSrv(){
 }
 
 let _currentUserIsAdmin = false;
+let _currentUserInfo = null;
 let _cachedUsers = {};
 let _userSearchQuery = "";
 let _userPage = 1;
@@ -4805,10 +4998,26 @@ async function resetGuard(typeLabel) {
 
 on("mvgResetBtn", "click", () => resetGuard("Voltage Guard"));
 on("mvgTempResetBtn", "click", () => resetGuard("Temperature Guard"));
-/* ---- Homes & Long-Press Shortcut Modal Logic ---- */
+/* ---- Consolidated Homes & Properties Switcher & Modal Logic ---- */
 let _userHomes = [];
-let _activeHomeId = localStorage.getItem("volta_active_home") || "__all__";
+let _activeHomeId = "__all__";
 let _activeShortcutDevice = null;
+
+function getStoredHomeIdForCurrentUser(){
+  const uid = (_currentUserInfo && (_currentUserInfo.email || _currentUserInfo.token)) || "anon";
+  try {
+    return localStorage.getItem(`volta_home_${uid}`) || "__all__";
+  } catch(e) {
+    return "__all__";
+  }
+}
+
+function setStoredHomeIdForCurrentUser(hid){
+  const uid = (_currentUserInfo && (_currentUserInfo.email || _currentUserInfo.token)) || "anon";
+  try {
+    localStorage.setItem(`volta_home_${uid}`, hid);
+  } catch(e) {}
+}
 
 async function loadHomes(){
   if(!tok()) return;
@@ -4816,6 +5025,14 @@ async function loadHomes(){
     const res = await apit("/api/homes");
     if(res && res.ok){
       _userHomes = res.homes || [];
+      // Restore user-specific active home
+      const stored = getStoredHomeIdForCurrentUser();
+      if(stored !== "__all__" && !_userHomes.some(h => h.id === stored)){
+        _activeHomeId = "__all__";
+        setStoredHomeIdForCurrentUser("__all__");
+      } else {
+        _activeHomeId = stored;
+      }
       renderHomeSelector();
     }
   } catch(e) {
@@ -4824,21 +5041,70 @@ async function loadHomes(){
 }
 
 function renderHomeSelector(){
-  const sel = $("selActiveHome");
-  if(!sel) return;
-  let html = `<option value="__all__">🏠 All Homes</option>`;
+  const topText = $("topbarHomeText");
+  const topCount = $("topbarHomeCount");
+  const topIcon = $("topbarHomeIcon");
+  const menuItems = $("homeMenuItems");
+  if(!topText || !menuItems) return;
+
+  // Find active home object
+  const activeObj = _userHomes.find(h => h.id === _activeHomeId);
+  if(activeObj){
+    topText.textContent = activeObj.name;
+    topIcon.textContent = "🏠";
+    if(topCount){
+      topCount.textContent = String(activeObj.device_count || 0);
+      topCount.style.display = "inline-block";
+    }
+  } else {
+    topText.textContent = "All Homes";
+    topIcon.textContent = "🌐";
+    if(topCount){
+      const totalDevs = _userHomes.reduce((sum, h) => sum + (h.device_count || 0), 0);
+      topCount.textContent = String(totalDevs);
+      topCount.style.display = totalDevs > 0 ? "inline-block" : "none";
+    }
+  }
+
+  // Render items inside dropdown
+  let html = `
+    <button class="home-menu-item ${_activeHomeId === '__all__' ? 'active' : ''}" data-home="__all__" type="button">
+      <div class="home-item-left">
+        <span>🌐</span>
+        <span class="home-item-name">All Homes</span>
+      </div>
+      <span class="home-item-count">${_userHomes.reduce((sum, h) => sum + (h.device_count || 0), 0)} strips</span>
+    </button>
+  `;
+
   for(const h of _userHomes){
-    html += `<option value="${esc(h.id)}" ${h.id === _activeHomeId ? "selected" : ""}>🏠 ${esc(h.name)} (${h.device_count || 0})</option>`;
+    html += `
+      <button class="home-menu-item ${_activeHomeId === h.id ? 'active' : ''}" data-home="${esc(h.id)}" type="button">
+        <div class="home-item-left">
+          <span>🏠</span>
+          <span class="home-item-name">${esc(h.name)}</span>
+        </div>
+        <span class="home-item-count">${h.device_count || 0}</span>
+      </button>
+    `;
   }
-  sel.innerHTML = html;
-  if(sel.value !== _activeHomeId) {
-    sel.value = _activeHomeId;
-  }
+
+  menuItems.innerHTML = html;
+
+  menuItems.querySelectorAll(".home-menu-item").forEach(btn => {
+    btn.onclick = async () => {
+      const targetHomeId = btn.getAttribute("data-home");
+      closeHomeDropdown();
+      if(_activeHomeId === targetHomeId) return;
+      await selectActiveHome(targetHomeId);
+    };
+  });
 }
 
-on("selActiveHome", "change", async (e) => {
-  _activeHomeId = e.target.value;
-  localStorage.setItem("volta_active_home", _activeHomeId);
+async function selectActiveHome(hid){
+  _activeHomeId = hid;
+  setStoredHomeIdForCurrentUser(hid);
+  renderHomeSelector();
   await live();
   if($("pane-analytics") && $("pane-analytics").classList.contains("on")) {
     if(typeof loadAnalytics === "function") await loadAnalytics();
@@ -4850,6 +5116,42 @@ on("selActiveHome", "change", async (e) => {
     }
   }
   if(typeof loadRangeKpis === "function") loadRangeKpis();
+}
+
+function toggleHomeDropdown(){
+  const wrap = $("topbarHomeNav");
+  if(!wrap) return;
+  wrap.classList.toggle("open");
+  const btn = $("btnHomeDropdown");
+  if(btn) btn.setAttribute("aria-expanded", wrap.classList.contains("open"));
+}
+
+function closeHomeDropdown(){
+  const wrap = $("topbarHomeNav");
+  if(wrap && wrap.classList.contains("open")){
+    wrap.classList.remove("open");
+    const btn = $("btnHomeDropdown");
+    if(btn) btn.setAttribute("aria-expanded", "false");
+  }
+}
+
+on("btnHomeDropdown", "click", (e) => {
+  e.stopPropagation();
+  toggleHomeDropdown();
+});
+
+document.addEventListener("click", (e) => {
+  const wrap = $("topbarHomeNav");
+  if(wrap && !wrap.contains(e.target)){
+    closeHomeDropdown();
+  }
+});
+
+on("btnManageHomesMenu", "click", (e) => {
+  e.stopPropagation();
+  closeHomeDropdown();
+  renderManageHomesList();
+  $("modalManageHomes").classList.add("open");
 });
 
 on("btnManageHomes", "click", () => {
@@ -4891,7 +5193,8 @@ function renderManageHomesList(){
         renderManageHomesList();
         if(_activeHomeId === hid) {
           _activeHomeId = "__all__";
-          localStorage.setItem("volta_active_home", "__all__");
+          setStoredHomeIdForCurrentUser("__all__");
+          renderHomeSelector();
         }
         await live();
       } catch(err){

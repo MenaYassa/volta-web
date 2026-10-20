@@ -1,5 +1,5 @@
-/* Volta shell cache: updated to v22 with rebranded cyan power emblem */
-const CACHE = "volta-v22";
+/* Volta shell cache: updated to v23 with consolidated homes dropdown */
+const CACHE = "volta-v23";
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
